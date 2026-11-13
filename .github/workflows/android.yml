@@ -30,12 +30,12 @@ jobs:
           cd build
           npm init -y >/dev/null
           npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 @capacitor-community/background-geolocation@1.2.26 @capacitor/local-notifications@6.1.3 @capacitor/filesystem@6.0.4 @capacitor/share@6.0.4
-          npx cap init "Nav SHOM" fr.navshom.app --web-dir www
+          npx cap init "Balise" fr.navshom.app --web-dir www
           # L'app charge le site en ligne (mises à jour automatiques) ; copie locale si pas de réseau
           cat > capacitor.config.json <<'JSON'
           {
             "appId": "fr.navshom.app",
-            "appName": "Nav SHOM",
+            "appName": "Balise",
             "webDir": "www",
             "server": { "url": "https://wagido.github.io/navshom/", "errorPath": "index.html" }
           }
@@ -50,7 +50,7 @@ jobs:
           # Icône de l'app
           R=android/app/src/main/res
           rm -rf $R/mipmap-anydpi-v26
-          for d in $R/mipmap-*; do cp ../icon-192.png $d/ic_launcher.png; cp ../icon-192.png $d/ic_launcher_round.png; rm -f $d/ic_launcher_foreground.png; done
+          for d in $R/mipmap-*; do cp ../icon-512.png $d/ic_launcher.png; cp ../icon-512.png $d/ic_launcher_round.png; rm -f $d/ic_launcher_foreground.png; done
           # Taille du texte fixe : ignore le réglage "taille de police" d'Android (sinon tout grossit)
           cat > android/app/src/main/java/fr/navshom/app/MainActivity.java <<'JAVA'
           package fr.navshom.app;
@@ -75,18 +75,21 @@ jobs:
           cd build/android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk ../../NavSHOM.apk
+          cp app/build/outputs/apk/debug/app-debug.apk ../../Balise.apk
+          cp ../../Balise.apk ../../NavSHOM.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: NavSHOM-apk
-          path: NavSHOM.apk
+          name: Balise-apk
+          path: Balise.apk
 
       - name: Publier en téléchargement direct
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
-          name: Nav SHOM (Android)
-          body: "Fichier APK à installer sur Android. Ouvrez NavSHOM.apk depuis le téléphone et autorisez l'installation."
-          files: NavSHOM.apk
+          name: Balise (Android)
+          body: "Fichier APK à installer sur Android. Ouvrez Balise.apk depuis le téléphone et autorisez l'installation."
+          files: |
+            Balise.apk
+            NavSHOM.apk
           make_latest: true

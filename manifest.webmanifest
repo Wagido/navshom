@@ -1,13 +1,13 @@
 {
-  "name": "Nav SHOM Bretagne",
-  "short_name": "Nav SHOM",
-  "description": "Cartes marines SHOM, position GPS et courants - Bretagne et îles Anglo-Normandes",
+  "name": "Balise — de la mer aux sommets",
+  "short_name": "Balise",
+  "description": "Cartes marines et IGN, GPS, courants, marées officielles, météo, traces et ski de rando",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0b2a3c",
-  "theme_color": "#0b2a3c",
+  "background_color": "#0B2F5B",
+  "theme_color": "#0B2F5B",
   "lang": "fr",
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},

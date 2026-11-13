@@ -1,10 +1,12 @@
-# Nav SHOM — Note d'architecture
+# Balise — Note d'architecture
 
-> Statut : version 2026.11.13-k · Auteur : équipe Nav SHOM · Dernière mise à jour : 13 novembre 2026
+> Anciennement « Nav SHOM ». Application de Capitaine BoBo.
+
+> Statut : version 2026.11.14 · Auteur : Capitaine BoBo · Dernière mise à jour : 14 novembre 2026
 
 ## 1. Résumé
 
-Nav SHOM est une application de navigation pour téléphone, avec deux modes :
+Balise est une application de navigation pour téléphone, avec deux modes :
 
 - **Mer** : cartes marines SHOM (via la carte littorale IGN-SHOM), position GPS du bateau, courants, marée, vagues, météo marine, mesure de route, homme à la mer.
 - **Rando** : cartes IGN au 1:25 000 sur toute la France, recherche de lieux, enregistrement de traces, profil altimétrique, import et export GPX.
@@ -166,6 +168,15 @@ flowchart LR
 4. AIS (trafic des navires) si une source ouverte convient.
 5. Découpage de `index.html` en modules si l'équipe grandit.
 
-## 12. Licences et attributions
+## 12. Ajouts de la version 2026.11.14
+
+- **Identité « Balise »** : icône (voyant de bouée cardinale = deux sommets), orange balise `#FF7A00`, bleu nuit `#0B2F5B`, vert sapin `#2E7D32` en Rando, page de démarrage.
+- **Alarme de mouillage**, **routes et waypoints** (écart de route, heures d'arrivée), **sauvegarde/restauration** en un fichier JSON.
+- **GPS en arrière-plan** dans l'APK : plugin `@capacitor-community/background-geolocation`, démarré seulement pendant une trace, un mouillage ou une route ; notifications (`@capacitor/local-notifications`), partage de fichiers (`@capacitor/filesystem`, `@capacitor/share`).
+- **Marées officielles** : vignette publique du SHOM (60 ports) dans un cadre isolé (`data:`), le modèle Open-Meteo restant « indicatif ».
+- **Rando** : itinéraires sur sentiers (service d'itinéraire IGN, profil piéton), carte des pentes IGN (`GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN`), neige au sol, chute de neige, iso 0 °C, pente et exposition au point touché.
+- **Panneau Cartes** par mode, avec aperçus.
+
+## 13. Licences et attributions
 
 Cartes © IGN / SHOM, © OpenStreetMap contributors, © OpenSeaMap, © EMODnet Bathymetry ; prévisions Open-Meteo (CC BY 4.0) ; Leaflet (BSD-2) ; police Inter (SIL OFL 1.1) ; masque GLOBE (NOAA, domaine public).

@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Nav SHOM</title>
-<meta name="theme-color" content="#0b2f5b">
+<title>Balise</title>
+<meta name="theme-color" content="#0B2F5B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Nav SHOM">
+<meta name="apple-mobile-web-app-title" content="Balise">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -20,7 +20,7 @@
 /* Carte plein écran ; boutons ronds flottants ; barre d'actions en bas ; panneaux qui montent du bas */
 :root{
   --blue:#0b63b6; --navy:#0b2f5b; --navy2:#14427c; --navy3:#1d5597; --green:#1c9e47; --red:#e5372b;
-  --white:#ffffff; --ink:#0d1b2a; --muted:#5d6e80; --line:#dde4ec; --soft:#f2f5f9; --amber:#ffb020;
+  --white:#ffffff; --ink:#0d1b2a; --muted:#5d6e80; --line:#dde4ec; --soft:#f2f5f9; --amber:#FF7A00; --sapin:#2E7D32;
   --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --mono:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
@@ -66,7 +66,8 @@ body.night{--white:#2a1210;--ink:#ff8a7a;--blue:#ff6a55;--line:#4a2420;--soft:#3
 .bar{position:fixed;z-index:1000;left:50%;transform:translateX(-50%);bottom:calc(var(--sb) + 18px);display:flex;
   background:var(--navy);border-radius:12px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.35)}
 .bar button{border:0;background:transparent;color:#fff;font:600 14px var(--sans);padding:12px 16px;cursor:pointer;min-width:80px}
-.bar button.go{background:var(--green)}
+.bar button.go{background:#FF7A00}
+body.rando .bar button.go{background:var(--sapin)}
 .bar button.on{background:var(--blue)}
 
 /* Panneaux */
@@ -183,8 +184,8 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 .tl input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;-webkit-appearance:none;appearance:none;touch-action:none}
 .tl input[type=range]::-webkit-slider-runnable-track{background:transparent;height:100%}
 .tl input[type=range]::-moz-range-track{background:transparent;height:100%}
-.tl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:58px;border-radius:8px;background:rgba(255,176,32,.25);border:2px solid var(--amber)}
-.tl input[type=range]::-moz-range-thumb{width:22px;height:54px;border-radius:8px;background:rgba(255,176,32,.25);border:2px solid var(--amber)}
+.tl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:58px;border-radius:8px;background:rgba(255,122,0,.25);border:2px solid var(--amber)}
+.tl input[type=range]::-moz-range-thumb{width:22px;height:54px;border-radius:8px;background:rgba(255,122,0,.25);border:2px solid var(--amber)}
 .tlbtns{display:flex;gap:5px;margin-top:5px}
 .tlbtns button{flex:1;padding:6px 0;border-radius:7px;border:0;background:rgba(255,255,255,.1);color:#fff;font:500 12px var(--sans);cursor:pointer}
 
@@ -210,7 +211,7 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 .tbl td.d0,.tbl tr.dayr td.d0{border-left:1px solid rgba(255,255,255,.35)}
 .tbl tr.hh td{color:#9fc0e6;font-size:10px}
 .tbl td.now{box-shadow:inset 0 0 0 9999px rgba(63,209,139,.12)}
-.tbl td.sel{box-shadow:inset 0 0 0 9999px rgba(255,176,32,.28)}
+.tbl td.sel{box-shadow:inset 0 0 0 9999px rgba(255,122,0,.28)}
 .tbl td.night{background:rgba(0,0,0,.18)}
 .tbl svg.wx{width:20px;height:20px;display:block;margin:auto}
 .tbl .wc{border-radius:3px;padding:2px 0;color:#0b1a2a;font-weight:600}
@@ -253,7 +254,7 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
   background:radial-gradient(120% 80% at 50% 20%,#1d5597 0%,#0b2f5b 55%,#061a33 100%);transition:opacity .5s ease;padding:24px}
 #splash.out{opacity:0;pointer-events:none}
 .sp-in{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:420px}
-.sp-logo{width:132px;height:132px;animation:sp-pop .7s ease-out both}
+.sp-logo{width:132px;height:132px;border-radius:30px;box-shadow:0 12px 32px rgba(0,0,0,.45);animation:sp-pop .7s ease-out both}
 .sp-name{margin:8px 0 0;font:700 40px var(--sans);letter-spacing:-.02em;animation:sp-up .6s .15s ease-out both}
 .sp-tag{margin:0;font:500 15px var(--sans);color:#cfe3ff;animation:sp-up .6s .25s ease-out both}
 .sp-author{margin:18px 0 0;font:400 15px var(--sans);color:#e6efff;animation:sp-up .6s .35s ease-out both}
@@ -286,16 +287,10 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
 <body>
 <div id="splash" role="dialog" aria-label="Démarrage">
   <div class="sp-in">
-    <svg class="sp-logo" viewBox="0 0 120 120" aria-hidden="true">
-      <circle cx="60" cy="60" r="56" fill="none" stroke="#ffb020" stroke-width="4"/>
-      <path d="M60 8v14M60 98v14M8 60h14M98 60h14" stroke="#ffb020" stroke-width="4" stroke-linecap="round"/>
-      <path d="M22 84 46 50l10 14 10-12 32 32z" fill="#cfe3ff" opacity=".9"/>
-      <path d="M18 88c8-6 16 6 24 0s16 6 24 0 16 6 24 0 8 2 12 0" stroke="#5ab4ff" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <path d="M60 26 72 70 60 62 48 70z" fill="#e5372b" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
-    </svg>
-    <h1 class="sp-name" id="spName">Nav SHOM</h1>
-    <p class="sp-tag">Mer &amp; montagne · cartes officielles, météo, traces</p>
-    <p class="sp-author">par <b>Bertrand BONNIN</b></p>
+    <svg class="sp-logo" viewBox="0 0 120 120" aria-hidden="true"><rect width="120" height="120" rx="27" fill="#0B2F5B"/><path d="M60 14 84 52H36z" fill="#FF7A00"/><path d="M60 46 90 92H30z" fill="#FF7A00"/><path d="M60 46 69 60 60 56 51 60z" fill="#F7FAFC"/><path d="M16 100c8-6 15 6 22 0s15 6 22 0 15 6 22 0 15 6 22 0" stroke="#5AB4FF" stroke-width="6" fill="none" stroke-linecap="round"/></svg>
+    <h1 class="sp-name" id="spName">Bal<span style="color:#FF7A00">i</span>se</h1>
+    <p class="sp-tag">De la mer aux sommets</p>
+    <p class="sp-author">par <b>Capitaine BoBo</b></p>
     <p class="sp-ver" id="spVer"></p>
     <p class="sp-data">Cartes © IGN · SHOM — Météo : Météo-France, ECMWF via Open-Meteo</p>
     <p class="sp-warn">Aide à la navigation non certifiée : gardez les cartes officielles et la veille.</p>
@@ -401,7 +396,7 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
       <div><b>Hauteur d'eau</b><span id="cvSea">—</span> <small id="cvTrend"></small></div>
     </div>
     <div id="cvWrap"><canvas id="cvGraph"></canvas></div>
-    <div class="cvleg" style="font-size:11px"><span><i style="background:#5ab4ff"></i>Marée (m)</span><span><i style="background:#ffb020"></i>Courant (nd)</span><span><i style="background:#3fd18b"></i>Maintenant</span></div>
+    <div class="cvleg" style="font-size:11px"><span><i style="background:#5ab4ff"></i>Marée (m)</span><span><i style="background:#FF7A00"></i>Courant (nd)</span><span><i style="background:#3fd18b"></i>Maintenant</span></div>
     <p class="note">Faites glisser le doigt sur la courbe pour choisir l'heure : les flèches de la carte suivent. PM = pleine mer, BM = basse mer. Hauteur modélisée par rapport au niveau moyen (et non au zéro des cartes) : pour les hauteurs exactes, utilisez l'annuaire des marées SHOM.</p>
   </div>
 </section>
@@ -504,6 +499,7 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
   <div class="rando-only">
     <h3>Montagne et ski de rando</h3>
     <p class="note">Carte des pentes : panneau Cartes ou bouton Pentes. Calques « Neige au sol », « Chute de neige » et « Iso 0 °C » dans le bouton Météo. Touchez la carte pour l'altitude, la pente et l'exposition d'un point.</p>
+    <div class="btnrow"><label class="pill primary" for="gpxIn" style="text-align:center;cursor:pointer">Importer un fichier GPX</label></div>
     <div class="btnrow"><a class="pill" href="https://meteofrance.com/meteo-montagne" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">Bulletin avalanche (Météo-France)</a></div>
   </div>
   <h3>Navigation</h3>
@@ -1219,7 +1215,7 @@ function drawCurve(){
     g.fillStyle="#cfe3ff"; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(0,2); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
   // maintenant + heure choisie
   g.strokeStyle="#3fd18b"; g.lineWidth=1.5; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(cv.now),14); g.lineTo(X(cv.now),C.bot); g.stroke(); g.setLineDash([]);
-  g.strokeStyle="#ffb020"; g.lineWidth=1.5; g.beginPath(); g.moveTo(X(cv.sel),14); g.lineTo(X(cv.sel),C.bot); g.stroke();
+  g.strokeStyle="#FF7A00"; g.lineWidth=1.5; g.beginPath(); g.moveTo(X(cv.sel),14); g.lineTo(X(cv.sel),C.bot); g.stroke();
   // infos
   const i=cv.sel, cu=d.cur[i], se=d.sea[i], se2=d.sea[i+1]??null, se0=d.sea[i-1]??null;
   $("cvTime").textContent = fmtT(d.time[i]) + (i===cv.now ? " · maintenant" : "");
@@ -1407,13 +1403,13 @@ function drawProfile(canvas, prof, onHover){
   const gr=g.createLinearGradient(0,T,0,B); gr.addColorStop(0,"rgba(158,105,52,.55)"); gr.addColorStop(1,"rgba(120,170,90,.25)"); g.fillStyle=gr; g.fill();
   g.beginPath(); P.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1])); g.strokeStyle="#7a4a1d"; g.lineWidth=1.8; g.stroke();
   if(canvas._hov!=null){ const i=canvas._hov, z=prof.z[i]; if(z!=null){ const x=X(prof.d[i]), y=Y(z);
-    g.strokeStyle="#ffb020"; g.lineWidth=1.5; g.beginPath(); g.moveTo(x,T); g.lineTo(x,B); g.stroke(); g.fillStyle="#ffb020"; g.beginPath(); g.arc(x,y,4,0,7); g.fill();
+    g.strokeStyle="#FF7A00"; g.lineWidth=1.5; g.beginPath(); g.moveTo(x,T); g.lineTo(x,B); g.stroke(); g.fillStyle="#FF7A00"; g.beginPath(); g.arc(x,y,4,0,7); g.fill();
     g.fillStyle="#0d1b2a"; g.font="600 11px Inter,system-ui"; g.textAlign = x>W-90?"right":"left"; g.fillText(Math.round(z)+" m · "+fmtD(prof.d[i]), x+(x>W-90?-6:6), T+12); } }
   if(!canvas._wired){ canvas._wired=true;
     const pick=ev=>{ const r=canvas.getBoundingClientRect(), x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, p=canvas._prof; if(!p) return;
       const tt=p.d[p.d.length-1]||1, d=(x-L0)/(R0-L0)*tt; let bi=0; p.d.forEach((v,i)=>{ if(Math.abs(v-d)<Math.abs(p.d[bi]-d)) bi=i; });
       canvas._hov=bi; drawProfile(canvas,p); const ll=[p.lat[bi],p.lng[bi]];
-      if(!profMk) profMk=L.circleMarker(ll,{radius:7,color:"#fff",weight:3,fillColor:"#ffb020",fillOpacity:1,interactive:false}).addTo(map); else profMk.setLatLng(ll).addTo(map); };
+      if(!profMk) profMk=L.circleMarker(ll,{radius:7,color:"#fff",weight:3,fillColor:"#FF7A00",fillOpacity:1,interactive:false}).addTo(map); else profMk.setLatLng(ll).addTo(map); };
     canvas.addEventListener("pointerdown",e=>{ canvas._down=true; pick(e); }); canvas.addEventListener("pointermove",e=>{ if(canvas._down) pick(e); });
     canvas.addEventListener("pointerup",()=>canvas._down=false); canvas.addEventListener("pointerleave",()=>canvas._down=false); }
   canvas._prof=prof;
@@ -1504,7 +1500,7 @@ function renderTracks(){
 const esc = s => String(s).replace(/[<>&"]/g, c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
 function toGPX(tr){
   const pts=tr.pts.map(p=>`      <trkpt lat="${p[0]}" lon="${p[1]}">${p[2]?`<time>${new Date(p[2]*1000).toISOString()}</time>`:""}</trkpt>`).join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Nav SHOM" xmlns="http://www.topografix.com/GPX/1/1">\n  <trk><name>${esc(tr.name)}</name>\n    <trkseg>\n${pts}\n    </trkseg>\n  </trk>\n</gpx>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Balise" xmlns="http://www.topografix.com/GPX/1/1">\n  <trk><name>${esc(tr.name)}</name>\n    <trkseg>\n${pts}\n    </trkseg>\n  </trk>\n</gpx>\n`;
 }
 async function exportGPX(tr){
   const name=(tr.name||"trace").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w\-]+/g,"_")+".gpx";
@@ -1584,8 +1580,8 @@ function geoStart(){
     if(bgWatch!=null || bgPending) return;
     if(geoWatch!=null){ navigator.geolocation.clearWatch(geoWatch); geoWatch=null; }
     bgPending=true;
-    BGGeo.addWatcher({backgroundTitle:"Nav SHOM suit votre position", backgroundMessage:"Trace, mouillage ou route en cours", requestPermissions:true, stale:false, distanceFilter:3},
-      (loc, err)=>{ if(err){ if(err.code==="NOT_AUTHORIZED") toast("Autorisez la localisation pour Nav SHOM dans les réglages Android", 6000); return; }
+    BGGeo.addWatcher({backgroundTitle:"Balise suit votre position", backgroundMessage:"Trace, mouillage ou route en cours", requestPermissions:true, stale:false, distanceFilter:3},
+      (loc, err)=>{ if(err){ if(err.code==="NOT_AUTHORIZED") toast("Autorisez la localisation pour Balise dans les réglages Android", 6000); return; }
         onPos({coords:{latitude:loc.latitude, longitude:loc.longitude, accuracy:loc.accuracy, altitude:loc.altitude, speed:loc.speed, heading:loc.bearing}, timestamp:loc.time||Date.now()}); })
       .then(id=>{ bgWatch=id; bgPending=false; }).catch(()=>{ bgPending=false; });
   } else {
@@ -1593,7 +1589,7 @@ function geoStart(){
     if(geoWatch==null){ if("geolocation" in navigator) geoWatch=navigator.geolocation.watchPosition(onPos, onErr, {enableHighAccuracy:true, maximumAge:1000, timeout:30000}); else onErr({code:0}); }
   }
   $("bgInfo").textContent = !isNative ? "Disponible dans l'application Android (APK). Dans le navigateur, gardez l'écran allumé."
-    : bgWatch!=null ? "Actif : le suivi continue écran éteint (notification Nav SHOM)." : "Inactif : il démarre seul pendant une trace, un mouillage ou une route.";
+    : bgWatch!=null ? "Actif : le suivi continue écran éteint (notification Balise)." : "Inactif : il démarre seul pendant une trace, un mouillage ou une route.";
 }
 setInterval(geoStart, 2000);
 
@@ -1739,7 +1735,7 @@ async function saveFile(name, text, mime){
 }
 $("bBackup").onclick = () => {
   const data={}; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.startsWith("nav_")) data[k]=localStorage.getItem(k); } }catch(e){}
-  const d=new Date(), name="navshom-sauvegarde-"+d.toISOString().slice(0,10)+".json";
+  const d=new Date(), name="balise-sauvegarde-"+d.toISOString().slice(0,10)+".json";
   saveFile(name, JSON.stringify({app:"navshom", v:1, date:d.toISOString(), version:APP_VERSION, data}), "application/json");
 };
 let pendingRestore=null;
@@ -1749,7 +1745,7 @@ $("restoreIn").onchange = async e => {
     pendingRestore=j; const nt=(()=>{ try{ return JSON.parse(j.data.nav_tracks||"[]").length; }catch(e){ return 0; } })(), nr=(()=>{ try{ return JSON.parse(j.data.nav_routes||"[]").length; }catch(e){ return 0; } })();
     $("restoreMsg").textContent="Sauvegarde du "+new Date(j.date).toLocaleString("fr-FR",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})+" : "+nt+" trace(s), "+nr+" route(s). Elle remplacera vos données actuelles.";
     $("restoreBox").hidden=false;
-  }catch(err){ toast("Ce fichier n'est pas une sauvegarde Nav SHOM"); }
+  }catch(err){ toast("Ce fichier n'est pas une sauvegarde Balise"); }
 };
 $("restoreNo").onclick = () => { pendingRestore=null; $("restoreBox").hidden=true; };
 $("restoreYes").onclick = () => { if(!pendingRestore) return;
@@ -1878,8 +1874,8 @@ $("bCache").onclick = async () => {
   await Promise.all([worker(),worker(),worker(),worker()]);
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
-const APP_NAME="Nav SHOM", APP_AUTHOR="Bertrand BONNIN";
-const APP_VERSION="2026.11.13-m"; $("spName").textContent=APP_NAME; $("spVer").textContent="Version "+APP_VERSION;
+const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
+const APP_VERSION="2026.11.14"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
