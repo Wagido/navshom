@@ -944,7 +944,7 @@ function setOverlay(type){
   document.querySelectorAll("#tChips button[data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t===type));
   $("tAnim").hidden = !(type && OVT[type].anim); $("tAnim").classList.toggle("on", ov.anim);
   $("tModel").disabled = !type || OVT[type].api!=="fc";
-  $("tbar").hidden=!type; document.documentElement.style.setProperty("--tl", type ? ($("tbar").offsetHeight+8)+"px" : "0px"); requestAnimationFrame(crowdCheck);
+  $("tbar").hidden=!type; document.documentElement.style.setProperty("--tl", type ? ($("tbar").offsetHeight+8)+"px" : "0px"); setTimeout(crowdCheck,260);
   if(type) renderTable();
   if(type){ if(measuring) stopMeasure(); ov.layer.addTo(map); loadOverlay();
     const ch=document.querySelector(`#tChips button[data-t="${type}"]`); if(ch) ch.scrollIntoView({inline:"center",block:"nearest"}); }
@@ -965,7 +965,7 @@ function crowdCheck(){ // panneau haut : on masque les colonnes de boutons du ba
   document.body.classList.remove("crowded");
   const tr=$("colTR").getBoundingClientRect(), br=$("colBR").getBoundingClientRect(), tl=$("colTL").getBoundingClientRect(), bl=$("colBL").getBoundingClientRect();
   if((br.height && br.top < tr.bottom+8) || (bl.height && bl.top < tl.bottom+8)) document.body.classList.add("crowded"); }
-const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); requestAnimationFrame(crowdCheck); };
+const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); };
 $("tTblBtn").onclick=()=>{ tbl.open=!tbl.open; store.set("tblOpen",tbl.open); if(tbl.open) loadTable(); renderTable(); if(!tbl.open) drawTimeline(); };
 async function loadTable(force){
   const ll=last?last.ll:map.getCenter();
@@ -1032,7 +1032,7 @@ $("tSlider").oninput = e => { ov.idx=+e.target.value; drawOverlay(); };
 $("tm3").onclick=()=>setHour(ov.idx-3); $("tm1").onclick=()=>setHour(ov.idx-1); $("tp1").onclick=()=>setHour(ov.idx+1); $("tp3").onclick=()=>setHour(ov.idx+3); $("tnow").onclick=()=>setHour(ov.now);
 let ovTimer; map.on("movestart", stopParticles);
 map.on("moveend", () => { if(!ov.type) return; clearTimeout(ovTimer); ovTimer=setTimeout(()=>{ loadOverlay(ov.idx); if(tbl.open && !last) loadTable(); },600); });
-window.addEventListener("resize", () => { requestAnimationFrame(crowdCheck); if(ov.type){ document.documentElement.style.setProperty("--tl",($("tbar").offsetHeight+8)+"px"); drawTimeline(); } if(!$("sCurve").hidden) drawCurve(); });
+window.addEventListener("resize", () => { setTimeout(crowdCheck,260); if(ov.type){ document.documentElement.style.setProperty("--tl",($("tbar").offsetHeight+8)+"px"); drawTimeline(); } if(!$("sCurve").hidden) drawCurve(); });
 
 /* ---- Particules animées (vent, courant) ---- */
 const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
