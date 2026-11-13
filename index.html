@@ -102,16 +102,21 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 .wplist button{border:0;background:none;color:var(--blue);font:600 13px var(--sans);cursor:pointer;padding:4px}
 
 /* Mesure : carte compacte */
-#measure{position:fixed;z-index:1050;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);bottom:calc(var(--sb) + 80px);
-  max-width:460px;margin:0 auto;background:var(--white);border-radius:14px;box-shadow:0 3px 12px rgba(0,0,0,.3);padding:10px 12px}
-#measure .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-#measure .tot{font:600 24px var(--mono);color:var(--ink)}
-#measure .sub{font:600 13px var(--mono);color:var(--muted)}
-#measure .hint{font-size:13px;color:var(--muted);margin-top:2px}
-#measure .ctl{display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap}
-#measure .ctl button{flex:1;padding:9px 4px;border-radius:9px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 13px var(--sans);cursor:pointer}
-#measure .ctl label{font:600 12px var(--sans);color:var(--muted);display:flex;align-items:center;gap:4px;white-space:nowrap}
-#measure .ctl input{width:52px;padding:7px 4px;border-radius:8px;border:1px solid var(--line);font:600 14px var(--mono);text-align:center;background:var(--white);color:var(--ink)}
+#measure{position:fixed;z-index:1050;left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 76px);
+  max-width:440px;margin:0 auto;background:var(--white);border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.22);padding:10px 12px 10px}
+#measure .m-top{display:flex;justify-content:space-between;align-items:center}
+#measure .tot{font:700 26px var(--sans);letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}
+#measure .sub{font:500 13px var(--sans);color:var(--muted);margin-top:-2px}
+#measure .hint{font:400 12px var(--sans);color:var(--muted);margin-top:4px}
+#measure .m-x{width:30px;height:30px;border-radius:50%;border:0;background:var(--soft);color:var(--muted);font-size:15px;cursor:pointer}
+#measure .prof.sm{height:72px;margin-top:6px}
+#measure .m-bar{display:flex;align-items:center;gap:5px;margin-top:8px;min-width:0}
+#measure .m-ic{width:34px;height:34px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--white);color:var(--blue);display:grid;place-items:center;cursor:pointer;padding:0}
+#measure .m-ic svg{width:17px;height:17px}
+#measure .m-chip{display:flex;align-items:center;gap:4px;height:34px;padding:0 7px;flex:none;border:1px solid var(--line);border-radius:17px;font:500 12px var(--sans);color:var(--muted);white-space:nowrap}
+#measure .m-chip input[type=checkbox]{width:14px;height:14px;margin:0;accent-color:var(--blue)}
+#measure .m-spd input{width:34px;border:0;background:transparent;font:600 13px var(--sans);color:var(--ink);text-align:right;padding:0}
+#measure .m-save{margin-left:auto;height:34px;border:0;border-radius:17px;padding:0 12px;background:var(--blue);color:#fff;font:600 12px var(--sans);white-space:nowrap;cursor:pointer}
 .mlabel{background:var(--navy);color:#fff;border:0;border-radius:6px;font:600 11px var(--mono);padding:2px 6px;box-shadow:none}
 .mlabel::before{display:none}
 
@@ -256,7 +261,6 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
 #navcard .nc2{font:500 12px var(--sans);color:#cfe3ff}
 #navcard .ncb{display:flex;gap:6px;margin-top:4px} #navcard .ncb button{flex:1;border:0;border-radius:7px;padding:6px 0;background:rgba(255,255,255,.12);color:#fff;font:600 12px var(--sans)}
 .tideoff{background:var(--navy2);border-radius:10px;padding:10px;margin-bottom:10px}
-#measure .ctl button#mSaveRoute{background:#e8f5e9;color:#1b5e20;border-color:#c8e6c9}
 #splash{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;
   background:radial-gradient(120% 80% at 50% 20%,#1d5597 0%,#0b2f5b 55%,#061a33 100%);transition:opacity .5s ease;padding:24px}
 #splash.out{opacity:0;pointer-events:none}
@@ -328,6 +332,9 @@ body:has(#runHud:not([hidden])) #chip{display:none}
 .rtbtn{display:flex;gap:6px} .rtbtn button{border:1px solid var(--line);background:var(--white);color:var(--blue);border-radius:8px;padding:6px 9px;font:600 12px var(--sans);cursor:pointer}
 #pickBar{position:fixed;z-index:1300;left:50%;transform:translateX(-50%);top:calc(var(--st) + 70px);background:#FF7A00;color:#fff;border-radius:12px;padding:10px 14px;font:600 14px var(--sans);display:flex;gap:10px;align-items:center;box-shadow:0 3px 12px rgba(0,0,0,.35)}
 #pickBar button{border:0;border-radius:8px;background:rgba(255,255,255,.25);color:#fff;font:600 13px var(--sans);padding:5px 9px}
+body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measuring #bSat, body.measuring #bSlope, body.measuring #chip{display:none!important}
+.fab{width:44px;height:44px;box-shadow:0 1px 5px rgba(0,0,0,.22)} .fab svg{width:21px;height:21px}
+.fab small{font-weight:600;font-size:9.5px;bottom:-14px;background:rgba(255,255,255,.85)}
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -394,15 +401,17 @@ body:has(#runHud:not([hidden])) #chip{display:none}
 
 <!-- Mesure -->
 <div id="measure" hidden>
-  <div class="row1"><span class="tot" id="mTot">0,00 M</span><span class="sub" id="mEta">—</span></div>
-  <div class="hint" id="mHint">Touchez la carte pour poser les points de la route.</div>
-  <label class="rando-only" style="display:flex;align-items:center;gap:8px;font:500 13px var(--sans);color:var(--muted);margin-top:4px"><input type="checkbox" id="mTrail" checked style="width:18px;height:18px;accent-color:var(--blue)">Suivre les sentiers (itinéraire IGN)</label>
+  <div class="m-top"><span class="tot" id="mTot">0,00 M</span><button class="m-x" id="mDone" aria-label="Terminer la mesure">✕</button></div>
+  <div class="sub" id="mEta">—</div>
   <div id="mProfWrap" class="prof sm" hidden><canvas id="mProf"></canvas></div>
-  <div class="ctl">
-    <button id="mBoat">Depuis bateau</button><button id="mUndo">Annuler</button><button id="mClear">Effacer</button>
-    <label for="mSpeed">Vitesse<input id="mSpeed" type="number" inputmode="decimal" min="0.5" max="40" step="0.5" value="5"><span id="mUnit">nd</span></label>
-    <button id="mSaveRoute">Créer la route</button>
-    <button id="mDone" style="background:var(--blue);color:#fff;border:0">OK</button>
+  <div class="hint" id="mHint">Touchez la carte pour poser les points de la route.</div>
+  <div class="m-bar">
+    <button class="m-ic" id="mUndo" aria-label="Retirer le dernier point" title="Annuler"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+    <button class="m-ic" id="mClear" aria-label="Tout effacer" title="Effacer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+    <button class="m-ic" id="mBoat" aria-label="Partir de ma position" title="Depuis ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></button>
+    <label class="m-chip rando-only" title="Suivre les sentiers"><input type="checkbox" id="mTrail" checked>Sentiers</label>
+    <label class="m-chip m-spd" for="mSpeed"><input id="mSpeed" type="number" inputmode="decimal" min="0.5" max="40" step="0.5" value="5"><span id="mUnit">nd</span></label>
+    <button class="m-save" id="mSaveRoute" aria-label="Créer la route">＋ Route</button>
   </div>
 </div>
 
@@ -854,9 +863,9 @@ drawMob();
 /* ================= Mesure de distance ================= */
 let measuring=false, mPts=[]; const mLayer=L.layerGroup();
 $("mSpeed").value = store.get("mspeed_"+MODE, MODE==="rando"?4:5);
-function startMeasure(){ setOverlay(null); closeSheets(); measuring=true; mLayer.addTo(map); $("measure").hidden=false; $("bMeasure").classList.add("on"); drawMeasure();
+function startMeasure(){ setOverlay(null); closeSheets(); measuring=true; document.body.classList.add("measuring"); mLayer.addTo(map); $("measure").hidden=false; $("bMeasure").classList.add("on"); drawMeasure();
   document.documentElement.style.setProperty("--tl", ($("measure").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); }
-function stopMeasure(){ measuring=false; $("measure").hidden=true; document.documentElement.style.setProperty("--tl","0px"); setTimeout(crowdCheck,260); $("bMeasure").classList.remove("on"); mPts=[]; mLayer.clearLayers(); map.removeLayer(mLayer); }
+function stopMeasure(){ measuring=false; document.body.classList.remove("measuring"); $("measure").hidden=true; document.documentElement.style.setProperty("--tl","0px"); setTimeout(crowdCheck,260); $("bMeasure").classList.remove("on"); mPts=[]; mLayer.clearLayers(); map.removeLayer(mLayer); }
 function addMeasure(ll){ mPts.push(ll); drawMeasure(); }
 function drawMeasure(){
   mLayer.clearLayers(); let tot=0;
@@ -868,11 +877,10 @@ function drawMeasure(){
         .bindTooltip(fmtD(d)+" · "+pad3(bearing(mPts[i-1],p))+"°",{permanent:true,direction:"center",className:"mlabel"}); }
   });
   const sp=parseFloat(String($("mSpeed").value).replace(",","."))||(R()?4:5);
-  $("mTot").textContent = fmtD(tot); $("mUnit").textContent = R()?"km/h":"nd"; $("mBoat").textContent = R()?"Depuis moi":"Depuis bateau";
+  $("mTot").textContent = fmtD(tot); $("mUnit").textContent = R()?"km/h":"nd"; 
   $("mEta").textContent = mPts.length>1 ? (R() ? "≈ "+fmtDur(tot/1000/sp)+" (sans dénivelé)" : fmtDur(tot/NM/sp)+" à "+sp+" nd") : "—";
   if(R()){ clearTimeout(mProfT); if(mPts.length>1) mProfT=setTimeout(measureProfile,500); else $("mProfWrap").hidden=true; } else $("mProfWrap").hidden=true;
-  $("mHint").textContent = mPts.length===0 ? "Touchez la carte pour poser les points de la route." :
-    mPts.length===1 ? "Touchez un deuxième point." : (mPts.length-1)+" segment"+(mPts.length>2?"s":"")+" · touchez pour prolonger";
+  $("mHint").textContent = mPts.length===0 ? "Touchez la carte pour poser le départ." : mPts.length===1 ? "Touchez la carte pour le point suivant." : "Touchez pour prolonger · "+(mPts.length-1)+" segment"+(mPts.length>2?"s":"");
 }
 $("bMeasure").onclick = () => measuring ? stopMeasure() : startMeasure();
 $("mDone").onclick = stopMeasure;
@@ -1856,7 +1864,8 @@ function segGeom(a,b){ // géométrie d'un segment : suit les chemins si possibl
   segCache.set(k,{pending:true});
   getJSON(`https://data.geopf.fr/navigation/itineraire?resource=bdtopo-osrm&start=${a.lng.toFixed(6)},${a.lat.toFixed(6)}&end=${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=pedestrian&optimization=shortest&geometryFormat=geojson&getSteps=false`)
     .then(j=>{ const co=(j.geometry&&j.geometry.coordinates)||[]; if(co.length<2) throw 0;
-      segCache.set(k,{coords:[[a.lat,a.lng],...co.map(c=>[c[1],c[0]]),[b.lat,b.lng]], dist:j.distance}); if(measuring) drawMeasure(); })
+      const cc=[[a.lat,a.lng],...co.map(c=>[c[1],c[0]]),[b.lat,b.lng]]; let dd=0; for(let i=1;i<cc.length;i++) dd+=map.distance(cc[i-1],cc[i]);
+      segCache.set(k,{coords:cc, dist:dd}); if(measuring) drawMeasure(); })
     .catch(()=>{ segCache.set(k,{coords:[[a.lat,a.lng],[b.lat,b.lng]], dist:map.distance(a,b), straight:true});
       if(!trailWarned){ trailWarned=true; toast("Pas de chemin trouvé sur un segment : tracé en ligne droite"); } if(measuring) drawMeasure(); });
   return null;
@@ -2239,7 +2248,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-p"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
