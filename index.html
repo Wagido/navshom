@@ -783,6 +783,23 @@ function ramp(t){ if(t._ramp) return t._ramp; const r=t.scale.map(([v,c])=>[v,rg
   r.forEach((e,j)=>{ if(!e[1]){ const nb=(r[j+1]&&r[j+1][1])||(r[j-1]&&r[j-1][1])||[255,255,255,0]; e[1]=[nb[0],nb[1],nb[2],0]; } }); return t._ramp=r; }
 function colorAt(t,v){ const r=ramp(t); if(v<=r[0][0]) return r[0][1];
   for(let j=1;j<r.length;j++){ if(v<=r[j][0]){ const [s0,c0]=r[j-1],[s1,c1]=r[j], f=(v-s0)/(s1-s0); return c0.map((x,q)=>x+(c1[q]-x)*f); } } return r[r.length-1][1]; }
+/* ---- Masque terre / mer (données GLOBE, ~1 km) : courant, vagues et houle s'arrêtent à la côte ---- */
+const MASK={N:50.05,S:46.80,W:-6.00,E:-1.00,w:0,h:0,d:null};
+(function(){ const im=new Image(); im.onload=()=>{ const c=document.createElement("canvas"); c.width=im.width; c.height=im.height; const g=c.getContext("2d"); g.drawImage(im,0,0);
+  const px=g.getImageData(0,0,c.width,c.height).data, d=new Uint8Array(c.width*c.height); for(let i=0;i<d.length;i++) d[i]=px[i*4]>127?1:0;
+  MASK.w=c.width; MASK.h=c.height; MASK.d=d; if(ov.data) drawOverlay(); }; im.src="lib/landmask.png"; })();
+function landFrac(lat,lng){ if(!MASK.d) return 0; const fx=(lng-MASK.W)/(MASK.E-MASK.W)*MASK.w-.5, fy=(MASK.N-lat)/(MASK.N-MASK.S)*MASK.h-.5;
+  if(fx<0||fy<0||fx>=MASK.w-1||fy>=MASK.h-1) return 0; const x0=fx|0,y0=fy|0,dx=fx-x0,dy=fy-y0,D=MASK.d,w=MASK.w,i=y0*w+x0;
+  return D[i]*(1-dx)*(1-dy)+D[i+1]*dx*(1-dy)+D[i+w]*(1-dx)*dy+D[i+w+1]*dx*dy; }
+// masque en coordonnées écran (1 valeur tous les "step" px), recalculé à chaque dessin
+let scrLand=null;
+function buildScreenLand(sz, step){
+  const w=Math.ceil(sz.x/step)+1, h=Math.ceil(sz.y/step)+1, a=new Float32Array(w*h);
+  const lngs=[], lats=[]; for(let x=0;x<w;x++) lngs.push(map.containerPointToLatLng([x*step,0]).lng); for(let y=0;y<h;y++) lats.push(map.containerPointToLatLng([0,y*step]).lat);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++) a[y*w+x]=landFrac(lats[y],lngs[x]);
+  return {step,w,h,a};
+}
+const isLandXY=(x,y)=>{ if(!scrLand) return false; const i=Math.round(y/scrLand.step)*scrLand.w+Math.round(x/scrLand.step); return scrLand.a[i]>0.5; };
 const fieldPane=map.createPane("fieldPane"); fieldPane.style.zIndex=350; fieldPane.style.pointerEvents="none";
 const fcv=document.createElement("canvas"); fcv.id="field"; fieldPane.appendChild(fcv); const off=document.createElement("canvas");
 function drawField(){
@@ -791,10 +808,12 @@ function drawField(){
   L.DomUtil.setPosition(fcv, map.containerPointToLayerPoint([0,0]));
   const g=fcv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,sz.x,sz.y);
   if(!ov.type||!ov.data||ov.rows<2) return;
-  const f=buildGrid(), t=f.t, step=5, w=Math.ceil(sz.x/step)+1, h=Math.ceil(sz.y/step)+1;
+  const f=buildGrid(), t=f.t, step=5, w=Math.ceil(sz.x/step)+1, h=Math.ceil(sz.y/step)+1, sea=t.api==="mar";
+  scrLand = sea ? buildScreenLand(sz, step) : null;
   off.width=w; off.height=h; const og=off.getContext("2d"), img=og.createImageData(w,h), D=img.data, alpha=t.vec?0.5:0.55;
-  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const v=sampleS(f,x*step,y*step), o=(y*w+x)*4; if(v==null) continue;
-    const c=colorAt(t,v); D[o]=c[0]; D[o+1]=c[1]; D[o+2]=c[2]; D[o+3]=c[3]*alpha; }
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let m=1; if(sea){ const lf=scrLand.a[y*w+x]; if(lf>=0.7) continue; m=lf<=0.3?1:(0.7-lf)/0.4; }
+    const v=sampleS(f,x*step,y*step), o=(y*w+x)*4; if(v==null) continue;
+    const c=colorAt(t,v); D[o]=c[0]; D[o+1]=c[1]; D[o+2]=c[2]; D[o+3]=c[3]*alpha*m; }
   og.putImageData(img,0,0); g.imageSmoothingEnabled=true; g.imageSmoothingQuality="high"; g.drawImage(off,0,0,w*step,h*step);
   if(ov.nums) drawNumbers(g, f, sz);
 }
@@ -806,6 +825,7 @@ function drawNumbers(g, f, sz){
   const ui=[[0,0,64,64],[sz.x-64,0,sz.x,150],[0,sz.y-260,70,sz.y],[sz.x-70,sz.y-260,sz.x,sz.y]]; // évite les boutons
   for(let y=gap/2-oy+gap; y<sz.y-20; y+=gap) for(let x=gap/2-ox; x<sz.x-10; x+=gap){
     if(x<12||y<70) continue; if(ui.some(([a,b,c,d])=>x>a&&x<c&&y>b&&y<d)) continue;
+    if(t.api==="mar" && isLandXY(x,y)) continue;
     const v=sampleS(f,x,y); if(v==null) continue;
     const txt = t.dec ? v.toFixed(t.dec) : String(Math.round(v));
     g.fillStyle="#fff"; g.fillText(txt,x,y);
@@ -827,9 +847,9 @@ let pick=null;
 function showPicker(ll){ pick=ll; updatePicker(); }
 function updatePicker(){
   if(!pick||!ov.data){ map.closePopup(); return; }
-  const f=buildGrid(), pt=map.latLngToContainerPoint(pick), t=f.t, v=sampleS(f,pt.x,pt.y);
+  const f=buildGrid(), pt=map.latLngToContainerPoint(pick), t=f.t, onLand=t.api==="mar" && landFrac(pick.lat,pick.lng)>0.5, v=onLand?null:sampleS(f,pt.x,pt.y);
   const el=document.createElement("div"); el.className="pickc";
-  if(v==null){ el.innerHTML="<b>—</b><small>terre ou hors données</small>"; }
+  if(v==null){ el.innerHTML = onLand ? "<b>Terre</b><small>pas de "+t.name.toLowerCase()+" ici</small>" : "<b>—</b><small>hors données</small>"; }
   else { let extra=""; if(t.vec){ const s=sample(f,pt.x,pt.y); if(s){ const to=(Math.atan2(s[0],-s[1])*180/Math.PI+360)%360, from=(to+180)%360;
       extra = ov.type==="cur" ? "porte au "+pad3(to)+"°" : "du "+pad3(from)+"° "+compass(from); } }
     el.innerHTML=`<b>${v.toFixed(t.dec)} <span>${t.unit}</span></b><small>${extra}</small>`; }
@@ -853,7 +873,7 @@ function startParticles(){
     g.globalCompositeOperation="source-over"; g.lineWidth=1.3; g.lineCap="round";
     for(const p of parts){
       const s=sample(field,p.x,p.y);
-      if(!s || p.age>110 || p.x<0||p.y<0||p.x>sz.x||p.y>sz.y){ Object.assign(p, spawn(), {age:0}); continue; }
+      if(!s || p.age>110 || p.x<0||p.y<0||p.x>sz.x||p.y>sz.y || (scrLand && isLandXY(p.x,p.y))){ Object.assign(p, spawn(), {age:0}); continue; }
       const nx=p.x+s[0]*k, ny=p.y+s[1]*k;
       g.strokeStyle="#fff"; g.globalAlpha=Math.min(.95,.35+s[2]*(ov.type==="cur"?.35:.03));
       g.beginPath(); g.moveTo(p.x,p.y); g.lineTo(nx,ny); g.stroke(); p.x=nx; p.y=ny; p.age++;
@@ -1072,7 +1092,7 @@ $("bCache").onclick = async () => {
   await Promise.all([worker(),worker(),worker(),worker()]);
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
-const APP_VERSION="2026.11.13-d"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
+const APP_VERSION="2026.11.13-e"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
