@@ -157,13 +157,15 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 #cmpWrap{position:relative;height:170px} #cmpWrap canvas{position:absolute;inset:0;width:100%;height:100%}
 /* Courbe courant + marée */
 #sCurve .note{color:#9fc0e6}
-#cvInfo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-#cvInfo div{background:var(--navy2);border-radius:10px;padding:8px 10px}
-#cvInfo b{display:block;font:700 10px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:#9fc0e6}
-#cvInfo span{font:600 18px var(--mono);font-variant-numeric:tabular-nums}
-#cvInfo small{font:600 12px var(--mono);color:#cfe3ff}
-#cvTime{font:600 16px var(--mono);color:var(--amber);margin:0 0 6px}
-#cvWrap{position:relative;height:210px;touch-action:none;cursor:crosshair}
+#cvInfo{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+#cvInfo div{background:var(--navy2);border-radius:8px;padding:6px 9px}
+#cvInfo b{display:block;font:600 9px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:#9fc0e6}
+#cvInfo span{font:600 15px var(--mono);font-variant-numeric:tabular-nums}
+#cvInfo small{font:500 11px var(--mono);color:#cfe3ff}
+#cvTime{font:600 13px var(--mono);color:var(--amber);margin:0 0 6px}
+#sCurve h2{font-size:15px;font-weight:600}
+#sCurve .note{font-size:11px}
+#cvWrap{position:relative;height:230px;touch-action:none;cursor:crosshair}
 #cvWrap canvas{position:absolute;inset:0;width:100%;height:100%}
 .cvleg{display:flex;gap:14px;flex-wrap:wrap;font:600 12px var(--sans);color:#cfe3ff;margin-top:6px}
 .cvleg i{display:inline-block;width:14px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
@@ -318,7 +320,7 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
       <div><b>Hauteur d'eau</b><span id="cvSea">—</span> <small id="cvTrend"></small></div>
     </div>
     <div id="cvWrap"><canvas id="cvGraph"></canvas></div>
-    <div class="cvleg"><span><i style="background:#ffb74d"></i>Courant (nd)</span><span><i style="background:#5ab4ff"></i>Hauteur d'eau (m)</span><span><i style="background:#3fd18b"></i>Maintenant</span></div>
+    <div class="cvleg" style="font-size:11px"><span><i style="background:#5ab4ff"></i>Marée (m)</span><span><i style="background:#ffb020"></i>Courant (nd)</span><span><i style="background:#3fd18b"></i>Maintenant</span></div>
     <p class="note">Faites glisser le doigt sur la courbe pour choisir l'heure : les flèches de la carte suivent. PM = pleine mer, BM = basse mer. Hauteur modélisée par rapport au niveau moyen (et non au zéro des cartes) : pour les hauteurs exactes, utilisez l'annuaire des marées SHOM.</p>
   </div>
 </section>
@@ -974,42 +976,55 @@ function extrema(a){ const out=[]; for(let i=1;i<a.length-1;i++){ if(a[i]==null|
   if(a[i]>=a[i-1]&&a[i]>a[i+1]) out.push({i,hi:true}); else if(a[i]<=a[i-1]&&a[i]<a[i+1]) out.push({i,hi:false}); } return out; }
 // interpolation parabolique de l'heure exacte de PM/BM
 function refine(a,i){ const y0=a[i-1],y1=a[i],y2=a[i+1], den=y0-2*y1+y2; if(!den) return {dt:0,v:y1}; const dt=.5*(y0-y2)/den; return {dt, v:y1-.25*(y0-y2)*dt}; }
+const CVPAD={l:34,r:38};
+// tracé lissé (courbe passant par les points)
+function smoothPath(g, P){ if(!P.length) return; g.moveTo(P[0][0],P[0][1]);
+  for(let i=0;i<P.length-1;i++){ const p0=P[i-1]||P[i], p1=P[i], p2=P[i+1], p3=P[i+2]||p2;
+    g.bezierCurveTo(p1[0]+(p2[0]-p0[0])/6, p1[1]+(p2[1]-p0[1])/6, p2[0]-(p3[0]-p1[0])/6, p2[1]-(p3[1]-p1[1])/6, p2[0], p2[1]); } }
 function drawCurve(){
   const d=cv.data; if(!d) return;
   const c=$("cvGraph"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W) return;
   c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
-  const n=d.time.length, padL=30, padR=34, top=26, bot=H-18, X=i=>padL+i*(W-padL-padR)/(n-1);
-  const cmax=Math.max(1,...d.cur.filter(v=>v!=null)), Yc=v=>bot-v/cmax*(bot-top);
-  const sv=d.sea.filter(v=>v!=null), hasSea=sv.length>0, smin=hasSea?Math.min(...sv):0, smax=hasSea?Math.max(...sv):1, Ys=v=>bot-(v-smin)/((smax-smin)||1)*(bot-top);
-  g.font="500 10px Inter,system-ui,sans-serif";
-  // nuit, jours, heures
-  d.time.forEach((t,i)=>{ const dt=new Date(t), hr=dt.getHours(), w=(W-padL-padR)/(n-1);
-    if(hr>=21||hr<7){ g.fillStyle="rgba(0,0,0,.28)"; g.fillRect(X(i)-w/2,top-6,w+.5,bot-top+6); }
-    if(hr===0){ g.strokeStyle="rgba(255,255,255,.4)"; g.lineWidth=1; g.beginPath(); g.moveTo(X(i),top-6); g.lineTo(X(i),bot); g.stroke();
-      g.fillStyle="#fff"; g.textAlign="left"; g.fillText(dt.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}),X(i)+3,top-10); }
-    if(hr%3===0){ g.fillStyle="#9fc0e6"; g.textAlign="center"; g.fillText(String(hr).padStart(2,"0")+"h",X(i),H-4); } });
-  // axes
-  g.fillStyle="#ffb74d"; g.textAlign="right"; g.fillText(cmax.toFixed(1),padL-4,top+4); g.fillText("0",padL-4,bot); g.fillText("nd",padL-4,top+16);
-  if(hasSea){ g.fillStyle="#5ab4ff"; g.textAlign="left"; g.fillText((smax>=0?"+":"")+smax.toFixed(1),W-padR+4,top+4); g.fillText((smin>=0?"+":"")+smin.toFixed(1),W-padR+4,bot); g.fillText("m",W-padR+4,top+16); }
-  // courant (aire)
-  g.beginPath(); g.moveTo(X(0),bot); d.cur.forEach((v,i)=>g.lineTo(X(i),Yc(v||0))); g.lineTo(X(n-1),bot); g.closePath();
-  const gr=g.createLinearGradient(0,top,0,bot); gr.addColorStop(0,"rgba(255,152,0,.55)"); gr.addColorStop(1,"rgba(255,152,0,.08)"); g.fillStyle=gr; g.fill();
-  g.beginPath(); d.cur.forEach((v,i)=>i?g.lineTo(X(i),Yc(v||0)):g.moveTo(X(i),Yc(v||0))); g.strokeStyle="#ffb74d"; g.lineWidth=2; g.stroke();
-  for(let i=1;i<n;i+=2){ if(d.dir[i]==null) continue; g.save(); g.translate(X(i),Yc(d.cur[i]||0)-9); g.rotate(d.dir[i]*Math.PI/180);
-    g.fillStyle="#ffe0b2"; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
-  // marée (sinusoïde)
+  const n=d.time.length, L0=CVPAD.l, R0=W-CVPAD.r, X=i=>L0+i*(R0-L0)/(n-1), cw=(R0-L0)/(n-1);
+  // zones : marée (haut) puis courant (bas)
+  const T={top:30,bot:Math.round(H*0.52)}, C={top:Math.round(H*0.62),bot:H-34}, AR=H-24, HX=H-6;
+  const font=w=>`${w} 10px Inter,system-ui,sans-serif`; g.font=font(500); g.textBaseline="alphabetic";
+  // fond nuit + jours + heures
+  d.time.forEach((t,i)=>{ const dt=new Date(t), hr=dt.getHours();
+    if(hr>=21||hr<7){ g.fillStyle="rgba(0,0,0,.22)"; g.fillRect(X(i)-cw/2,14,cw+.5,C.bot-14); }
+    if(hr===0){ g.strokeStyle="rgba(255,255,255,.25)"; g.lineWidth=1; g.beginPath(); g.moveTo(X(i),12); g.lineTo(X(i),C.bot); g.stroke();
+      g.fillStyle="#fff"; g.textAlign="left"; g.font=font(600); g.fillText(dt.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}),X(i)+4,10); g.font=font(500); }
+    if(hr%3===0){ g.fillStyle="#7f9cc0"; g.textAlign="center"; g.fillText(String(hr).padStart(2,"0")+"h",X(i),HX); } });
+  // --- marée ---
+  const sv=d.sea.filter(v=>v!=null), hasSea=sv.length>1;
+  g.textAlign="left"; g.fillStyle="#9fc0e6"; g.font=font(600); g.fillText("Marée", 2, T.top-16); g.font=font(500);
   if(hasSea){
-    g.beginPath(); let st=false; d.sea.forEach((v,i)=>{ if(v==null) return; st?g.lineTo(X(i),Ys(v)):(g.moveTo(X(i),Ys(v)),st=true); });
-    g.strokeStyle="#5ab4ff"; g.lineWidth=3; g.stroke();
-    extrema(d.sea).forEach(e=>{ const r=refine(d.sea,e.i), x=X(e.i+r.dt), y=Ys(r.v), t=new Date(new Date(d.time[e.i]).getTime()+r.dt*3600e3);
-      g.fillStyle="#5ab4ff"; g.beginPath(); g.arc(x,y,3.5,0,7); g.fill();
-      g.fillStyle="#fff"; g.textAlign="center"; const lab=(e.hi?"PM ":"BM ")+t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-      g.fillText(lab, Math.min(Math.max(x,padL+24),W-padR-24), e.hi?y+16:y-8); });
-  } else { g.fillStyle="#9fc0e6"; g.textAlign="center"; g.fillText("Hauteur d'eau non disponible ici", W/2, top+12); }
-  // maintenant + sélection
-  g.strokeStyle="#3fd18b"; g.lineWidth=2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(cv.now),top-4); g.lineTo(X(cv.now),bot); g.stroke(); g.setLineDash([]);
-  g.strokeStyle="#ffb020"; g.lineWidth=2; g.beginPath(); g.moveTo(X(cv.sel),top-4); g.lineTo(X(cv.sel),bot); g.stroke();
-  g.fillStyle="#ffb020"; g.beginPath(); g.arc(X(cv.sel),bot,5,0,7); g.fill();
+    let lo=Math.min(...sv), hi=Math.max(...sv); const padv=(hi-lo)*0.12||0.5; lo-=padv; hi+=padv;
+    const Y=v=>T.bot-(v-lo)/(hi-lo)*(T.bot-T.top), P=[]; d.sea.forEach((v,i)=>{ if(v!=null) P.push([X(i),Y(v)]); });
+    g.beginPath(); smoothPath(g,P); g.lineTo(P[P.length-1][0],T.bot); g.lineTo(P[0][0],T.bot); g.closePath();
+    const gr=g.createLinearGradient(0,T.top,0,T.bot); gr.addColorStop(0,"rgba(90,180,255,.45)"); gr.addColorStop(1,"rgba(90,180,255,.04)"); g.fillStyle=gr; g.fill();
+    g.beginPath(); smoothPath(g,P); g.strokeStyle="#5ab4ff"; g.lineWidth=2; g.stroke();
+    g.fillStyle="#7fb8ef"; g.textAlign="right"; g.fillText((Math.max(...sv)>=0?"+":"")+Math.max(...sv).toFixed(1)+" m", W-2, Y(Math.max(...sv))+3); g.fillText(Math.min(...sv).toFixed(1)+" m", W-2, Y(Math.min(...sv))+3);
+    extrema(d.sea).forEach(e=>{ const r=refine(d.sea,e.i), x=X(e.i+r.dt), y=Y(r.v), t=new Date(new Date(d.time[e.i]).getTime()+r.dt*3600e3);
+      g.fillStyle="#fff"; g.beginPath(); g.arc(x,y,2.6,0,7); g.fill();
+      const lab=(e.hi?"PM ":"BM ")+t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+      g.textAlign="center"; g.font=font(600); g.fillStyle="#fff"; const lx=Math.min(Math.max(x,L0+26),R0-26);
+      g.fillText(lab, lx, e.hi?y-7:y+13); g.font=font(500); });
+  } else { g.fillStyle="#9fc0e6"; g.textAlign="center"; g.fillText("Hauteur d'eau non disponible ici", W/2, (T.top+T.bot)/2); }
+  // --- courant : barres colorées ---
+  const cmax=Math.max(1,...d.cur.filter(v=>v!=null)), Yc=v=>C.bot-v/cmax*(C.bot-C.top);
+  g.textAlign="left"; g.fillStyle="#9fc0e6"; g.font=font(600); g.fillText("Courant", 2, C.top-8); g.font=font(500);
+  g.fillStyle="#d9a24e"; g.textAlign="right"; g.fillText(cmax.toFixed(1)+" nd", L0-4, C.top+4);
+  d.cur.forEach((v,i)=>{ if(v==null) return; const col=colorAt(OVT.cur,v), bw=Math.max(2,cw*0.62);
+    g.fillStyle=`rgba(${col[0]|0},${col[1]|0},${col[2]|0},${i===cv.sel?1:.85})`; const y=Yc(v);
+    g.beginPath(); g.roundRect ? g.roundRect(X(i)-bw/2,y,bw,C.bot-y,[2,2,0,0]) : g.rect(X(i)-bw/2,y,bw,C.bot-y); g.fill(); });
+  g.strokeStyle="rgba(255,255,255,.18)"; g.lineWidth=1; g.beginPath(); g.moveTo(L0-cw/2,C.bot+.5); g.lineTo(R0+cw/2,C.bot+.5); g.stroke();
+  // flèches de direction (toutes les 2 h)
+  for(let i=0;i<n;i+=2){ if(d.dir[i]==null||d.cur[i]==null) continue; g.save(); g.translate(X(i),AR); g.rotate(d.dir[i]*Math.PI/180);
+    g.fillStyle="#cfe3ff"; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(0,2); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
+  // maintenant + heure choisie
+  g.strokeStyle="#3fd18b"; g.lineWidth=1.5; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(cv.now),14); g.lineTo(X(cv.now),C.bot); g.stroke(); g.setLineDash([]);
+  g.strokeStyle="#ffb020"; g.lineWidth=1.5; g.beginPath(); g.moveTo(X(cv.sel),14); g.lineTo(X(cv.sel),C.bot); g.stroke();
   // infos
   const i=cv.sel, cu=d.cur[i], se=d.sea[i], se2=d.sea[i+1]??null, se0=d.sea[i-1]??null;
   $("cvTime").textContent = fmtT(d.time[i]) + (i===cv.now ? " · maintenant" : "");
@@ -1018,7 +1033,7 @@ function drawCurve(){
   $("cvTrend").textContent = se==null ? "" : ((se2!=null?se2:se) > (se0!=null?se0:se) ? "▲ monte" : "▼ descend");
 }
 (function(){ const w=$("cvWrap"); let down=false;
-  const pick = ev => { if(!cv.data) return; const r=w.getBoundingClientRect(), x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, padL=30, padR=34, n=cv.data.time.length;
+  const pick = ev => { if(!cv.data) return; const r=w.getBoundingClientRect(), x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, padL=CVPAD.l, padR=CVPAD.r, n=cv.data.time.length;
     cv.sel=Math.max(0,Math.min(n-1,Math.round((x-padL)/(r.width-padL-padR)*(n-1)))); drawCurve();
     if(ov.data){ const k=ov.data[0].time.indexOf(cv.data.time[cv.sel]); if(k>=0 && k!==ov.idx){ ov.idx=k; $("tSlider").value=k; drawOverlay(); } } };
   w.addEventListener("pointerdown", e=>{ down=true; w.setPointerCapture(e.pointerId); pick(e); });
@@ -1161,7 +1176,7 @@ $("bCache").onclick = async () => {
   await Promise.all([worker(),worker(),worker(),worker()]);
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
-const APP_VERSION="2026.11.13-f"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
+const APP_VERSION="2026.11.13-g"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
