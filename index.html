@@ -820,7 +820,7 @@ const OVT = {
   frz:  {name:"Iso 0 °C", api:"fc", rando:true, vars:["freezing_level_height"], unit:"m", dec:0, scale:[[0,"#5e35b1"],[1000,"#1e88e5"],[2000,"#26c6da"],[3000,"#ffca28"],[4000,"#e53935"]]},
   wave: {name:"Vagues", api:"mar", vars:["wave_height","wave_direction","wave_period"], unit:"m", vec:true, from:true, dec:1, zero:true, scale:WAVE_SCALE},
   swell:{name:"Houle", api:"mar", vars:["swell_wave_height","swell_wave_direction","swell_wave_period"], unit:"m", vec:true, from:true, dec:1, zero:true, scale:WAVE_SCALE},
-  cur:  {name:"Courant", api:"mar", vars:["ocean_current_velocity","ocean_current_direction"], unit:"nd", conv:x=>x/1.852, vec:true, from:false, dec:1, zero:true, scale:[[0,"#4fc3f7"],[0.5,"#ffd54f"],[1.5,"#ff9800"],[3,"#ff3d00"]], anim:0.9}
+  cur:  {name:"Courant", api:"mar", vars:["ocean_current_velocity","ocean_current_direction"], unit:"nd", conv:x=>x/1.852, vec:true, from:false, dec:1, zero:true, scale:[[0,"#4fc3f7"],[0.5,"#ffd54f"],[1.5,"#ff9800"],[3,"#ff3d00"]], anim:0.3}
 };
 const colorOf = (t,v) => { let c=t.scale[0][1]; for(const [s,col] of t.scale) if(v>=s) c=col; return c; };
 const ov = {type:null, data:null, pts:[], grid:0, rows:0, cols:0, idx:0, now:0, model:null,
@@ -1145,7 +1145,7 @@ function startParticles(){
   if(!pc.parentNode) fieldPane.appendChild(pc); L.DomUtil.setPosition(pc, map.containerPointToLayerPoint([0,0]));
   const sz=map.getSize(), dpr=window.devicePixelRatio||1; pc.width=sz.x*dpr; pc.height=sz.y*dpr; pc.style.width=sz.x+"px"; pc.style.height=sz.y+"px";
   const g=pc.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0);
-  field=buildGrid(); const k=OVT[ov.type].anim, N=Math.round(Math.min(1400, sz.x*sz.y/450));
+  field=buildGrid(); const k=OVT[ov.type].anim, N=Math.round(Math.min(ov.type==="cur"?900:1400, sz.x*sz.y/(ov.type==="cur"?650:450)));
   const spawn=()=>({x:Math.random()*sz.x, y:Math.random()*sz.y, age:Math.floor(Math.random()*90)});
   parts=Array.from({length:N}, spawn);
   const frame=()=>{
@@ -1155,7 +1155,7 @@ function startParticles(){
       const s=sample(field,p.x,p.y);
       if(!s || p.age>110 || p.x<0||p.y<0||p.x>sz.x||p.y>sz.y || (scrLand && isLandXY(p.x,p.y))){ Object.assign(p, spawn(), {age:0}); continue; }
       const nx=p.x+s[0]*k, ny=p.y+s[1]*k;
-      g.strokeStyle="#fff"; g.globalAlpha=Math.min(.95,.35+s[2]*(ov.type==="cur"?.35:.03));
+      g.strokeStyle="#fff"; g.globalAlpha = ov.type==="cur" ? Math.min(.7,.25+s[2]*.18) : Math.min(.95,.35+s[2]*.03);
       g.beginPath(); g.moveTo(p.x,p.y); g.lineTo(nx,ny); g.stroke(); p.x=nx; p.y=ny; p.age++;
     }
     g.globalAlpha=1; pRaf=requestAnimationFrame(frame);
@@ -1901,7 +1901,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-d"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-e"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
