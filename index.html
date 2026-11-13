@@ -71,10 +71,22 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 /* Barre courants */
 #curbar{position:fixed;z-index:1000;left:max(10px,env(safe-area-inset-left,0px));right:82px;
-  bottom:calc(env(safe-area-inset-bottom,0px) + 24px);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
+  bottom:calc(env(safe-area-inset-bottom,0px) + 24px);background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:8px 12px;box-shadow:0 4px 18px rgba(0,0,0,.4)}
 #curbar .t{display:flex;justify-content:space-between;font:600 13px var(--mono);font-variant-numeric:tabular-nums;gap:8px}
 #curbar .t em{font-style:normal;color:var(--accent)}
 #curbar .t span:last-child{color:var(--muted);white-space:nowrap}
+#curbar .big{font:700 20px var(--mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+#curbar .here{font:600 13px var(--mono);color:var(--fg)}
+.tl{position:relative;height:84px;margin-top:6px;touch-action:none}
+.tl canvas{position:absolute;inset:0;width:100%;height:100%}
+.tl input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;-webkit-appearance:none;appearance:none;touch-action:none}
+.tl input[type=range]::-webkit-slider-runnable-track{background:transparent;height:100%}
+.tl input[type=range]::-moz-range-track{background:transparent;height:100%}
+.tl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:84px;border-radius:8px;background:rgba(255,176,32,.25);border:2px solid var(--accent);box-shadow:0 0 0 1px #000}
+.tl input[type=range]::-moz-range-thumb{width:28px;height:80px;border-radius:8px;background:rgba(255,176,32,.25);border:2px solid var(--accent)}
+.tlbtns{display:flex;gap:6px;margin-top:6px}
+.tlbtns button{flex:1;padding:8px 0;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--fg);font:600 13px var(--sans);cursor:pointer}
+.tlbtns button:focus-visible{outline:2px solid var(--accent)}
 
 /* Bateau / flèches */
 .boat{width:34px;height:34px;margin:-17px 0 0 -17px}
@@ -114,8 +126,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 
 <div id="curbar" hidden>
-  <div class="t"><span>Courant <em id="curtime">—</em></span><span id="cursrc">Open-Meteo</span></div>
-  <input type="range" id="curslider" min="0" max="47" value="0" aria-label="Heure des courants">
+  <div class="t"><span class="big" id="curtime">—</span><span id="cursrc">Open-Meteo</span></div>
+  <div class="t"><span class="here" id="curhere">Courant au bateau : —</span></div>
+  <div class="tl"><canvas id="curgraph"></canvas>
+    <input type="range" id="curslider" min="0" max="47" value="0" aria-label="Heure des courants, faire glisser"></div>
+  <div class="tlbtns"><button id="tlm3">−3 h</button><button id="tlm1">−1 h</button><button id="tlnow">Maintenant</button><button id="tlp1">+1 h</button><button id="tlp3">+3 h</button></div>
 </div>
 
 <div class="sheet" id="layers" hidden>
@@ -334,6 +349,7 @@ async function loadCurrents(){
     // heure courante la plus proche
     curHourIdx = 0; let best = 1e15;
     times.forEach((t,i)=>{ const d=Math.abs(new Date(t).getTime()-now); if(d<best){best=d;curHourIdx=i;} });
+    nowIdx = curHourIdx;
     $("curslider").max = times.length-1; $("curslider").value = curHourIdx;
     $("cursrc").textContent = "Mercator · Open-Meteo";
     drawCurrents();
@@ -349,6 +365,7 @@ function drawCurrents(){
     L.marker(curPts[k], {icon:arrowIcon(dir, kn), interactive:false}).addTo(curLayer);
   });
   const t = new Date(curData[0].hourly.time[i]);
+  drawTimeline();
   $("curtime").textContent = t.toLocaleDateString("fr-FR",{weekday:"short", day:"numeric"})+" "+t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
   updateCurrentHere();
 }
@@ -361,6 +378,52 @@ function updateCurrentHere(){
   $("cur").innerHTML = kn.toFixed(1)+"<small> "+String(Math.round(h.ocean_current_direction[curHourIdx])).padStart(3,"0")+"°</small>";
 }
 $("curslider").addEventListener("input", e => { curHourIdx = +e.target.value; drawCurrents(); });
+let nowIdx = 0;
+function setHour(i){ if(!curData) return; curHourIdx = Math.max(0, Math.min(curData[0].hourly.time.length-1, i)); $("curslider").value = curHourIdx; drawCurrents(); }
+$("tlm3").onclick = () => setHour(curHourIdx-3); $("tlm1").onclick = () => setHour(curHourIdx-1);
+$("tlp1").onclick = () => setHour(curHourIdx+1); $("tlp3").onclick = () => setHour(curHourIdx+3);
+$("tlnow").onclick = () => setHour(nowIdx);
+// point de référence de la frise : bateau si dispo, sinon centre de la carte
+function refIndex(){
+  if(!curData) return -1; const ref = last ? last.ll : map.getCenter(); let bi=-1, bd=1e12;
+  curPts.forEach((p,k)=>{ if(curData[k].hourly.ocean_current_velocity.every(v=>v==null)) return; const d=map.distance(ref,p); if(d<bd){bd=d;bi=k;} });
+  return bi;
+}
+function drawTimeline(){
+  const cv = $("curgraph"), dpr = window.devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
+  if(!W) return; cv.width = W*dpr; cv.height = H*dpr; const g = cv.getContext("2d"); g.scale(dpr,dpr); g.clearRect(0,0,W,H);
+  const k = refIndex(); if(k<0) return;
+  const h = curData[k].hourly, times = h.time, n = times.length;
+  const kn = h.ocean_current_velocity.map(v => v==null ? 0 : v/1.852), dir = h.ocean_current_direction;
+  const max = Math.max(1, ...kn), pad = 15, top = 14, bot = H-16;
+  const X = i => pad + i*(W-2*pad)/(n-1), Y = v => bot - v/max*(bot-top);
+  const css = getComputedStyle(document.body), fg = css.getPropertyValue("--fg"), muted = css.getPropertyValue("--muted"), acc = css.getPropertyValue("--accent");
+  // nuit (20h-7h) en fond plus sombre, séparateurs de jours
+  g.font = "600 10px ui-monospace,Menlo,monospace"; g.textAlign = "center";
+  times.forEach((t,i)=>{ const d = new Date(t), hr = d.getHours();
+    if(hr>=21 || hr<7){ g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(X(i)-(W-2*pad)/(n-1)/2, 0, (W-2*pad)/(n-1)+.5, bot); }
+    if(hr===0){ g.strokeStyle = muted; g.globalAlpha=.6; g.beginPath(); g.moveTo(X(i),0); g.lineTo(X(i),bot); g.stroke(); g.globalAlpha=1;
+      g.fillStyle = fg; g.textAlign="left"; g.fillText(d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}), X(i)+3, 10); g.textAlign="center"; }
+    if(hr%6===0){ g.fillStyle = muted; g.fillText(String(hr).padStart(2,"0")+"h", X(i), H-3); }
+  });
+  // courbe de vitesse
+  g.beginPath(); g.moveTo(X(0), bot); kn.forEach((v,i)=>g.lineTo(X(i), Y(v))); g.lineTo(X(n-1), bot); g.closePath();
+  const grad = g.createLinearGradient(0,top,0,bot); grad.addColorStop(0,"rgba(255,152,0,.55)"); grad.addColorStop(1,"rgba(79,195,247,.15)");
+  g.fillStyle = grad; g.fill();
+  g.beginPath(); kn.forEach((v,i)=> i ? g.lineTo(X(i),Y(v)) : g.moveTo(X(i),Y(v))); g.strokeStyle = "#ffb74d"; g.lineWidth = 2; g.stroke();
+  // petites flèches de direction toutes les 3 h
+  for(let i=0;i<n;i+=3){ if(dir[i]==null) continue; g.save(); g.translate(X(i), Y(kn[i])-9); g.rotate(dir[i]*Math.PI/180);
+    g.fillStyle = fg; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
+  // maintenant
+  g.strokeStyle = "#3fd18b"; g.lineWidth = 2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(nowIdx),top-4); g.lineTo(X(nowIdx),bot); g.stroke(); g.setLineDash([]);
+  g.fillStyle = "#3fd18b"; g.textAlign = X(nowIdx) < 30 ? "left" : "center"; g.fillText("maint.", X(nowIdx)+(X(nowIdx)<30?3:0), 22); g.textAlign = "center";
+  // max
+  g.fillStyle = muted; g.textAlign = "right"; g.fillText("max "+max.toFixed(1)+" nd", W-2, 22);
+  // heure choisie
+  const v = kn[curHourIdx], dd = dir[curHourIdx];
+  $("curhere").textContent = (last ? "Au bateau : " : "Centre carte : ") + (h.ocean_current_velocity[curHourIdx]==null ? "—" : v.toFixed(1)+" nd vers "+String(Math.round(dd)).padStart(3,"0")+"°");
+}
+window.addEventListener("resize", () => { if(curOn && curData) drawTimeline(); });
 $("bCur").addEventListener("click", () => {
   curOn = !curOn; $("bCur").classList.toggle("on", curOn); $("curbar").hidden = !curOn;
   if(curOn){ curLayer.addTo(map); loadCurrents(); } else { map.removeLayer(curLayer); $("cur").textContent="—"; }
