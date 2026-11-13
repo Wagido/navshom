@@ -7,7 +7,7 @@ const SCREENS=[["tel 320",{viewport:{width:320,height:640},isMobile:true,hasTouc
  ["tablette",{viewport:{width:820,height:1180},isMobile:true,hasTouch:true,deviceScaleFactor:2}],
  ["ordi",{viewport:{width:1400,height:860}}]];
 const STATES={ repos:async p=>{}, meteo:async p=>{ await p.click('#bWind'); }, tableau:async p=>{ await p.click('#bWind'); await p.evaluate(()=>{ $('tTbl').hidden=false; $('tTbl').style.height='160px'; fixTl(); }); },
- menu:async p=>{ await p.click('#bMenu'); }, cartes:async p=>{ await p.click('#bLayers'); }, mesure:async p=>{ await p.click('#bMeasure'); } };
+ menu:async p=>{ await p.click('#bMenu'); }, cartes:async p=>{ await p.click('#bLayers'); }, mesure:async p=>{ await p.click('#bMeasure'); await p.evaluate(()=>{ $('mProfWrap').hidden=false; document.documentElement.style.setProperty('--tl',($('measure').offsetHeight+8)+'px'); setTimeout(crowdCheck,260); }); } };
 (async()=>{ const b=await chromium.launch(); let bad=0;
  for(const mode of ["mer","rando"]) for(const [sn,opt] of SCREENS) for(const [st,fn] of Object.entries(STATES)){
   const p=await (await b.newContext(opt)).newPage(); await p.route(/open-meteo|geopf|shom|openstreetmap|openseamap|emodnet/, r=>r.abort());

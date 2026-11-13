@@ -424,6 +424,7 @@ body:has(#runHud:not([hidden])) #chip{display:none}
   </div>
   <div class="acts">
     <button class="act" id="aRoute"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></span>Aller ici</button>
+    <button class="act mer-only" id="aRouting"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 20c3-1 4-5 7-6s5 2 9-9"/><path d="M14 5h6v6"/></svg></span>Routage</button>
     <button class="act mer-only" id="aCurve"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 12c2.5-6 5-6 7.5 0s5 6 7.5 0 3-4 5-2"/></svg></span>Marée</button>
     <button class="act" id="aMeteo"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 18z"/></svg></span>Météo ici</button>
     <button class="act" id="aMeasure"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 17 17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2"/></svg></span>Mesurer</button>
@@ -479,6 +480,34 @@ body:has(#runHud:not([hidden])) #chip{display:none}
     <p class="note rando-only">Prévisions via Open-Meteo selon le modèle choisi (Météo-France AROME/ARPEGE, ECMWF, ICON, GFS) : vent, températures, pluie, neige et iso 0 °C. Pour le risque d'avalanche, consultez le bulletin de Météo-France (Menu).</p>
     <p class="note mer-only">Prévisions via Open-Meteo : vent et météo selon le modèle choisi (Météo-France AROME/ARPEGE, ECMWF, ICON, GFS), vagues, courant (Mercator, marée incluse) et hauteur d'eau modélisée. Maille de plusieurs km : recoupez avec les bulletins officiels et l'annuaire des marées SHOM.</p>
   </div>
+</section>
+
+<!-- Routage -->
+<section class="sheet" id="sRouting" hidden>
+  <div class="grab"></div>
+  <h2><span>Routage <small style="font:500 12px var(--sans);color:var(--muted)">route la plus rapide</small></span><button class="x" data-close aria-label="Fermer">×</button></h2>
+  <div class="info">
+    <div><b>Départ</b><span id="rtFrom" style="font-size:14px">—</span></div>
+    <div><b>Arrivée</b><span id="rtTo" style="font-size:14px">—</span></div>
+  </div>
+  <label class="opt" for="rtDep"><div style="flex:1">Heure de départ</div><select id="rtDep"></select></label>
+  <h3>Bateau</h3>
+  <label class="opt" for="rtBoat"><div style="flex:1">Modèle</div><select id="rtBoat" style="max-width:62%"></select></label>
+  <label class="opt" for="rtLen"><div style="flex:1">Longueur (m)<small id="rtHull"></small></div>
+    <input id="rtLen" type="number" inputmode="decimal" min="3" max="40" step="0.5" style="width:80px;font:600 15px var(--sans);padding:8px;border-radius:8px;border:1px solid var(--line);text-align:center"></label>
+  <h3>Polaire</h3>
+  <p class="note" id="rtPolName" style="margin:2px 0 6px"></p>
+  <div class="prof" style="height:170px"><canvas id="rtPolar"></canvas></div>
+  <div class="btnrow"><label class="pill" for="rtPolIn" style="text-align:center;cursor:pointer">Importer une polaire (.pol, .csv)</label><input type="file" id="rtPolIn" accept=".pol,.csv,.txt" hidden><button class="pill" id="rtPolClear" hidden>Polaire type</button></div>
+  <label class="opt"><input type="checkbox" id="rtCur"><div>Tenir compte des courants<small>Mercator, marée incluse</small></div></label>
+  <div class="btnrow"><button class="pill primary" id="rtGo">Calculer la route optimale</button></div>
+  <div id="rtRes" hidden>
+    <h3>Résultat</h3>
+    <div class="stats" id="rtSum"></div>
+    <p class="note" id="rtNote"></p>
+    <div class="btnrow"><button class="pill primary" id="rtNav">Naviguer cette route</button><button class="pill" id="rtClear">Effacer</button></div>
+  </div>
+  <p class="note">Simulation indicative : vent du modèle choisi (Open-Meteo), maille de plusieurs km ; polaires types approximatives. Les courants côtiers forts (raz) sont mal représentés. Gardez votre sens marin.</p>
 </section>
 
 <!-- Alarme de mouillage -->
@@ -566,6 +595,7 @@ body:has(#runHud:not([hidden])) #chip{display:none}
   <label class="opt"><input type="checkbox" id="night"><div>Mode nuit<small>Rouge, préserve la vision nocturne</small></div></label>
   <label class="opt"><input type="checkbox" id="wake" checked><div>Garder l'écran allumé</div></label>
   <div class="btnrow mer-only"><button class="pill" id="bClearTrack">Effacer la trace du bateau</button></div>
+  <div class="btnrow mer-only"><button class="pill primary" id="bRouting">Routage météo (route la plus rapide)</button></div>
   <h3>Routes</h3>
   <div class="wplist" id="rtList"></div>
   <h3>Suivi en arrière-plan</h3>
@@ -684,7 +714,7 @@ function updScale(){ const z=map.getZoom(), den=156543.034*Math.cos(map.getCente
 map.on("zoomend", updScale); updScale();
 
 /* ================= Panneaux ================= */
-const sheets = ["sPoint","sMeteo","sMenu","sCurve","sTrack","sAnchor","sMaps"];
+const sheets = ["sPoint","sMeteo","sMenu","sCurve","sTrack","sAnchor","sMaps","sRouting"];
 let tmpMarker=null;
 function openSheet(id){ sheets.forEach(s => $(s).hidden = s!==id); }
 function closeSheets(){ sheets.forEach(s => $(s).hidden = true); if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; } }
@@ -817,8 +847,8 @@ drawMob();
 let measuring=false, mPts=[]; const mLayer=L.layerGroup();
 $("mSpeed").value = store.get("mspeed_"+MODE, MODE==="rando"?4:5);
 function startMeasure(){ setOverlay(null); closeSheets(); measuring=true; mLayer.addTo(map); $("measure").hidden=false; $("bMeasure").classList.add("on"); drawMeasure();
-  document.documentElement.style.setProperty("--tl", ($("measure").offsetHeight+8)+"px"); }
-function stopMeasure(){ measuring=false; $("measure").hidden=true; document.documentElement.style.setProperty("--tl","0px"); $("bMeasure").classList.remove("on"); mPts=[]; mLayer.clearLayers(); map.removeLayer(mLayer); }
+  document.documentElement.style.setProperty("--tl", ($("measure").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); }
+function stopMeasure(){ measuring=false; $("measure").hidden=true; document.documentElement.style.setProperty("--tl","0px"); setTimeout(crowdCheck,260); $("bMeasure").classList.remove("on"); mPts=[]; mLayer.clearLayers(); map.removeLayer(mLayer); }
 function addMeasure(ll){ mPts.push(ll); drawMeasure(); }
 function drawMeasure(){
   mLayer.clearLayers(); let tot=0;
@@ -1497,7 +1527,7 @@ async function measureProfile(){
     mProf=prof; const c=climb(prof.z), tot=prof.d[prof.d.length-1], sp=parseFloat(String($("mSpeed").value).replace(",","."))||4;
     $("mEta").textContent = "≈ "+fmtDur(tot/1000/sp + c.up/300)+" · D+ "+c.up+" m · D− "+c.dn+" m";
     $("mProfWrap").hidden=false; const cv=$("mProf"); cv._hov=null; drawProfile(cv, prof);
-    document.documentElement.style.setProperty("--tl", ($("measure").offsetHeight+8)+"px");
+    document.documentElement.style.setProperty("--tl", ($("measure").offsetHeight+8)+"px"); setTimeout(crowdCheck,260);
   }catch(e){ $("mEta").textContent += " · altitude indisponible"; }
 }
 
@@ -1957,6 +1987,189 @@ map.on("zoomend", autoSatCheck);
 document.querySelectorAll("input[name=base]").forEach(r=>r.addEventListener("change", ()=>{ autoSatOn=false; setShade(store.get("shade",true)); }));
 $("autoSat").checked=store.get("autoSat",true); $("autoSat").onchange=e=>{ store.set("autoSat",e.target.checked); autoSatCheck(); };
 setShade(store.get("shade",true));
+/* ================= Routage météo (isochrones) ================= */
+// Polaire de base d'un croiseur : fraction de la vitesse de carène, par angle au vent réel (TWA) et force du vent (TWS, nd)
+const POL_TWS=[4,6,8,10,12,14,16,20,25,30];
+const POL_BASE={30:[0,0,0,0,0,0,0,0,0,0],
+ 40:[.25,.38,.48,.56,.62,.65,.67,.68,.66,.62], 52:[.33,.48,.6,.7,.77,.81,.83,.84,.83,.8], 60:[.36,.52,.65,.75,.82,.86,.88,.9,.89,.86],
+ 75:[.38,.55,.69,.8,.87,.91,.94,.96,.96,.93], 90:[.38,.55,.7,.81,.89,.94,.97,1,1.01,.98], 110:[.37,.54,.69,.8,.88,.94,.98,1.03,1.06,1.04],
+ 120:[.35,.52,.67,.78,.87,.93,.98,1.04,1.08,1.07], 135:[.31,.47,.61,.73,.82,.89,.95,1.02,1.08,1.08], 150:[.26,.4,.53,.64,.74,.82,.88,.96,1.03,1.05],
+ 165:[.22,.35,.47,.58,.67,.75,.82,.9,.98,1], 180:[.2,.32,.44,.54,.63,.71,.78,.87,.95,.97]};
+const POL_TWA=Object.keys(POL_BASE).map(Number);
+const BOATS=[
+ {id:"cr7", name:"Petit croiseur 7 m", L:7, type:"cruiser"},
+ {id:"cr9", name:"Croiseur côtier 9 m", L:9, type:"cruiser"},
+ {id:"cr11", name:"Croiseur 11 m", L:11, type:"cruiser"},
+ {id:"cr13", name:"Grand croiseur 13 m", L:13, type:"cruiser"},
+ {id:"race12", name:"Voilier de course 12 m (type Class40)", L:12, type:"racer"},
+ {id:"cat12", name:"Catamaran de croisière 12 m", L:12, type:"cat"},
+ {id:"custom", name:"Personnalisé", L:10, type:"cruiser"}];
+const RT={boat:store.get("rtBoat","cr11"), L:store.get("rtLen",11), polFile:store.get("rtPolar",null), cur:store.get("rtCur",true),
+  start:null, dest:null, layer:L.layerGroup().addTo(map), result:null, busy:false};
+const hullSpeed = L => 1.34*Math.sqrt(L*0.9*3.281);   // nœuds, longueur à la flottaison ≈ 90 % de la longueur hors tout
+function interp1(xs, ys, x){ if(x<=xs[0]) return ys[0]; for(let i=1;i<xs.length;i++) if(x<=xs[i]){ const f=(x-xs[i-1])/(xs[i]-xs[i-1]); return ys[i-1]+(ys[i]-ys[i-1])*f; } return ys[ys.length-1]; }
+function polarTable(twa, tws, tbl){ // interpolation bilinéaire dans une table {twa:[], tws:[], v:[[...]]}
+  const a=Math.min(180,Math.abs(twa)); let i=1; while(i<tbl.twa.length-1 && tbl.twa[i]<a) i++;
+  const f=Math.max(0,Math.min(1,(a-tbl.twa[i-1])/(tbl.twa[i]-tbl.twa[i-1]||1)));
+  return interp1(tbl.tws, tbl.v[i-1], tws)*(1-f)+interp1(tbl.tws, tbl.v[i], tws)*f; }
+const BASE_TBL={twa:POL_TWA, tws:POL_TWS, v:POL_TWA.map(a=>POL_BASE[a])};
+function boatSpeed(twa, tws){ // nœuds sur l'eau
+  if(RT.polFile) return Math.max(0, polarTable(twa, tws, RT.polFile));
+  const b=BOATS.find(x=>x.id===RT.boat)||BOATS[2], Vh=hullSpeed(RT.L), a=Math.abs(twa);
+  let k=polarTable(a, tws, BASE_TBL);
+  if(b.type==="racer"){ k*=1.12; if(a>95) k*=1+Math.max(0,(tws-14)/16)*.45; if(a<45) k*=1.05; }
+  if(b.type==="cat"){ if(a<45) return 0; k*= a<60 ? .88 : a<=145 ? 1.22 : 1.05; }
+  return Math.max(0, k*Vh);
+}
+// Import d'une polaire au format courant (.pol / .csv : 1re ligne = forces de vent, puis une ligne par angle)
+function parsePolar(txt){
+  const rows=txt.split(/\r?\n/).map(l=>l.trim()).filter(l=>l && !l.startsWith("#")).map(l=>l.split(/[\t;,]+|\s+/).filter(Boolean));
+  const tws=rows[0].slice(1).map(Number), twa=[], v=[];
+  rows.slice(1).forEach(r=>{ const a=Number(r[0]); if(!isFinite(a)) return; twa.push(a); v.push(r.slice(1).map(Number).map(x=>isFinite(x)?x:0)); });
+  if(tws.length<2 || twa.length<3 || tws.some(x=>!isFinite(x))) throw new Error("format");
+  if(twa[0]>0){ twa.unshift(0); v.unshift(tws.map(()=>0)); } if(twa[twa.length-1]<180){ twa.push(180); v.push(v[v.length-1].slice()); }
+  return {twa, tws, v};
+}
+function drawPolar(){
+  const c=$("rtPolar"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W) return;
+  c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
+  const TW=[6,10,14,20,25], cols=["#90caf9","#26a69a","#ffb300","#fb8c00","#e53935"];
+  let vmax=1; TW.forEach(t=>{ for(let a=0;a<=180;a+=5) vmax=Math.max(vmax,boatSpeed(a,t)); });
+  const cx=18, cy=H/2, R=Math.min(W-40,H/2-12), sc=R/vmax;
+  g.strokeStyle="rgba(13,27,42,.12)"; g.fillStyle="#5d6e80"; g.font="500 10px Inter,system-ui"; g.textAlign="left";
+  for(let v=2; v<=vmax; v+=2){ g.beginPath(); g.arc(cx,cy,v*sc,-Math.PI/2,Math.PI/2); g.stroke(); g.fillText(v+" nd", cx+v*sc+2, cy-3); }
+  [45,90,135].forEach(a=>{ const r=a*Math.PI/180; g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+R*Math.sin(r), cy-R*Math.cos(r)); g.stroke(); g.fillText(a+"°", cx+(R+4)*Math.sin(r), cy-(R+4)*Math.cos(r)); });
+  TW.forEach((t,i)=>{ g.beginPath(); for(let a=0;a<=180;a+=3){ const v=boatSpeed(a,t)*sc, r=a*Math.PI/180, x=cx+v*Math.sin(r), y=cy-v*Math.cos(r); a?g.lineTo(x,y):g.moveTo(x,y); }
+    g.strokeStyle=cols[i]; g.lineWidth=2; g.stroke(); g.fillStyle=cols[i]; g.fillText(t+" nd", W-48, 14+i*13); });
+  g.fillStyle="#0d1b2a"; g.fillText("vent ↓", cx-6, 10);
+}
+function renderRouteParams(){
+  const b=BOATS.find(x=>x.id===RT.boat)||BOATS[2];
+  $("rtBoat").value=RT.boat; $("rtLen").value=RT.L; $("rtLen").disabled = RT.boat!=="custom";
+  $("rtHull").textContent = "Vitesse de carène ≈ "+hullSpeed(RT.L).toFixed(1)+" nd"+(b.type==="racer"?" (peut surfer au-delà)":"");
+  $("rtPolName").textContent = RT.polFile ? "Polaire importée ("+RT.polFile.twa.length+" angles × "+RT.polFile.tws.length+" vents)" : "Polaire type « "+(b.type==="cat"?"catamaran":b.type==="racer"?"course":"croisière")+" » ajustée à la longueur";
+  $("rtPolClear").hidden=!RT.polFile; $("rtCur").checked=RT.cur;
+  $("rtFrom").textContent = RT.start ? fmtLL(RT.start.lat,RT.start.lng) : (last ? "Position du bateau" : "Centre de la carte");
+  $("rtTo").textContent = RT.dest ? fmtLL(RT.dest.lat,RT.dest.lng) : "Touchez la carte puis « Routage »";
+  requestAnimationFrame(drawPolar);
+}
+BOATS.forEach(b=>{ const o=document.createElement("option"); o.value=b.id; o.textContent=b.name; $("rtBoat").appendChild(o); });
+$("rtBoat").onchange=e=>{ RT.boat=e.target.value; const b=BOATS.find(x=>x.id===RT.boat); if(b.id!=="custom") RT.L=b.L; store.set("rtBoat",RT.boat); store.set("rtLen",RT.L); renderRouteParams(); };
+$("rtLen").oninput=e=>{ const v=parseFloat(String(e.target.value).replace(",",".")); if(v>=3 && v<=40){ RT.L=v; store.set("rtLen",v); renderRouteParams(); } };
+$("rtCur").onchange=e=>{ RT.cur=e.target.checked; store.set("rtCur",RT.cur); };
+$("rtPolIn").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  try{ RT.polFile=parsePolar(await f.text()); store.set("rtPolar",RT.polFile); toast("Polaire importée"); }catch(err){ toast("Polaire illisible : 1re ligne = vents (nd), puis une ligne par angle"); } renderRouteParams(); };
+$("rtPolClear").onclick=()=>{ RT.polFile=null; store.set("rtPolar",null); renderRouteParams(); };
+for(let h=0;h<=48;h+=h<6?1:h<24?3:6){ const o=document.createElement("option"); o.value=h; o.textContent = h===0?"Maintenant":"Dans "+h+" h"; $("rtDep").appendChild(o); }
+function openRouting(dest){
+  if(dest) RT.dest=L.latLng(dest); RT.start=null; renderRouteParams(); openSheet("sRouting");
+  $("rtRes").hidden=!RT.result;
+}
+$("aRouting").onclick=()=>{ if(pointLL) openRouting(pointLL); };
+$("bRouting").onclick=()=>openRouting(null);
+
+/* ---- Vent et courant sur une grille couvrant le trajet ---- */
+async function loadGrid(S,E,kind){
+  const pad=Math.max(.08, .35*Math.max(Math.abs(S.lat-E.lat),Math.abs(S.lng-E.lng)));
+  const la0=Math.min(S.lat,E.lat)-pad, la1=Math.max(S.lat,E.lat)+pad, lo0=Math.min(S.lng,E.lng)-pad*1.4, lo1=Math.max(S.lng,E.lng)+pad*1.4, n=6, pts=[];
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++) pts.push([+(la0+(la1-la0)*i/(n-1)).toFixed(3), +(lo0+(lo1-lo0)*j/(n-1)).toFixed(3)]);
+  const la=pts.map(p=>p[0]).join(","), lo=pts.map(p=>p[1]).join(",");
+  let j;
+  if(kind==="wind"){ const u=`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timezone=GMT&forecast_days=3`;
+    j = await getJSON(u+(model!=="best_match"?`&models=${model}`:"")).catch(()=>getJSON(u)); }
+  else j = await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=ocean_current_velocity,ocean_current_direction&timezone=GMT&forecast_days=3&cell_selection=sea`);
+  if(!Array.isArray(j)) j=[j];
+  const times=j[0].hourly.time.map(t=>Date.parse(t+"Z")), U=[], V=[];
+  j.forEach(d=>{ const h=unsuffix(d.hourly), sp=kind==="wind"?h.wind_speed_10m:h.ocean_current_velocity, dr=kind==="wind"?h.wind_direction_10m:h.ocean_current_direction;
+    U.push(sp.map((s,t)=>{ if(s==null||dr[t]==null) return 0; const v=kind==="wind"?s:s/1.852, to=(kind==="wind"?dr[t]+180:dr[t])*Math.PI/180; return v*Math.sin(to); }));
+    V.push(sp.map((s,t)=>{ if(s==null||dr[t]==null) return 0; const v=kind==="wind"?s:s/1.852, to=(kind==="wind"?dr[t]+180:dr[t])*Math.PI/180; return v*Math.cos(to); })); });
+  return {la0,la1,lo0,lo1,n,times,U,V};
+}
+function gridAt(G,lat,lng,t){ // vecteur (est, nord) en nœuds, interpolé en espace et en temps
+  const fy=Math.max(0,Math.min(G.n-1.001,(lat-G.la0)/(G.la1-G.la0)*(G.n-1))), fx=Math.max(0,Math.min(G.n-1.001,(lng-G.lo0)/(G.lo1-G.lo0)*(G.n-1)));
+  const i=Math.floor(fy), j=Math.floor(fx), dy=fy-i, dx=fx-j;
+  const T=G.times, ft=Math.max(0,Math.min(T.length-1.001,(t-T[0])/3600e3)), k=Math.floor(ft), dt=ft-k;
+  const at=(A)=>{ const c=(ii,jj)=>A[ii*G.n+jj][k]*(1-dt)+A[ii*G.n+jj][k+1]*dt;
+    return c(i,j)*(1-dx)*(1-dy)+c(i,j+1)*dx*(1-dy)+c(i+1,j)*(1-dx)*dy+c(i+1,j+1)*dx*dy; };
+  return [at(G.U), at(G.V)];
+}
+const nm=(a,b)=>map.distance(a,b)/1852;
+/* ---- Isochrones ---- */
+$("rtGo").onclick=async()=>{
+  if(RT.busy) return; if(!RT.dest) return toast("Choisissez l'arrivée : touchez la carte puis « Routage »");
+  const S = RT.start || (last ? last.ll : map.getCenter()), E=RT.dest, D=nm(S,E);
+  if(D<0.3) return toast("Arrivée trop proche"); if(D>350) return toast("Trajet trop long pour 3 jours de prévisions (max ≈ 350 M)");
+  RT.busy=true; $("rtGo").disabled=true; $("rtGo").textContent="Calcul…"; RT.layer.clearLayers();
+  try{
+    const [W, C] = await Promise.all([loadGrid(S,E,"wind"), RT.cur ? loadGrid(S,E,"cur").catch(()=>null) : Promise.resolve(null)]);
+    const dep = Date.now() + (+$("rtDep").value)*3600e3, tEnd = W.times[W.times.length-1];
+    // Grille de cases de mer (≈ 60 à 110 cases dans la plus grande dimension), plus court chemin en temps (Dijkstra dépendant du temps)
+    const pad=Math.max(.06,.3*Math.max(Math.abs(S.lat-E.lat),Math.abs(S.lng-E.lng)));
+    const la0=Math.min(S.lat,E.lat)-pad, la1=Math.max(S.lat,E.lat)+pad, kx=Math.cos((la0+la1)/2*Math.PI/180);
+    const lo0=Math.min(S.lng,E.lng)-pad/kx, lo1=Math.max(S.lng,E.lng)+pad/kx;
+    const cellNm=Math.max(0.35, Math.max((la1-la0)*60,(lo1-lo0)*60*kx)/110), dLa=cellNm/60, dLo=cellNm/60/kx;
+    const NY=Math.ceil((la1-la0)/dLa)+1, NX=Math.ceil((lo1-lo0)/dLo)+1, N=NX*NY;
+    const cLat=i=>la0+i*dLa, cLng=j=>lo0+j*dLo, near=(la,ln)=>nm(L.latLng(la,ln),S)<1.5||nm(L.latLng(la,ln),E)<2.5;
+    const sea=new Uint8Array(N); for(let i=0;i<NY;i++) for(let j=0;j<NX;j++) sea[i*NX+j] = (landFrac(cLat(i),cLng(j))<0.5 || near(cLat(i),cLng(j))) ? 1 : 0;
+    const cellOf=ll=>[Math.round((ll.lat-la0)/dLa), Math.round((ll.lng-lo0)/dLo)];
+    const [si,sj]=cellOf(S), [ei,ej]=cellOf(E), sIdx=si*NX+sj, eIdx=ei*NX+ej; sea[sIdx]=1; sea[eIdx]=1;
+    const MOVES=[]; for(let di=-3;di<=3;di++) for(let dj=-3;dj<=3;dj++){ if(!di&&!dj) continue; const g=(a,b)=>b?g(b,a%b):Math.abs(a); if(g(di,dj)!==1) continue;
+      MOVES.push({di,dj,h:(Math.atan2(dj,di)*180/Math.PI+360)%360, d:Math.hypot(di,dj)*cellNm}); }
+    const segSea=(i,j,m)=>{ const n=Math.max(Math.abs(m.di),Math.abs(m.dj))*2; for(let k=1;k<=n;k++){ const fi=i+m.di*k/n, fj=j+m.dj*k/n; const ii=Math.round(fi), jj=Math.round(fj);
+      if(ii<0||jj<0||ii>=NY||jj>=NX) return false; if(!sea[ii*NX+jj] && landFrac(la0+fi*dLa, lo0+fj*dLo)>0.5) return false; } return true; };
+    const T=new Float64Array(N).fill(Infinity), prev=new Int32Array(N).fill(-1), info=new Array(N);
+    T[sIdx]=dep; const heap=[[dep,sIdx]];
+    const push=x=>{ heap.push(x); let i=heap.length-1; while(i){ const p=(i-1)>>1; if(heap[p][0]<=heap[i][0]) break; [heap[p],heap[i]]=[heap[i],heap[p]]; i=p; } };
+    const pop=()=>{ const top=heap[0], last=heap.pop(); if(heap.length){ heap[0]=last; let i=0; for(;;){ const l=2*i+1, r=l+1; let m=i; if(l<heap.length&&heap[l][0]<heap[m][0]) m=l; if(r<heap.length&&heap[r][0]<heap[m][0]) m=r; if(m===i) break; [heap[m],heap[i]]=[heap[i],heap[m]]; i=m; } } return top; };
+    let popped=0;
+    while(heap.length){
+      const [t,u]=pop(); if(t>T[u]) continue; if(u===eIdx) break; if(t>tEnd) continue;
+      const i=Math.floor(u/NX), j=u%NX, la=cLat(i), ln=cLng(j);
+      const w=gridAt(W,la,ln,t), tws=Math.hypot(w[0],w[1]), twd=(Math.atan2(w[0],w[1])*180/Math.PI+180+360)%360, c=C?gridAt(C,la,ln,t):null;
+      for(const m of MOVES){ const ii=i+m.di, jj=j+m.dj; if(ii<0||jj<0||ii>=NY||jj>=NX) continue; const v=ii*NX+jj; if(!sea[v]) continue;
+        const twa=((m.h-twd+540)%360)-180, bs=boatSpeed(twa,tws); if(bs<0.3) continue;
+        const r=m.h*Math.PI/180, sog=bs+(c?c[0]*Math.sin(r)+c[1]*Math.cos(r):0); if(sog<0.3) continue;
+        const nt=t+m.d/sog*3600e3; if(nt>=T[v]) continue; if(!segSea(i,j,m)) continue;
+        T[v]=nt; prev[v]=u; info[v]={bs,twa,tws}; push([nt,v]); }
+      if(++popped%4000===0){ $("rtGo").textContent="Calcul… "+fmtDur((t-dep)/3600e3); await new Promise(r=>setTimeout(r)); }
+    }
+    if(!isFinite(T[eIdx])){ toast("Aucune route trouvée dans la limite des prévisions (3 jours)", 6000); return; }
+    const path=[]; for(let v=eIdx; v!==-1; v=prev[v]){ const i=Math.floor(v/NX), j=v%NX; path.push({lat:cLat(i),lng:cLng(j),t:T[v],...(info[v]||{})}); }
+    path.reverse(); path[0].lat=S.lat; path[0].lng=S.lng; path[path.length-1].lat=E.lat; path[path.length-1].lng=E.lng;
+    // isochrones : contours horaires approximés par les cases atteintes
+    const iso=[]; const hrs=Math.ceil((T[eIdx]-dep)/3600e3);
+    for(let h=1;h<hrs;h++){ const tt=dep+h*3600e3, segs=[]; for(let i=0;i<NY;i++){ let cur=[]; for(let j=0;j<NX;j++){ const v=i*NX+j; if(isFinite(T[v]) && Math.abs(T[v]-tt)<cellNm/Math.max(2,hullSpeed(RT.L)*.6)*1800e3){ cur.push([cLat(i),cLng(j)]); } } if(cur.length) segs.push(...cur.map(p=>[p,p])); } iso.push(segs); }
+    const dtH=1;
+    RT.result={path, iso, dep, S, E, dtH, D};
+    showRouting();
+  }catch(e){ toast("Routage impossible : prévisions indisponibles (réseau ?)", 5000); }
+  finally{ RT.busy=false; $("rtGo").disabled=false; $("rtGo").textContent="Calculer la route optimale"; }
+};
+function showRouting(){
+  const r=RT.result; if(!r) return; RT.layer.clearLayers(); const P=r.path;
+  r.iso.forEach(segs=>segs.forEach(pp=>L.circleMarker(pp[0],{radius:1.6,stroke:false,fillColor:"#5d7fa3",fillOpacity:.55,interactive:false}).addTo(RT.layer)));
+  const ll=P.map(p=>[p.lat,p.lng]);
+  L.polyline(ll,{color:"#fff",weight:8,opacity:.85,interactive:false}).addTo(RT.layer);
+  L.polyline(ll,{color:"#FF7A00",weight:4,interactive:false}).addTo(RT.layer);
+  let tacks=0, maxW=0, dist=0, lastH=-1;
+  P.forEach((p,i)=>{ if(i){ dist+=nm(P[i-1],p); if(p.twa!=null && P[i-1].twa!=null && Math.sign(p.twa)!==Math.sign(P[i-1].twa)) tacks++; } if(p.tws>maxW) maxW=p.tws;
+    const hr=Math.floor((p.t-r.dep)/3600e3); if(i>0 && hr!==lastH){ lastH=hr;
+      L.circleMarker([p.lat,p.lng],{radius:4,color:"#fff",weight:1.5,fillColor:"#FF7A00",fillOpacity:1})
+       .bindTooltip(fmtT(p.t)+" · "+p.bs.toFixed(1)+" nd · vent "+Math.round(p.tws)+" nd à "+Math.abs(Math.round(p.twa))+"°",{direction:"top"}).addTo(RT.layer); } });
+  L.circleMarker([r.E.lat,r.E.lng],{radius:8,color:"#fff",weight:3,fillColor:"#1c9e47",fillOpacity:1}).bindTooltip("Arrivée "+fmtT(P[P.length-1].t),{permanent:true,direction:"right",className:"mlabel"}).addTo(RT.layer);
+  const dur=(P[P.length-1].t-r.dep)/3600e3;
+  $("rtSum").innerHTML=`<div><b>Arrivée</b><span>${fmtT(P[P.length-1].t)}</span></div><div><b>Durée</b><span>${fmtDur(dur)}</span></div>
+    <div><b>Distance</b><span>${dist.toFixed(1).replace(".",",")} M</span></div><div><b>Moyenne</b><span>${(dist/dur).toFixed(1)} nd</span></div>
+    <div><b>Vent max</b><span>${Math.round(maxW)} nd</span></div><div><b>Virements / emp.</b><span>${tacks}</span></div>`;
+  $("rtNote").textContent = "Route directe : "+r.D.toFixed(1).replace(".",",")+" M. Isochrones toutes les heures en bleu. Touchez les points orange pour le détail heure par heure.";
+  $("rtRes").hidden=false; setFollow(false); map.fitBounds(L.latLngBounds(ll).pad(.25));
+}
+$("rtClear").onclick=()=>{ RT.result=null; RT.layer.clearLayers(); $("rtRes").hidden=true; };
+$("rtNav").onclick=()=>{ const r=RT.result; if(!r) return; const P=r.path, wp=[];
+  P.forEach((p,i)=>{ if(i===0) return; const nx=P[i+1]; if(!nx || (nx.twa!=null && p.twa!=null && Math.sign(nx.twa)!==Math.sign(p.twa))) wp.push(p); });
+  const rt={id:Date.now(), name:"Routage "+fmtT(r.dep), pts:wp.map((p,i)=>[+p.lat.toFixed(6),+p.lng.toFixed(6), i===wp.length-1?"Arrivée":"Manœuvre "+(i+1)])};
+  routes.unshift(rt); store.set("routes",routes); renderRoutes(); startNav(rt.id); };
+
 /* ---- Test des fonds de carte depuis le téléphone ---- */
 function tileXY(lat,lng,z){ const n=2**z, r=lat*Math.PI/180; return {x:Math.floor((lng+180)/360*n), y:Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n), z}; }
 const SRC_TEST = [
@@ -2009,7 +2222,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-m"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-o"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
