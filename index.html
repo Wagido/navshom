@@ -292,6 +292,23 @@ body.crowded #colBR .fab, body.crowded #colBL .fab{width:44px;height:44px}
 body.crowded #colBR .fab small, body.crowded #colBL .fab small{display:none}
 body.crowded #bSat, body.crowded #bSlope{display:none!important}
 #nightOff{position:fixed;z-index:1200;left:50%;transform:translateX(-50%);top:calc(var(--st) + 66px);border:0;border-radius:16px;padding:6px 12px;background:#3a1814;color:#ff8a7a;font:600 12px var(--sans);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.seg{display:flex;background:var(--soft);border-radius:10px;padding:3px;margin:10px 0 0;gap:3px}
+.seg button{flex:1;border:0;border-radius:8px;padding:8px;background:transparent;font:600 13px var(--sans);color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--white);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+#runHud{position:fixed;z-index:1050;left:calc(var(--sl) + 10px);right:calc(var(--sr) + 72px);top:calc(var(--st) + 70px);max-width:440px;margin:0 auto;
+  background:rgba(11,47,91,.94);color:#fff;border-radius:16px;padding:10px 14px 10px;box-shadow:0 4px 16px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:6px}
+#runHud b{display:block;font:600 10px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:#9fc0e6}
+#runHud i{font:500 12px var(--sans);font-style:normal;color:#cfe3ff;margin-left:4px}
+.rh-main{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rh-main span{font:700 36px/1.05 var(--sans);font-variant-numeric:tabular-nums}
+.rh-pace span{color:#FF9A3D}
+.rh-sub{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;border-top:1px solid rgba(255,255,255,.12);padding-top:6px}
+.rh-sub span{font:600 16px var(--sans);font-variant-numeric:tabular-nums}
+.rh-btn{display:flex;gap:8px} .rh-btn button{flex:1;border:0;border-radius:9px;padding:8px;background:rgba(255,255,255,.12);color:#fff;font:600 13px var(--sans)}
+.rh-btn button#rhStop{background:#e5372b}
+#runHud.paused .rh-pace span{color:#9fc0e6}
+body:has(#runHud:not([hidden])) #chip{display:none}
+.splits{font:500 13px var(--sans);width:100%;border-collapse:collapse;margin-top:6px} .splits td{padding:4px 6px;border-bottom:1px solid var(--line)} .splits td:last-child{text-align:right;font-weight:600}
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -464,8 +481,9 @@ body.crowded #bSat, body.crowded #bSlope{display:none!important}
     <div><b>Distance</b><span id="tsDist">—</span></div><div><b>Durée</b><span id="tsDur">—</span></div><div><b>Moyenne</b><span id="tsAvg">—</span></div>
     <div><b>Dénivelé +</b><span id="tsUp">—</span></div><div><b>Altitude</b><span id="tsAlt">—</span></div><div></div>
   </div>
+  <div class="seg" id="actSeg"><button data-a="hike">🥾 Rando</button><button data-a="run">🏃 Course à pied</button></div>
   <div class="btnrow"><button class="pill primary" id="trStart">● Enregistrer</button><button class="pill" id="trPause" hidden>Pause</button><button class="pill danger" id="trStop" hidden>■ Terminer</button></div>
-  <div id="trProfWrap" hidden><h3 id="trProfTitle" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Profil</h3><div class="prof"><canvas id="trProf"></canvas></div>
+  <div id="trProfWrap" hidden><h3 id="trProfTitle" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Profil</h3><div class="prof"><canvas id="trProf"></canvas></div><div id="trSplits"></div>
     <p class="note" style="margin-top:4px">Touchez le profil pour situer le point sur la carte. Altitudes : IGN.</p></div>
   <h3>Mes traces</h3><div class="wplist" id="trList"></div>
   <div class="btnrow"><label class="pill" for="gpxIn" style="text-align:center;cursor:pointer">Importer un fichier GPX</label><input type="file" id="gpxIn" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden></div>
@@ -543,6 +561,11 @@ body.crowded #bSat, body.crowded #bSlope{display:none!important}
 </section>
 
 <div id="toast" hidden></div>
+<div id="runHud" hidden>
+  <div class="rh-main"><div><b>Distance</b><span id="rhDist">0,00</span><i>km</i></div><div class="rh-pace"><b>Allure</b><span id="rhPace">–:––</span><i>min/km</i></div></div>
+  <div class="rh-sub"><div><b>Durée</b><span id="rhDur">0:00</span></div><div><b>Vitesse</b><span id="rhSpd">–</span></div><div><b>Moy.</b><span id="rhAvg">–:––</span></div><div><b>Dernier km</b><span id="rhLast">–</span></div></div>
+  <div class="rh-btn"><button id="rhPause">Pause</button><button id="rhStop">■ Terminer</button></div>
+</div>
 <button id="nightOff" hidden aria-label="Couper le mode nuit">☾ Mode nuit · couper</button>
 <div id="alarm" hidden role="alert"><b id="alarmMsg"></b><button id="alarmStop">Couper 3 min</button></div>
 <div id="navcard" hidden>
@@ -1461,13 +1484,38 @@ let recSaveT=0, recGpsUp=0, recGpsRef=null;
 function recDist(pts){ let d=0; for(let i=1;i<pts.length;i++) d+=map.distance([pts[i-1][0],pts[i-1][1]],[pts[i][0],pts[i][1]]); return d; }
 function recDuration(){ if(!rec) return 0; const now=rec.paused?rec.pausedAt:Date.now(); return Math.max(0,(now-rec.start-(rec.pausedTotal||0))/3600e3); }
 function recPersist(force){ if(force || Date.now()-recSaveT>15000){ recSaveT=Date.now(); store.set("rec",rec); } }
+const fmtPace = kmh => !(kmh>=1.5) ? "–:––" : (()=>{ const sec=Math.round(3600/kmh); return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0"); })();
+const fmtClock = h => { const t=Math.round(h*3600), H=Math.floor(t/3600), M=Math.floor(t%3600/60), Sx=t%60; return (H?H+":"+String(M).padStart(2,"0"):M)+":"+String(Sx).padStart(2,"0"); };
+let activity = store.get("activity","hike");
+function setActivity(a){ activity=a; store.set("activity",a); document.querySelectorAll("#actSeg button").forEach(b=>b.classList.toggle("on",b.dataset.a===a)); }
+document.querySelectorAll("#actSeg button").forEach(b=>b.onclick=()=>{ if(!(rec&&rec.on)) setActivity(b.dataset.a); }); setActivity(activity);
+function curSpeed(){ // km/h sur les 30 dernières secondes
+  if(!rec||rec.pts.length<2) return 0; const P=rec.pts, tN=P[P.length-1][2]; let d=0, i=P.length-1;
+  while(i>0 && tN-P[i-1][2]<=30){ d+=map.distance([P[i-1][0],P[i-1][1]],[P[i][0],P[i][1]]); i--; }
+  const dt=tN-P[i][2]; if(Date.now()/1000-tN>15) return 0; return dt>=5 ? d/dt*3.6 : 0; }
+function renderRun(){
+  const on = rec && rec.on && rec.act==="run"; $("runHud").hidden=!on; if(!on) return;
+  $("runHud").classList.toggle("paused", rec.paused);
+  const d=rec.dist||0, h=recDuration(), v=rec.paused?0:curSpeed();
+  $("rhDist").textContent=(d/1000).toFixed(2).replace(".",","); $("rhDur").textContent=fmtClock(h);
+  $("rhPace").textContent=fmtPace(v); $("rhSpd").textContent= v>=1.5 ? v.toFixed(1)+" km/h" : "–";
+  $("rhAvg").textContent = h>0.003 ? fmtPace(d/1000/h) : "–:––";
+  const sp=rec.splits||[]; $("rhLast").textContent = sp.length ? fmtClock(sp[sp.length-1].sec/3600) : "–";
+  $("rhPause").textContent = rec.paused ? "Reprendre" : "Pause";
+}
 function recPoint(ll, c, t){
   if(!rec || !rec.on || rec.paused || c.accuracy>35) return;
-  const lp=rec.pts[rec.pts.length-1]; if(lp && map.distance([lp[0],lp[1]],ll)<8) return;
+  const lp=rec.pts[rec.pts.length-1]; if(lp && map.distance([lp[0],lp[1]],ll)<(rec.act==="run"?5:8)) return;
+  if(lp) rec.dist=(rec.dist||0)+map.distance([lp[0],lp[1]],ll);
+  // passage de chaque kilomètre : temps du km, vibration et notification
+  const km=Math.floor((rec.dist||0)/1000); rec.splits=rec.splits||[];
+  if(km>rec.splits.length){ const total=recDuration()*3600, prev=rec.splits.reduce((a,x)=>a+x.sec,0), sec=Math.round(total-prev);
+    rec.splits.push({km, sec}); const msg="Km "+km+" en "+fmtClock(sec/3600)+" · moyenne "+fmtPace((rec.dist/1000)/(total/3600))+" /km";
+    if(rec.act==="run"){ toast(msg,5000); notify("🏃 Km "+km, msg); if(navigator.vibrate) navigator.vibrate([200,100,200]); } }
   const alt = c.altitude!=null ? Math.round(c.altitude) : null;
   rec.pts.push([+ll.lat.toFixed(6), +ll.lng.toFixed(6), Math.round(t/1000), alt]); recLine.addLatLng(ll);
   if(alt!=null){ if(recGpsRef==null) recGpsRef=alt; else if(alt-recGpsRef>=6){ recGpsUp+=alt-recGpsRef; recGpsRef=alt; } else if(recGpsRef-alt>=6) recGpsRef=alt; }
-  recPersist(); renderRec();
+  recPersist(); renderRec(); renderRun();
 }
 function renderRec(){
   const on=rec&&rec.on; $("bTrack").classList.toggle("rec", !!on && !rec.paused); $("bTrack").classList.toggle("paused", !!on && rec.paused);
@@ -1478,18 +1526,23 @@ function renderRec(){
   $("tsAlt").textContent = last && last.alt!=null ? Math.round(last.alt)+" m" : "—";
   $("tsState").textContent = !on ? "Prêt à enregistrer" : rec.paused ? "En pause" : "Enregistrement en cours";
 }
-$("trStart").onclick = () => { rec={on:true,paused:false,start:Date.now(),pausedTotal:0,pts:[]}; recGpsUp=0; recGpsRef=null; recLine.setLatLngs([]);
+$("trStart").onclick = () => { rec={on:true,paused:false,start:Date.now(),pausedTotal:0,pts:[],act:activity,dist:0,splits:[]};
+  if(activity==="run") closeSheets(); recGpsUp=0; recGpsRef=null; recLine.setLatLngs([]);
   if(last) recPoint(last.ll, {accuracy:last.acc||10, altitude:last.alt}, Date.now()); recPersist(true); renderRec(); wake(); toast("Enregistrement démarré. Gardez l'écran allumé."); };
-$("trPause").onclick = () => { if(!rec) return; if(rec.paused){ rec.pausedTotal+=Date.now()-rec.pausedAt; rec.paused=false; } else { rec.paused=true; rec.pausedAt=Date.now(); } recPersist(true); renderRec(); };
+$("trPause").onclick = () => { if(!rec) return; if(rec.paused){ rec.pausedTotal+=Date.now()-rec.pausedAt; rec.paused=false; } else { rec.paused=true; rec.pausedAt=Date.now(); } recPersist(true); renderRec(); renderRun(); };
+$("rhPause").onclick = () => $("trPause").onclick();
+$("rhStop").onclick = () => { if($("rhStop").dataset.armed!=="1"){ $("rhStop").dataset.armed="1"; $("rhStop").textContent="Confirmer ?"; setTimeout(()=>{ $("rhStop").dataset.armed=""; $("rhStop").textContent="■ Terminer"; },3000); return; }
+  $("rhStop").dataset.armed=""; $("rhStop").textContent="■ Terminer"; $("trStop").onclick(); };
+setInterval(()=>{ if(rec && rec.on && rec.act==="run") renderRun(); }, 1000);
 $("trStop").onclick = async () => {
-  if(!rec) return; const pts=rec.pts.slice(), dur=recDuration(); rec=null; store.set("rec",null); renderRec();
+  if(!rec) return; const pts=rec.pts.slice(), dur=recDuration(), act=rec.act||"hike", splits=(rec.splits||[]).slice(); rec=null; store.set("rec",null); renderRec(); renderRun();
   if(pts.length<2){ recLine.setLatLngs([]); return toast("Trace trop courte, non enregistrée"); }
-  const d=new Date(), tr={id:Date.now(), name:"Rando du "+d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
-    date:d.toISOString(), pts:pts.map(p=>[p[0],p[1],p[2]]), dist:Math.round(recDist(pts)), dur};
+  const d=new Date(), tr={id:Date.now(), name:(act==="run"?"Course du ":"Rando du ")+d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
+    date:d.toISOString(), pts:pts.map(p=>[p[0],p[1],p[2]]), dist:Math.round(recDist(pts)), dur, act, splits};
   await saveTrack(tr); recLine.setLatLngs([]); showTrack(tr.id); toast("Trace enregistrée");
 };
 // reprise d'un enregistrement après fermeture de l'app
-if(rec && rec.on){ recLine.setLatLngs(rec.pts.map(p=>[p[0],p[1]])); }
+if(rec && rec.on){ recLine.setLatLngs(rec.pts.map(p=>[p[0],p[1]])); if(rec.dist==null) rec.dist=recDist(rec.pts); } renderRun();
 
 /* ---- Traces enregistrées / importées ---- */
 let tracks = store.get("tracks", []), shownId=null; const trLayer=L.layerGroup().addTo(map);
@@ -1506,7 +1559,8 @@ function showTrack(id){
   L.circleMarker(lls[0],{radius:6,color:"#fff",weight:2,fillColor:"#1c9e47",fillOpacity:1}).bindTooltip("Départ").addTo(trLayer);
   L.circleMarker(lls[lls.length-1],{radius:6,color:"#fff",weight:2,fillColor:"#e5372b",fillOpacity:1}).bindTooltip("Arrivée").addTo(trLayer);
   setFollow(false); map.fitBounds(L.latLngBounds(lls).pad(.15), {paddingBottomRight:[0,260]});
-  $("trProfTitle").textContent = tr.name+" · "+fmtD(tr.dist)+(tr.up!=null?" · D+ "+tr.up+" m · D− "+tr.dn+" m":"")+(tr.dur?" · "+fmtDur(tr.dur):"");
+  $("trProfTitle").textContent = tr.name+" · "+fmtD(tr.dist)+(tr.up!=null?" · D+ "+tr.up+" m · D− "+tr.dn+" m":"")+(tr.dur?" · "+fmtDur(tr.dur):"")+(tr.act==="run"&&tr.dur?" · "+fmtPace(tr.dist/1000/tr.dur)+" min/km":"");
+  const sw=$("trSplits"); sw.innerHTML=""; if(tr.act==="run" && tr.splits && tr.splits.length){ sw.innerHTML='<table class="splits">'+tr.splits.map(x=>`<tr><td>Km ${x.km}</td><td>${fmtClock(x.sec/3600)} /km</td></tr>`).join("")+'</table>'; }
   $("trProfWrap").hidden=!tr.prof; if(tr.prof){ const c=$("trProf"); c._hov=null; requestAnimationFrame(()=>drawProfile(c, tr.prof)); }
   renderTracks();
 }
@@ -1514,7 +1568,7 @@ function renderTracks(){
   const el=$("trList"); el.innerHTML="";
   if(!tracks.length){ el.innerHTML='<p class="note">Aucune trace. Enregistrez une sortie ou importez un fichier GPX.</p>'; return; }
   tracks.forEach(tr=>{ const row=document.createElement("div"), t=document.createElement("span");
-    t.innerHTML=`<b></b><br><small style="color:var(--muted)">${fmtD(tr.dist)}${tr.up!=null?" · D+ "+tr.up+" m":""}${tr.dur?" · "+fmtDur(tr.dur):""}</small>`; t.querySelector("b").textContent=tr.name;
+    t.innerHTML=`<b></b><br><small style="color:var(--muted)">${tr.act==="run"?"🏃 ":""}${fmtD(tr.dist)}${tr.up!=null?" · D+ "+tr.up+" m":""}${tr.dur?" · "+fmtDur(tr.dur):""}${tr.act==="run"&&tr.dur?" · "+fmtPace(tr.dist/1000/tr.dur)+" /km":""}</small>`; t.querySelector("b").textContent=tr.name;
     const s=document.createElement("span"); s.style.whiteSpace="nowrap";
     const bv=document.createElement("button"); bv.textContent = shownId===tr.id ? "Masquer" : "Voir"; bv.onclick=()=>{ if(shownId===tr.id){ shownId=null; trLayer.clearLayers(); if(profMk) map.removeLayer(profMk); $("trProfWrap").hidden=true; renderTracks(); } else showTrack(tr.id); };
     const bg=document.createElement("button"); bg.textContent="GPX"; bg.onclick=()=>exportGPX(tr);
@@ -1912,7 +1966,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-g"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-h"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
