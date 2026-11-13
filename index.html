@@ -42,7 +42,14 @@ body.night{--fg:#ff8a7a;--muted:#b85a50;--accent:#ff5040;--ok:#ff6a50}
   bottom:calc(env(safe-area-inset-bottom,0px) + 24px);display:flex;flex-direction:column;gap:10px}
 .btn{width:52px;height:52px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--fg);
   font:700 12px/1 var(--sans);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:0}
-.btn svg{width:26px;height:26px}
+.btn svg{width:24px;height:24px}
+.btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:58px;height:58px}
+.btn i{font:600 9px/1 var(--sans);font-style:normal;letter-spacing:.02em}
+.btn.zoom{font:400 34px/1 var(--sans);height:54px}
+#zoomgrp{display:flex;flex-direction:column;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+#zoomgrp .btn{border:0;border-radius:0}
+#zoomgrp .btn+.btn{border-top:1px solid var(--line)}
+#scaleinfo{font:600 11px var(--mono);text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px 2px;color:var(--fg)}
 .btn.on{background:var(--accent);color:#1b1200;border-color:transparent}
 .btn.mob{background:var(--warn);color:#fff;border-color:transparent}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -63,7 +70,7 @@ body.night{--fg:#ff8a7a;--muted:#b85a50;--accent:#ff5040;--ok:#ff6a50}
 input[type=range]{width:100%;accent-color:var(--accent)}
 
 /* Barre courants */
-#curbar{position:fixed;z-index:1000;left:max(10px,env(safe-area-inset-left,0px));right:76px;
+#curbar{position:fixed;z-index:1000;left:max(10px,env(safe-area-inset-left,0px));right:82px;
   bottom:calc(env(safe-area-inset-bottom,0px) + 24px);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
 #curbar .t{display:flex;justify-content:space-between;font:600 13px var(--mono);font-variant-numeric:tabular-nums;gap:8px}
 #curbar .t em{font-style:normal;color:var(--accent)}
@@ -92,12 +99,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 </div>
 
 <div id="tools">
+  <div id="zoomgrp">
+    <button class="btn zoom" id="bZin" title="Zoomer" aria-label="Zoomer">+</button>
+    <button class="btn zoom" id="bZout" title="Dézoomer" aria-label="Dézoomer">−</button>
+  </div>
+  <div id="scaleinfo" aria-live="polite">—</div>
   <button class="btn on" id="bFollow" title="Suivre le bateau" aria-label="Suivre le bateau">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><i>Bateau</i></button>
   <button class="btn" id="bCur" title="Courants" aria-label="Afficher les courants">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg></button>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg><i>Courants</i></button>
   <button class="btn" id="bLayers" title="Cartes" aria-label="Choisir la carte">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg></button>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg><i>Cartes</i></button>
   <button class="btn mob" id="bMob" title="Homme à la mer" aria-label="Homme à la mer">MOB</button>
 </div>
 
@@ -165,6 +177,15 @@ const bases = {
   osm:   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, bounds:ZONE, attribution:"© OpenStreetMap"})
 };
 const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:ZONE, attribution:"© OpenSeaMap"});
+// Si les tuiles SHOM ne répondent pas : prévenir et basculer sur OSM + balisage
+let shomOk = 0, shomErr = 0;
+bases.shom.on("tileload", () => shomOk++);
+bases.shom.on("tileerror", () => { shomErr++;
+  if(shomErr===6 && shomOk===0 && curBase==="shom" && navigator.onLine){
+    toast("Cartes SHOM indisponibles : passage sur OpenStreetMap + balisage", 6000);
+    document.querySelector("input[name=base][value=osm]").click();
+    if(!$("seamarks").checked) $("seamarks").click();
+  }});
 let curBase = store.get("base","shom"); if(!bases[curBase]) curBase="shom";
 bases[curBase].addTo(map);
 document.querySelector(`input[name=base][value=${curBase}]`).checked = true;
@@ -175,6 +196,16 @@ $("seamarks").checked = store.get("seamarks", false);
 if($("seamarks").checked) seamarks.addTo(map);
 $("seamarks").addEventListener("change", e => { e.target.checked ? seamarks.addTo(map) : map.removeLayer(seamarks); store.set("seamarks", e.target.checked); });
 
+$("bZin").addEventListener("click", () => map.zoomIn());
+$("bZout").addEventListener("click", () => map.zoomOut());
+function updScale(){
+  const z = map.getZoom(), lat = map.getCenter().lat;
+  const den = 156543.034 * Math.cos(lat*Math.PI/180) / 2**z / 0.00028; // 1 px écran ≈ 0,28 mm
+  const nice = den>=1e6 ? (den/1e6).toFixed(1)+" M" : den>=1e3 ? Math.round(den/1e3)+" 000" : Math.round(den);
+  $("scaleinfo").textContent = "1:"+nice;
+  $("bZin").disabled = z>=map.getMaxZoom(); $("bZout").disabled = z<=map.getMinZoom();
+}
+map.on("zoomend", updScale); updScale();
 map.on("moveend", () => store.set("view", {c:[map.getCenter().lat, map.getCenter().lng], z:map.getZoom()}));
 
 /* ---------- Formats ---------- */
