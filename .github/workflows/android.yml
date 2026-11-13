@@ -73,11 +73,16 @@ jobs:
       - name: Compiler l'APK
         run: |
           # Clé de débogage FIXE (versionnée) : chaque nouvel APK s'installe par-dessus le précédent
-          mkdir -p ~/.android && cp android-debug.keystore ~/.android/debug.keystore
           cd build/android
+          KS="$GITHUB_WORKSPACE/android-debug.keystore"
+          # déclare la clé fixe pour la compilation de débogage
+          sed -i "0,/^android {/s##android {\n    signingConfigs { debug { storeFile file('$KS'); storePassword 'android'; keyAlias 'androiddebugkey'; keyPassword 'android' } }#" app/build.gradle
+          grep -n "signingConfigs" app/build.gradle
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
           cp app/build/outputs/apk/debug/app-debug.apk ../../Balise.apk
+          keytool -printcert -jarfile ../../Balise.apk | grep SHA256 || true
+          $ANDROID_HOME/build-tools/*/apksigner verify --print-certs ../../Balise.apk | grep -i sha-256 | head -1 || true
           cp ../../Balise.apk ../../NavSHOM.apk
 
       - uses: actions/upload-artifact@v4
