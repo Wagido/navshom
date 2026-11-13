@@ -387,7 +387,7 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
   <div class="opt"><input id="q" type="search" placeholder="Rechercher un lieu, un sommet, un port…" autocomplete="off"
     style="flex:1;min-width:0;font:15px var(--sans);padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--white);color:var(--ink)"></div>
   <div class="wplist" id="qRes"></div>
-  <label class="opt mer-only" for="spot"><div style="flex:1">Aller à<small>Bretagne et îles Anglo-Normandes</small></div><select id="spot"></select></label>
+  <label class="opt mer-only" for="spot"><div style="flex:1">Aller à<small>Côtes de France et îles Anglo-Normandes</small></div><select id="spot"></select></label>
   <h3>Carte</h3>
   <label class="opt"><input type="radio" name="base" value="litto"><div>Carte littorale IGN-SHOM<small>Cartes marines SHOM + IGN à terre, libre (Géoportail)</small></div></label>
   <label class="opt"><input type="radio" name="base" value="emod"><div>Bathymétrie EMODnet<small>Profondeurs (données européennes libres). À combiner avec le balisage</small></div></label>
@@ -441,18 +441,25 @@ const fmtT = t => { const d=new Date(t); return d.toLocaleDateString("fr-FR",{we
 function compass(d){ return ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"][Math.round(d/22.5)%16]; }
 
 /* ================= Carte ================= */
-const ZONE = L.latLngBounds([46.80,-6.00],[50.05,-1.00]);
+const ZONE = L.latLngBounds([41.2,-5.9],[51.3,9.8]); // toutes les côtes de France métropolitaine + Corse
 const FRANCE = L.latLngBounds([41.2,-5.9],[51.3,9.8]);
 let MODE = store.get("mode","mer"); const R = () => MODE==="rando";
 const AREA = () => R() ? FRANCE : ZONE;
 const baseKey = () => "base_"+MODE;
 const fmtD = m => R() ? (m<1000 ? Math.round(m)+" m" : (m/1000).toFixed(m<10000?2:1).replace(".",",")+" km") : fmtNM(m);
 const SPOTS = [
-  ["Toute la zone",[48.4,-3.4],8], ["Iroise / Brest",[48.35,-4.75],11], ["Raz de Sein",[48.04,-4.75],12],
+  ["— Manche —",[49.6,-1.5],7], ["Dunkerque / Calais",[51.0,2.0],10], ["Baie de Somme",[50.2,1.55],11], ["Le Havre / Seine",[49.48,0.1],11],
+  ["Cherbourg / Raz Blanchard",[49.68,-1.75],11], ["Baie de Saint-Brieuc",[48.6,-2.7],10],
+  ["— Bretagne —",[48.4,-3.4],8], ["Iroise / Brest",[48.35,-4.75],11], ["Raz de Sein",[48.04,-4.75],12],
   ["Glénan / Concarneau",[47.78,-3.98],11], ["Groix / Lorient",[47.68,-3.45],11], ["Belle-Île / Quiberon",[47.38,-3.15],11],
   ["Golfe du Morbihan",[47.56,-2.85],12], ["Baie de La Baule",[47.25,-2.35],11], ["Baie de Morlaix",[48.70,-3.90],11],
   ["Bréhat / Paimpol",[48.85,-3.00],12], ["Saint-Malo / Chausey",[48.75,-1.95],11],
-  ["Jersey",[49.20,-2.13],11], ["Guernesey / Sercq",[49.45,-2.50],11], ["Aurigny / Raz Blanchard",[49.72,-2.10],11]
+  ["Jersey",[49.20,-2.13],11], ["Guernesey / Sercq",[49.45,-2.50],11], ["Aurigny",[49.72,-2.10],11],
+  ["— Atlantique —",[46.3,-1.8],7], ["Noirmoutier / Yeu",[46.85,-2.25],10], ["Pertuis / La Rochelle / Ré",[46.1,-1.3],10],
+  ["Estuaire de la Gironde",[45.55,-1.0],10], ["Bassin d'Arcachon",[44.66,-1.18],11], ["Pays basque",[43.45,-1.65],11],
+  ["— Méditerranée —",[42.9,5.5],7], ["Golfe du Lion",[43.1,3.6],9], ["Marseille / Calanques",[43.22,5.4],11], ["Îles d'Hyères",[43.03,6.3],11],
+  ["Saint-Tropez",[43.25,6.7],11], ["Cannes / Lérins",[43.52,7.04],11], ["Nice / Antibes",[43.62,7.2],11],
+  ["— Corse —",[42.15,9.0],8], ["Bonifacio",[41.39,9.16],11], ["Ajaccio",[41.9,8.7],11], ["Calvi / Balagne",[42.6,8.85],11], ["Cap Corse",[42.95,9.4],10]
 ];
 let view = store.get("view", {c:[48.4,-3.4], z:8});
 if(!AREA().contains(view.c)) view = R() ? {c:[46.6,2.4], z:6} : {c:[48.4,-3.4], z:8};
@@ -917,7 +924,7 @@ function ramp(t){ if(t._ramp) return t._ramp; const r=t.scale.map(([v,c])=>[v,rg
 function colorAt(t,v){ const r=ramp(t); if(v<=r[0][0]) return r[0][1];
   for(let j=1;j<r.length;j++){ if(v<=r[j][0]){ const [s0,c0]=r[j-1],[s1,c1]=r[j], f=(v-s0)/(s1-s0); return c0.map((x,q)=>x+(c1[q]-x)*f); } } return r[r.length-1][1]; }
 /* ---- Masque terre / mer (données GLOBE, ~1 km) : courant, vagues et houle s'arrêtent à la côte ---- */
-const MASK={N:50.05,S:46.80,W:-6.00,E:-1.00,w:0,h:0,d:null};
+const MASK={N:51.30,S:41.20,W:-5.90,E:9.80,w:0,h:0,d:null};
 (function(){ const im=new Image(); im.onload=()=>{ const c=document.createElement("canvas"); c.width=im.width; c.height=im.height; const g=c.getContext("2d"); g.drawImage(im,0,0);
   const px=g.getImageData(0,0,c.width,c.height).data, d=new Uint8Array(c.width*c.height); for(let i=0;i<d.length;i++) d[i]=px[i*4]>127?1:0;
   MASK.w=c.width; MASK.h=c.height; MASK.d=d; if(ov.data) drawOverlay(); }; im.src="lib/landmask.png"; })();
@@ -1463,7 +1470,7 @@ $("bCache").onclick = async () => {
   await Promise.all([worker(),worker(),worker(),worker()]);
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
-const APP_VERSION="2026.11.13-j"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
+const APP_VERSION="2026.11.13-k"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
