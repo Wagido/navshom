@@ -72,6 +72,8 @@ jobs:
 
       - name: Compiler l'APK
         run: |
+          # Clé de débogage FIXE (versionnée) : chaque nouvel APK s'installe par-dessus le précédent
+          mkdir -p ~/.android && cp android-debug.keystore ~/.android/debug.keystore
           cd build/android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
