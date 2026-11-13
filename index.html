@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Nav SHOM</title>
+<meta name="theme-color" content="#0b2a3c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nav SHOM">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+:root{
+  --bg:#0b2a3c; --panel:rgba(8,30,44,.92); --fg:#eaf4f8; --muted:#9fbccb;
+  --accent:#ffb020; --ok:#3fd18b; --warn:#ff5a4f; --line:rgba(255,255,255,.14);
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);overscroll-behavior:none}
+#map{position:fixed;inset:0;background:#aad3df}
+body.night #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.75) sepia(.6) saturate(2.2) hue-rotate(-30deg)}
+body.night{--fg:#ff8a7a;--muted:#b85a50;--accent:#ff5040;--ok:#ff6a50}
+
+/* Bandeau instruments */
+#hud{position:fixed;left:0;right:0;top:0;z-index:1000;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+  background:var(--line);padding-top:env(safe-area-inset-top,0px)}
+.cell{background:var(--panel);padding:6px 8px 7px;min-width:0}
+.cell b{display:block;font:600 10px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.cell span{display:block;font:600 22px/1.15 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell small{font:500 11px var(--mono);color:var(--muted)}
+#pos{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:8px;font:600 15px var(--mono)}
+#pos .st{font:600 11px var(--sans);padding:2px 7px;border-radius:9px;background:#44606e;color:#fff;white-space:nowrap}
+#pos .st.ok{background:var(--ok);color:#06281a}
+#pos .st.bad{background:var(--warn)}
+
+/* Boutons latéraux */
+#tools{position:fixed;z-index:1000;right:max(10px,env(safe-area-inset-right,0px));
+  bottom:calc(env(safe-area-inset-bottom,0px) + 24px);display:flex;flex-direction:column;gap:10px}
+.btn{width:52px;height:52px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--fg);
+  font:700 12px/1 var(--sans);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:0}
+.btn svg{width:26px;height:26px}
+.btn.on{background:var(--accent);color:#1b1200;border-color:transparent}
+.btn.mob{background:var(--warn);color:#fff;border-color:transparent}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Panneaux */
+.sheet{position:fixed;z-index:1100;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);
+  padding:14px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  border-radius:16px 16px 0 0;max-height:70vh;overflow:auto;backdrop-filter:blur(6px)}
+.sheet h2{margin:0 0 10px;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+.sheet h2 button{background:none;border:0;color:var(--muted);font-size:24px;line-height:1;cursor:pointer}
+.opt{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.opt input[type=radio],.opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+.opt small{display:block;color:var(--muted);font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pill{flex:1;min-width:120px;padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--fg);font:600 14px var(--sans);cursor:pointer}
+.pill.primary{background:var(--accent);color:#1b1200;border:0}
+.note{color:var(--muted);font-size:12px;line-height:1.45;margin:10px 0 0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+
+/* Barre courants */
+#curbar{position:fixed;z-index:1000;left:max(10px,env(safe-area-inset-left,0px));right:76px;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 24px);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
+#curbar .t{display:flex;justify-content:space-between;font:600 13px var(--mono);font-variant-numeric:tabular-nums;gap:8px}
+#curbar .t em{font-style:normal;color:var(--accent)}
+#curbar .t span:last-child{color:var(--muted);white-space:nowrap}
+
+/* Bateau / flèches */
+.boat{width:34px;height:34px;margin:-17px 0 0 -17px}
+.boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+.carrow{pointer-events:none}
+.carrow div{font:700 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
+.leaflet-control-scale{margin-left:max(10px,env(safe-area-inset-left,0px))!important}
+.leaflet-top{top:calc(env(safe-area-inset-top,0px) + 92px)}
+#toast{position:fixed;z-index:1200;left:50%;top:calc(env(safe-area-inset-top,0px) + 100px);transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--line);padding:8px 14px;border-radius:10px;font-size:14px;max-width:90vw}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="hud">
+  <div class="cell"><b>SOG nd</b><span id="sog">—</span></div>
+  <div class="cell"><b>COG °</b><span id="cog">—</span></div>
+  <div class="cell"><b>Courant</b><span id="cur">—</span></div>
+  <div class="cell"><b id="wplab">Précision</b><span id="acc">—</span></div>
+  <div class="cell" id="pos"><span id="ll">Position GPS en attente…</span><span class="st" id="gpsst">GPS</span></div>
+</div>
+
+<div id="tools">
+  <button class="btn on" id="bFollow" title="Suivre le bateau" aria-label="Suivre le bateau">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+  <button class="btn" id="bCur" title="Courants" aria-label="Afficher les courants">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg></button>
+  <button class="btn" id="bLayers" title="Cartes" aria-label="Choisir la carte">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg></button>
+  <button class="btn mob" id="bMob" title="Homme à la mer" aria-label="Homme à la mer">MOB</button>
+</div>
+
+<div id="curbar" hidden>
+  <div class="t"><span>Courant <em id="curtime">—</em></span><span id="cursrc">Open-Meteo</span></div>
+  <input type="range" id="curslider" min="0" max="47" value="0" aria-label="Heure des courants">
+</div>
+
+<div class="sheet" id="layers" hidden>
+  <h2>Cartes &amp; réglages <button id="closeLayers" aria-label="Fermer">×</button></h2>
+  <label class="opt" for="spot"><div style="flex:1">Aller à<small>Bretagne et îles Anglo-Normandes</small></div>
+    <select id="spot" style="font:15px var(--sans);padding:8px;border-radius:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line)"></select></label>
+  <label class="opt"><input type="radio" name="base" value="shom" checked><div>Cartes marines SHOM<small>Raster des cartes papier (services.data.shom.fr)</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="gebco"><div>Fond GEBCO (SHOM)<small>Bathymétrie mondiale</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="osm"><div>OpenStreetMap<small>Carte terrestre</small></div></label>
+  <label class="opt"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers en surimpression</small></div></label>
+  <label class="opt"><input type="checkbox" id="track" checked><div>Trace du bateau</div></label>
+  <label class="opt"><input type="checkbox" id="night"><div>Mode nuit<small>Rouge, préserve la vision nocturne</small></div></label>
+  <label class="opt"><input type="checkbox" id="wake" checked><div>Garder l'écran allumé</div></label>
+  <div class="row">
+    <button class="pill primary" id="bCache">Télécharger la zone (hors ligne)</button>
+    <button class="pill" id="bClearTrack">Effacer la trace</button>
+  </div>
+  <p class="note" id="cacheinfo">Enregistre les cartes de la zone affichée (zoom actuel +3) pour les consulter sans réseau en mer.</p>
+  <p class="note">Les cartes SHOM affichées ici sont celles du visualiseur public data.shom.fr. Elles ne remplacent pas les cartes officielles à jour ni la veille visuelle. Courants : modèle Mercator SMOC (marée incluse) via Open-Meteo, maille ≈ 8 km, indicatifs près des côtes.</p>
+</div>
+
+<div id="toast" hidden></div>
+
+<script src="lib/leaflet.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem("nav_"+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem("nav_"+k, JSON.stringify(v)); }catch(e){} }
+};
+function toast(msg, ms=2600){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true, ms); }
+
+/* ---------- Carte ---------- */
+/* Zone : Bretagne + îles Anglo-Normandes */
+const ZONE = L.latLngBounds([46.80,-6.00],[50.05,-1.00]);
+const SPOTS = [
+  ["Toute la zone",[48.4,-3.4],8], ["Iroise / Brest",[48.35,-4.75],11], ["Raz de Sein",[48.04,-4.75],12],
+  ["Glénan / Concarneau",[47.78,-3.98],11], ["Groix / Lorient",[47.68,-3.45],11], ["Belle-Île / Quiberon",[47.38,-3.15],11],
+  ["Golfe du Morbihan",[47.56,-2.85],12], ["Baie de La Baule",[47.25,-2.35],11], ["Baie de Morlaix",[48.70,-3.90],11],
+  ["Bréhat / Paimpol",[48.85,-3.00],12], ["Saint-Malo / Chausey",[48.75,-1.95],11],
+  ["Jersey",[49.20,-2.13],11], ["Guernesey / Sercq",[49.45,-2.50],11], ["Aurigny / Raz Blanchard",[49.72,-2.10],11]
+];
+let view = store.get("view", {c:[48.4,-3.4], z:8});
+if(!ZONE.contains(view.c)) view = {c:[48.4,-3.4], z:8};
+const map = L.map("map", {zoomControl:false, attributionControl:true, minZoom:7,
+  maxBounds:ZONE.pad(0.15), maxBoundsViscosity:1}).setView(view.c, view.z);
+L.control.scale({imperial:false, metric:true, position:"bottomleft"}).addTo(map);
+map.attributionControl.setPrefix(false);
+
+const shomUrl = layer =>
+  "https://services.data.shom.fr/clevisu/wmts?layer="+layer+
+  "&style=normal&tilematrixset=3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png"+
+  "&TileMatrix={z}&TileCol={x}&TileRow={y}";
+
+const bases = {
+  shom:  L.tileLayer(shomUrl("RASTER_MARINE_3857_WMTS"), {maxZoom:18, maxNativeZoom:18, bounds:ZONE, attribution:"© SHOM"}),
+  gebco: L.tileLayer(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"), {maxZoom:18, maxNativeZoom:12, bounds:ZONE, attribution:"© SHOM / GEBCO"}),
+  osm:   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, bounds:ZONE, attribution:"© OpenStreetMap"})
+};
+const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:ZONE, attribution:"© OpenSeaMap"});
+let curBase = store.get("base","shom"); if(!bases[curBase]) curBase="shom";
+bases[curBase].addTo(map);
+document.querySelector(`input[name=base][value=${curBase}]`).checked = true;
+document.querySelectorAll("input[name=base]").forEach(r => r.addEventListener("change", e => {
+  map.removeLayer(bases[curBase]); curBase = e.target.value; bases[curBase].addTo(map); bases[curBase].bringToBack(); store.set("base",curBase);
+}));
+$("seamarks").checked = store.get("seamarks", false);
+if($("seamarks").checked) seamarks.addTo(map);
+$("seamarks").addEventListener("change", e => { e.target.checked ? seamarks.addTo(map) : map.removeLayer(seamarks); store.set("seamarks", e.target.checked); });
+
+map.on("moveend", () => store.set("view", {c:[map.getCenter().lat, map.getCenter().lng], z:map.getZoom()}));
+
+/* ---------- Formats ---------- */
+function dm(v, pos, neg){ const h = v>=0?pos:neg; v=Math.abs(v); const d=Math.floor(v); const m=(v-d)*60;
+  return d+"°"+m.toFixed(3).padStart(6,"0")+"'"+h; }
+const fmtLL = (la,lo) => dm(la,"N","S")+"  "+dm(lo,"E","W");
+const KN = 1.943844; // m/s -> nœuds
+function bearing(a,b){ const r=Math.PI/180, f1=a.lat*r, f2=b.lat*r, dl=(b.lng-a.lng)*r;
+  const y=Math.sin(dl)*Math.cos(f2), x=Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl);
+  return (Math.atan2(y,x)/r+360)%360; }
+
+/* ---------- GPS ---------- */
+const boatIcon = L.divIcon({className:"boat", html:
+  '<svg viewBox="0 0 34 34"><path d="M17 2 26 30 17 24 8 30Z" fill="#ff3b30" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'});
+let boat=null, accCircle=null, last=null, follow=true, headingLine=null;
+const trackPts = store.get("track", []);
+const trackLine = L.polyline(trackPts, {color:"#ff3b30", weight:3, opacity:.75});
+$("track").checked = store.get("showTrack", true);
+if($("track").checked) trackLine.addTo(map);
+$("track").addEventListener("change", e => { e.target.checked ? trackLine.addTo(map) : map.removeLayer(trackLine); store.set("showTrack", e.target.checked); });
+$("bClearTrack").addEventListener("click", () => { trackLine.setLatLngs([]); store.set("track", []); toast("Trace effacée"); });
+
+function onPos(p){
+  const c = p.coords, ll = L.latLng(c.latitude, c.longitude);
+  $("gpsst").textContent = "GPS"; $("gpsst").className = "st ok";
+  $("ll").textContent = fmtLL(ll.lat, ll.lng) + (ZONE.contains(ll) ? "" : "  (hors zone)");
+  $("acc").innerHTML = Math.round(c.accuracy)+"<small> m</small>";
+  let sog = (c.speed!=null && !isNaN(c.speed)) ? c.speed*KN : null;
+  let cog = (c.heading!=null && !isNaN(c.heading)) ? c.heading : null;
+  if(last && (sog===null || cog===null)){ // calcul si le navigateur ne fournit pas vitesse/cap
+    const dt = (p.timestamp - last.t)/1000, d = map.distance(last.ll, ll);
+    if(dt>0 && d>3){ if(sog===null) sog = d/dt*KN; if(cog===null) cog = bearing(last.ll, ll); }
+  }
+  if(sog!==null && sog>60) sog = null;      // saut GPS aberrant
+  if(sog!==null) $("sog").textContent = sog.toFixed(1);
+  if(cog!==null && (sog===null || sog>0.4)) $("cog").textContent = String(Math.round(cog)).padStart(3,"0");
+  if(!boat){
+    accCircle = L.circle(ll, {radius:c.accuracy, color:"#ff3b30", weight:1, fillOpacity:.08, interactive:false}).addTo(map);
+    boat = L.marker(ll, {icon:boatIcon, interactive:false, zIndexOffset:1000}).addTo(map);
+    if(ZONE.contains(ll)) map.setView(ll, Math.max(map.getZoom(), 13)); else follow=false, $("bFollow").classList.remove("on");
+  } else { boat.setLatLng(ll); accCircle.setLatLng(ll).setRadius(c.accuracy); }
+  if(cog!==null){ const s = boat.getElement() && boat.getElement().querySelector("svg"); if(s) s.style.transform = "rotate("+cog+"deg)"; }
+  // vecteur de route 6 min
+  if(cog!==null && sog>0.4){
+    const dist = sog/KN*360, r=Math.PI/180, R=6371000;
+    const la2 = Math.asin(Math.sin(ll.lat*r)*Math.cos(dist/R)+Math.cos(ll.lat*r)*Math.sin(dist/R)*Math.cos(cog*r));
+    const lo2 = ll.lng*r+Math.atan2(Math.sin(cog*r)*Math.sin(dist/R)*Math.cos(ll.lat*r), Math.cos(dist/R)-Math.sin(ll.lat*r)*Math.sin(la2));
+    const end = [la2/r, lo2/r];
+    headingLine ? headingLine.setLatLngs([ll,end]) : headingLine = L.polyline([ll,end], {color:"#ff3b30", weight:2, dashArray:"6 5"}).addTo(map);
+  }
+  // trace : un point tous les 15 m
+  const lt = trackLine.getLatLngs();
+  if(c.accuracy < 50 && (!lt.length || map.distance(lt[lt.length-1], ll) > 15)){
+    trackLine.addLatLng(ll); const arr = trackLine.getLatLngs().slice(-5000).map(x=>[+x.lat.toFixed(6),+x.lng.toFixed(6)]); store.set("track", arr);
+  }
+  last = {ll, t:p.timestamp};
+  if(follow && ZONE.contains(ll)) map.panTo(ll, {animate:true});
+  updateMob(); updateCurrentHere();
+}
+function onErr(e){
+  $("gpsst").textContent = e.code===1 ? "GPS refusé" : "GPS ?"; $("gpsst").className = "st bad";
+  if(e.code===1) $("ll").textContent = "Autorisez la localisation pour ce site";
+}
+if("geolocation" in navigator){
+  navigator.geolocation.watchPosition(onPos, onErr, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
+} else onErr({code:0});
+
+$("bFollow").addEventListener("click", () => { follow = !follow; $("bFollow").classList.toggle("on", follow); if(follow && last) map.setView(last.ll); });
+map.on("dragstart", () => { follow = false; $("bFollow").classList.remove("on"); });
+
+/* ---------- Homme à la mer ---------- */
+let mob = store.get("mob", null), mobMarker = null;
+function drawMob(){
+  if(mobMarker){ map.removeLayer(mobMarker); mobMarker=null; }
+  if(!mob) { $("wplab").textContent = "Précision"; return; }
+  mobMarker = L.circleMarker(mob, {radius:10, color:"#fff", weight:3, fillColor:"#ff3b30", fillOpacity:1}).addTo(map)
+    .bindTooltip("MOB", {permanent:true, direction:"right"});
+}
+function updateMob(){
+  if(!mob || !last) return;
+  const d = map.distance(last.ll, mob), b = bearing(last.ll, L.latLng(mob));
+  $("wplab").textContent = "MOB "+String(Math.round(b)).padStart(3,"0")+"°";
+  $("acc").innerHTML = (d<1852 ? Math.round(d)+"<small> m</small>" : (d/1852).toFixed(2)+"<small> M</small>");
+}
+$("bMob").addEventListener("click", () => {
+  if(mob && $("bMob").dataset.armed !== "1"){ $("bMob").dataset.armed="1"; toast("Appuyez encore pour effacer le point MOB"); setTimeout(()=>$("bMob").dataset.armed="",3000); return; }
+  if(mob){ mob=null; store.set("mob",null); drawMob(); toast("Point MOB effacé"); $("bMob").dataset.armed=""; return; }
+  if(!last){ toast("Pas de position GPS"); return; }
+  mob = [last.ll.lat, last.ll.lng]; store.set("mob", mob); drawMob(); updateMob();
+  toast("MOB enregistré "+fmtLL(mob[0],mob[1]), 5000);
+  if(navigator.vibrate) navigator.vibrate([200,100,200]);
+});
+drawMob();
+
+/* ---------- Courants (Open-Meteo Marine, modèle Mercator SMOC) ---------- */
+const curLayer = L.layerGroup();
+let curOn = false, curData = null, curHourIdx = 0, curPts = [], curGridN = 0;
+function arrowIcon(dirTo, kn){
+  const len = Math.min(16 + kn*14, 54), col = kn<0.5 ? "#4fc3f7" : kn<1.5 ? "#ffd54f" : kn<3 ? "#ff9800" : "#ff3d00";
+  return L.divIcon({className:"carrow", iconSize:[60,74], iconAnchor:[30,30], html:
+    `<svg width="60" height="60" viewBox="-30 -30 60 60" style="transform:rotate(${dirTo}deg)">
+      <line x1="0" y1="${len/2}" x2="0" y2="${-len/2}" stroke="#000" stroke-opacity=".55" stroke-width="6" stroke-linecap="round"/>
+      <line x1="0" y1="${len/2}" x2="0" y2="${-len/2+2}" stroke="${col}" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M0 ${-len/2-4} L7 ${-len/2+8} L-7 ${-len/2+8}Z" fill="${col}" stroke="#000" stroke-opacity=".55" stroke-width="1.5"/></svg>
+      <div>${kn.toFixed(1)}</div>`});
+}
+async function loadCurrents(){
+  const b = map.getBounds(), sz = map.getSize();
+  const cols = Math.max(3, Math.min(8, Math.round(sz.x/80))), rows = Math.max(3, Math.min(10, Math.round(sz.y/90)));
+  const pts = [];
+  for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){
+    const p = map.containerPointToLatLng([ (j+.5)*sz.x/cols, (i+.5)*sz.y/rows ]);
+    pts.push([+p.lat.toFixed(4), +p.lng.toFixed(4)]);
+  }
+  curGridN = pts.length;
+  if(last) pts.push([+last.ll.lat.toFixed(4), +last.ll.lng.toFixed(4)]);
+  const url = "https://marine-api.open-meteo.com/v1/marine?latitude="+pts.map(p=>p[0]).join(",")+
+    "&longitude="+pts.map(p=>p[1]).join(",")+
+    "&hourly=ocean_current_velocity,ocean_current_direction&timezone=auto&forecast_days=2&cell_selection=sea";
+  $("cursrc").textContent = "chargement…";
+  try{
+    const r = await fetch(url); if(!r.ok) throw new Error(r.status);
+    let j = await r.json(); if(!Array.isArray(j)) j=[j];
+    curData = j; curPts = pts;
+    const times = j[0].hourly.time, now = Date.now();
+    // heure courante la plus proche
+    curHourIdx = 0; let best = 1e15;
+    times.forEach((t,i)=>{ const d=Math.abs(new Date(t).getTime()-now); if(d<best){best=d;curHourIdx=i;} });
+    $("curslider").max = times.length-1; $("curslider").value = curHourIdx;
+    $("cursrc").textContent = "Mercator · Open-Meteo";
+    drawCurrents();
+  }catch(e){ $("cursrc").textContent = "indisponible"; toast("Courants indisponibles (réseau ?)"); }
+}
+function drawCurrents(){
+  curLayer.clearLayers(); if(!curData) return;
+  const i = curHourIdx;
+  curData.forEach((d,k)=>{
+    const v = d.hourly.ocean_current_velocity[i], dir = d.hourly.ocean_current_direction[i];
+    if(v==null || dir==null || k>=curGridN) return; // terre, ou point du bateau (affiché dans le bandeau)
+    const kn = v/1.852;                        // km/h -> nœuds
+    L.marker(curPts[k], {icon:arrowIcon(dir, kn), interactive:false}).addTo(curLayer);
+  });
+  const t = new Date(curData[0].hourly.time[i]);
+  $("curtime").textContent = t.toLocaleDateString("fr-FR",{weekday:"short", day:"numeric"})+" "+t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  updateCurrentHere();
+}
+function updateCurrentHere(){
+  if(!curOn || !curData || !last) { if(!curOn) $("cur").textContent="—"; return; }
+  // point le plus proche du bateau
+  let bi=-1, bd=1e12; curPts.forEach((p,k)=>{ const d=map.distance(last.ll,p); if(d<bd && curData[k].hourly.ocean_current_velocity[curHourIdx]!=null){bd=d;bi=k;} });
+  if(bi<0 || bd>15000){ $("cur").textContent="—"; return; }
+  const h = curData[bi].hourly, kn = h.ocean_current_velocity[curHourIdx]/1.852;
+  $("cur").innerHTML = kn.toFixed(1)+"<small> "+String(Math.round(h.ocean_current_direction[curHourIdx])).padStart(3,"0")+"°</small>";
+}
+$("curslider").addEventListener("input", e => { curHourIdx = +e.target.value; drawCurrents(); });
+$("bCur").addEventListener("click", () => {
+  curOn = !curOn; $("bCur").classList.toggle("on", curOn); $("curbar").hidden = !curOn;
+  if(curOn){ curLayer.addTo(map); loadCurrents(); } else { map.removeLayer(curLayer); $("cur").textContent="—"; }
+});
+let curTimer; map.on("moveend", () => { if(!curOn) return; clearTimeout(curTimer); curTimer = setTimeout(() => {
+  const keep = curHourIdx; loadCurrents().then(()=>{ if(curData && keep < curData[0].hourly.time.length){ curHourIdx=keep; $("curslider").value=keep; drawCurrents(); } }); }, 700); });
+
+/* ---------- Panneau réglages ---------- */
+SPOTS.forEach((sp,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=sp[0]; $("spot").appendChild(o); });
+$("spot").insertAdjacentHTML("afterbegin",'<option value="" selected>Choisir…</option>');
+$("spot").addEventListener("change", e => { if(e.target.value==="") return; const sp=SPOTS[+e.target.value];
+  follow=false; $("bFollow").classList.remove("on"); map.setView(sp[1], sp[2]); $("layers").hidden=true; e.target.value=""; });
+$("bLayers").addEventListener("click", () => $("layers").hidden = !$("layers").hidden);
+$("closeLayers").addEventListener("click", () => $("layers").hidden = true);
+$("night").checked = store.get("night", false); document.body.classList.toggle("night", $("night").checked);
+$("night").addEventListener("change", e => { document.body.classList.toggle("night", e.target.checked); store.set("night", e.target.checked); });
+
+/* Écran allumé */
+let wakeLock = null;
+async function wake(){ if(!$("wake").checked || !("wakeLock" in navigator)) return; try{ wakeLock = await navigator.wakeLock.request("screen"); }catch(e){} }
+$("wake").checked = store.get("wake", true);
+$("wake").addEventListener("change", e => { store.set("wake", e.target.checked); if(e.target.checked) wake(); else if(wakeLock){ wakeLock.release(); wakeLock=null; } });
+document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") wake(); });
+document.addEventListener("click", wake, {once:true}); wake();
+
+/* ---------- Hors ligne : téléchargement de zone ---------- */
+function tileRange(b, z){
+  const n = 2**z, x = lng => Math.floor((lng+180)/360*n),
+    y = lat => { const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n); };
+  return {x0:x(b.getWest()), x1:x(b.getEast()), y0:y(b.getNorth()), y1:y(b.getSouth())};
+}
+$("bCache").addEventListener("click", async () => {
+  if(!("caches" in window)){ toast("Hors ligne non supporté par ce navigateur"); return; }
+  const layer = bases[curBase], z0 = map.getZoom(), urls = [];
+  for(let z=z0; z<=Math.min(z0+3, 17); z++){
+    const vb = map.getBounds(), cb = L.latLngBounds(
+      [Math.max(vb.getSouth(),ZONE.getSouth()), Math.max(vb.getWest(),ZONE.getWest())],
+      [Math.min(vb.getNorth(),ZONE.getNorth()), Math.min(vb.getEast(),ZONE.getEast())]);
+    const r = tileRange(cb, z);
+    for(let x=r.x0;x<=r.x1;x++) for(let y=r.y0;y<=r.y1;y++){
+      urls.push(L.Util.template(layer._url, {z, x, y, s:"a", r:""}));
+      if($("seamarks").checked) urls.push(L.Util.template(seamarks._url, {z, x, y}));
+    }
+  }
+  if(urls.length > 4000){ toast("Zone trop grande ("+urls.length+" tuiles). Zoomez davantage."); return; }
+  const cache = await caches.open("navshom-tiles"); let done=0, fail=0;
+  const info = $("cacheinfo"), btn = $("bCache"); btn.disabled = true;
+  const worker = async () => { while(urls.length){ const u = urls.pop();
+    try{ if(!(await cache.match(u))){ const r = await fetch(u, {mode:"no-cors"}); await cache.put(u, r); } done++; }catch(e){ fail++; }
+    info.textContent = "Téléchargement… "+done+" tuiles"+(fail?" ("+fail+" échecs)":""); } };
+  await Promise.all([worker(),worker(),worker(),worker()]);
+  info.textContent = "Zone enregistrée : "+done+" tuiles disponibles hors ligne"+(fail?" ("+fail+" échecs)":"")+".";
+  btn.disabled = false;
+});
+
+if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>

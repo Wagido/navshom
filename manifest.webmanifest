@@ -1,0 +1,17 @@
+{
+  "name": "Nav SHOM Bretagne",
+  "short_name": "Nav SHOM",
+  "description": "Cartes marines SHOM, position GPS et courants - Bretagne et îles Anglo-Normandes",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b2a3c",
+  "theme_color": "#0b2a3c",
+  "lang": "fr",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml"}
+  ]
+}
