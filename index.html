@@ -300,7 +300,11 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
   <h2>Menu<button class="x" data-close aria-label="Fermer">×</button></h2>
   <label class="opt" for="spot"><div style="flex:1">Aller à<small>Bretagne et îles Anglo-Normandes</small></div><select id="spot"></select></label>
   <h3>Carte</h3>
-  <label class="opt"><input type="radio" name="base" value="shom" checked><div>Cartes marines SHOM<small>Assemblage RasterMarine</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="shom" checked><div>Cartes marines SHOM<small>Assemblage RasterMarine (clé SHOM nécessaire)</small></div></label>
+  <div class="opt" style="flex-wrap:wrap"><label for="shomkey" style="flex:1 1 100%">Ma clé SHOM<small>Gratuite sur data.shom.fr (espace client). Site autorisé : wagido.github.io</small></label>
+    <input id="shomkey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="collez votre clé ici"
+      style="flex:1;min-width:0;font:14px var(--mono);padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink)">
+    <button class="pill primary" id="bKey" style="flex:0 0 auto;min-width:0">Enregistrer</button></div>
   <label class="opt"><input type="radio" name="base" value="gebco"><div>Fond GEBCO (SHOM)<small>Bathymétrie</small></div></label>
   <label class="opt"><input type="radio" name="base" value="osm"><div>OpenStreetMap</div></label>
   <label class="opt"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers</small></div></label>
@@ -350,7 +354,8 @@ let view = store.get("view", {c:[48.4,-3.4], z:8});
 if(!ZONE.contains(view.c)) view = {c:[48.4,-3.4], z:8};
 const map = L.map("map", {zoomControl:false, minZoom:7, maxBounds:ZONE.pad(0.15), maxBoundsViscosity:1}).setView(view.c, view.z);
 map.attributionControl.setPrefix(false);
-const shomUrl = layer => "https://services.data.shom.fr/clevisu/wmts?layer="+layer+
+let shomKey = (store.get("shomkey","")||"").trim();
+const shomUrl = layer => "https://services.data.shom.fr/"+encodeURIComponent(shomKey||"clevisu")+"/wmts?layer="+layer+
   "&style=normal&tilematrixset=3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}";
 const bases = {
   shom:  L.tileLayer(shomUrl("RASTER_MARINE_3857_WMTS"), {maxZoom:18, bounds:ZONE, attribution:"© SHOM"}),
@@ -363,7 +368,7 @@ let shomOk=0, shomErr=0;
 bases.shom.on("tileload", ()=>shomOk++);
 bases.shom.on("tileerror", ()=>{ shomErr++;
   if(shomErr===6 && shomOk===0 && curBase==="shom" && navigator.onLine){
-    toast("Cartes SHOM indisponibles : passage sur OpenStreetMap + balisage", 6000);
+    toast(shomKey ? "Clé SHOM refusée (vérifiez la clé et le site autorisé). Passage sur OpenStreetMap." : "Cartes SHOM : entrez votre clé SHOM dans Menu. En attendant : OpenStreetMap + balisage.", 7000);
     document.querySelector("input[name=base][value=osm]").click(); if(!$("seamarks").checked) $("seamarks").click(); }});
 bases[curBase].addTo(map);
 document.querySelector(`input[name=base][value=${curBase}]`).checked = true;
@@ -775,6 +780,11 @@ function renderMeteo(f,m){
 $("bMeteo").onclick = () => $("sMeteo").hidden ? openMeteo(null) : closeSheets();
 
 /* ================= Réglages ================= */
+$("shomkey").value = shomKey;
+$("bKey").onclick = () => { shomKey=$("shomkey").value.trim(); store.set("shomkey", shomKey);
+  bases.shom.setUrl(shomUrl("RASTER_MARINE_3857_WMTS")); bases.gebco.setUrl(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"));
+  shomOk=0; shomErr=0; document.querySelector("input[name=base][value=shom]").click(); closeSheets();
+  toast(shomKey ? "Clé enregistrée : chargement des cartes SHOM…" : "Clé effacée"); };
 $("night").checked=store.get("night",false); document.body.classList.toggle("night",$("night").checked);
 $("night").onchange=e=>{ document.body.classList.toggle("night",e.target.checked); store.set("night",e.target.checked); };
 let wakeLock=null;
