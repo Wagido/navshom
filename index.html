@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Balise</title>
 <meta name="theme-color" content="#0B2F5B">
+<meta name="color-scheme" content="only light">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Balise">
@@ -29,7 +30,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-html,body{height:100%;width:100%;overflow:hidden;position:fixed;inset:0;margin:0;background:var(--navy);color:var(--ink);font-family:var(--sans);overscroll-behavior:none;font-feature-settings:"tnum" 1,"cv11" 1;-webkit-font-smoothing:antialiased}
+html,body{height:100%;width:100%;overflow:hidden;margin:0;background:var(--navy);color:var(--ink);font-family:var(--sans);overscroll-behavior:none;font-feature-settings:"tnum" 1,"cv11" 1;-webkit-font-smoothing:antialiased}
 button{font-family:inherit}
 #map{position:fixed;inset:0;background:#cfe6f5}
 body.night #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.7) sepia(.7) saturate(2.5) hue-rotate(-30deg)}
@@ -197,7 +198,9 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 .chips::-webkit-scrollbar{display:none}
 .chips button{flex:none;border:0;border-radius:14px;padding:5px 10px;background:rgba(255,255,255,.1);color:#fff;font:500 12px var(--sans);cursor:pointer}
 .chips button.on{background:var(--amber);color:#1b1200;font-weight:600}
-.trow{display:flex;gap:6px;margin-bottom:4px}
+.trow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.trow select{flex:1 1 110px!important;min-width:110px!important}
+.trow .tog{flex:0 0 auto}
 .trow select{flex:1;min-width:0;font:500 12px var(--sans);padding:5px 6px;border-radius:8px;border:0;background:rgba(255,255,255,.12);color:#fff}
 .trow select option{color:#000}
 .trow select:disabled{opacity:.45}
@@ -288,7 +291,9 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
 @media (min-width:900px){ .sheet{left:calc(var(--sl) + 16px);right:auto;margin:0;bottom:16px;border-radius:18px;max-height:calc(100vh - 32px)} #sMeteo{left:calc(var(--sl) + 16px)} }
 /* panneau haut : les colonnes de boutons passent en ligne au-dessus du panneau */
 body.crowded #colBR, body.crowded #colBL{flex-direction:row;gap:8px}
-body.crowded #colBR .fab, body.crowded #colBL .fab{width:44px;height:44px}
+body.crowded #colBR, body.crowded #colBL{gap:6px}
+body.crowded #colBR .fab, body.crowded #colBL .fab{width:min(44px,calc((100vw - 74px) / 7));height:min(44px,calc((100vw - 74px) / 7))}
+body.crowded .fab svg{width:58%;height:58%} body.crowded .fab.mob{font-size:10px}
 body.crowded #colBR .fab small, body.crowded #colBL .fab small{display:none}
 body.crowded #bSat, body.crowded #bSlope{display:none!important}
 #nightOff{position:fixed;z-index:1200;left:50%;transform:translateX(-50%);top:calc(var(--st) + 66px);border:0;border-radius:16px;padding:6px 12px;background:#3a1814;color:#ff8a7a;font:600 12px var(--sans);box-shadow:0 2px 8px rgba(0,0,0,.4)}
@@ -309,6 +314,15 @@ body.crowded #bSat, body.crowded #bSlope{display:none!important}
 #runHud.paused .rh-pace span{color:#9fc0e6}
 body:has(#runHud:not([hidden])) #chip{display:none}
 .splits{font:500 13px var(--sans);width:100%;border-collapse:collapse;margin-top:6px} .splits td{padding:4px 6px;border-bottom:1px solid var(--line)} .splits td:last-child{text-align:right;font-weight:600}
+:root{color-scheme:only light}
+.modesw{display:flex;flex-direction:column;background:var(--white);border-radius:24px;box-shadow:0 2px 6px rgba(0,0,0,.28);padding:3px;gap:3px;width:48px}
+.modesw button{border:0;background:transparent;color:#9aa8b8;border-radius:21px;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;padding:0}
+.modesw button svg{width:22px;height:22px}
+.modesw button small{font:600 9px var(--sans);letter-spacing:.02em}
+.modesw button[data-m="mer"].on{background:var(--blue);color:#fff}
+.modesw button[data-m="rando"].on{background:var(--sapin);color:#fff}
+.modesw button[data-m="rando"]:not(.on) path:last-child{fill:#fff}
+.modesw button:focus-visible{outline:3px solid #FF7A00;outline-offset:1px}
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -342,7 +356,10 @@ body:has(#runHud:not([hidden])) #chip{display:none}
 
 <div class="col" id="colTL" style="gap:22px">
   <button class="fab" id="bSearch" aria-label="Aller à un lieu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></button>
-  <button class="fab" id="bMode" aria-label="Changer de mode Mer ou Rando"></button>
+  <div class="modesw" id="bMode" role="radiogroup" aria-label="Mode">
+    <button data-m="mer" role="radio" aria-label="Mode Mer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 9c2.5-2.5 5 2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5-1M2 15.5c2.5-2.5 5 2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5-1"/></svg><small>Mer</small></button>
+    <button data-m="rando" role="radio" aria-label="Mode Rando"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 21.5 20h-19z"/><path d="M12 3 15.2 8.8 13.4 8 12 9.6 10.6 8 8.8 8.8z" fill="#fff" opacity=".95"/></svg><small>Rando</small></button>
+  </div>
 </div>
 <div class="col" id="colTR">
   <button class="fab" id="bZin" aria-label="Zoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -1393,7 +1410,7 @@ function chipLabels(){
 }
 function setMode(m, quiet){
   MODE=m; store.set("mode",m); document.body.classList.toggle("rando", R());
-  $("bMode").innerHTML = (R()?ICON_RANDO:ICON_MER)+`<small>${R()?"Rando":"Mer"}</small>`;
+  document.querySelectorAll("#bMode button").forEach(b=>{ const on=b.dataset.m===MODE; b.classList.toggle("on",on); b.setAttribute("aria-checked",on); });
   $("followLbl").textContent = R()?"Moi":"Bateau";
   map.setMinZoom(R()?6:7); map.setMaxBounds(AREA().pad(R()?0.05:0.15));
   // fond de carte propre à chaque mode
@@ -1406,7 +1423,7 @@ function setMode(m, quiet){
   if(!AREA().contains(map.getCenter())) map.setView(R()?[46.6,2.4]:[48.4,-3.4], R()?6:8);
   if(!quiet) toast(R()?"Mode Rando : cartes IGN, traces, dénivelé":"Mode Mer : cartes marines, courants, marée");
 }
-$("bMode").onclick = () => setMode(R()?"mer":"rando");
+document.querySelectorAll("#bMode button").forEach(b=>b.onclick=()=>{ if(b.dataset.m!==MODE) setMode(b.dataset.m); });
 // fond 1:25 000 indisponible -> Plan IGN
 let s25ok=0, s25err=0; bases.scan25.on("tileload",()=>s25ok++);
 bases.scan25.on("tileerror",()=>{ s25err++; if(s25err===6 && s25ok===0 && curBase==="scan25" && navigator.onLine){
@@ -1966,7 +1983,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-h"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-j"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
