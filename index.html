@@ -4,153 +4,316 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Nav SHOM</title>
-<meta name="theme-color" content="#0b2a3c">
+<meta name="theme-color" content="#0b2f5b">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Nav SHOM">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="lib/leaflet.css">
 <style>
+/* Carte plein écran ; boutons ronds flottants ; barre d'actions en bas ; panneaux qui montent du bas */
 :root{
-  --bg:#0b2a3c; --panel:rgba(8,30,44,.92); --fg:#eaf4f8; --muted:#9fbccb;
-  --accent:#ffb020; --ok:#3fd18b; --warn:#ff5a4f; --line:rgba(255,255,255,.14);
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --blue:#0b63b6; --navy:#0b2f5b; --navy2:#14427c; --navy3:#1d5597; --green:#1c9e47; --red:#e5372b;
+  --white:#ffffff; --ink:#0d1b2a; --muted:#5d6e80; --line:#dde4ec; --soft:#f2f5f9; --amber:#ffb020;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
+  --sl:env(safe-area-inset-left,0px); --sr:env(safe-area-inset-right,0px);
+  --tl:0px;
 }
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);overscroll-behavior:none}
-#map{position:fixed;inset:0;background:#aad3df}
-body.night #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.75) sepia(.6) saturate(2.2) hue-rotate(-30deg)}
-body.night{--fg:#ff8a7a;--muted:#b85a50;--accent:#ff5040;--ok:#ff6a50}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--navy);color:var(--ink);font-family:var(--sans);overscroll-behavior:none}
+button{font-family:inherit}
+#map{position:fixed;inset:0;background:#cfe6f5}
+body.night #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.7) sepia(.7) saturate(2.5) hue-rotate(-30deg)}
+body.night{--white:#2a1210;--ink:#ff8a7a;--blue:#ff6a55;--line:#4a2420;--soft:#331714;--muted:#c0675a;--navy:#1e0c0a;--navy2:#2a1210;--navy3:#3a1814;--green:#a3271c}
 
-/* Bandeau instruments */
-#hud{position:fixed;left:0;right:0;top:0;z-index:1000;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
-  background:var(--line);padding-top:env(safe-area-inset-top,0px)}
-.cell{background:var(--panel);padding:6px 8px 7px;min-width:0}
-.cell b{display:block;font:600 10px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.cell span{display:block;font:600 22px/1.15 var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cell small{font:500 11px var(--mono);color:var(--muted)}
-#pos{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:8px;font:600 15px var(--mono)}
-#pos .st{font:600 11px var(--sans);padding:2px 7px;border-radius:9px;background:#44606e;color:#fff;white-space:nowrap}
-#pos .st.ok{background:var(--ok);color:#06281a}
-#pos .st.bad{background:var(--warn)}
+/* Boutons ronds */
+.fab{width:48px;height:48px;border-radius:50%;border:0;background:var(--white);color:var(--blue);
+  box-shadow:0 2px 6px rgba(0,0,0,.28);display:grid;place-items:center;cursor:pointer;padding:0;position:relative}
+.fab svg{width:24px;height:24px}
+.fab.on{background:var(--blue);color:var(--white)}
+.fab.mob{background:var(--red);color:#fff;font:800 12px var(--sans)}
+.fab:focus-visible,.bar button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.fab small{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);font:700 10px var(--sans);color:var(--navy);
+  background:rgba(255,255,255,.9);padding:1px 5px;border-radius:6px;white-space:nowrap}
+.col{position:fixed;z-index:1000;display:flex;flex-direction:column;gap:22px;transition:bottom .2s}
+#colTL{top:calc(var(--st) + 12px);left:calc(var(--sl) + 12px)}
+#colTR{top:calc(var(--st) + 12px);right:calc(var(--sr) + 12px);gap:10px;align-items:center}
+#colBL{left:calc(var(--sl) + 12px);bottom:calc(var(--sb) + 86px + var(--tl))}
+#colBR{right:calc(var(--sr) + 12px);bottom:calc(var(--sb) + 86px + var(--tl))}
+#scale{font:700 11px var(--mono);background:var(--white);color:var(--ink);border-radius:8px;padding:3px 6px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 
-/* Boutons latéraux */
-#tools{position:fixed;z-index:1000;right:max(10px,env(safe-area-inset-right,0px));
-  bottom:calc(env(safe-area-inset-bottom,0px) + 24px);display:flex;flex-direction:column;gap:10px}
-.btn{width:52px;height:52px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--fg);
-  font:700 12px/1 var(--sans);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:0}
-.btn svg{width:24px;height:24px}
-.btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:58px;height:58px}
-.btn i{font:600 9px/1 var(--sans);font-style:normal;letter-spacing:.02em}
-.btn.zoom{font:400 34px/1 var(--sans);height:54px}
-#zoomgrp{display:flex;flex-direction:column;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
-#zoomgrp .btn{border:0;border-radius:0}
-#zoomgrp .btn+.btn{border-top:1px solid var(--line)}
-#scaleinfo{font:600 11px var(--mono);text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:4px 2px;color:var(--fg)}
-.btn.on{background:var(--accent);color:#1b1200;border-color:transparent}
-.btn.mob{background:var(--warn);color:#fff;border-color:transparent}
-.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Instruments */
+#chip{position:fixed;z-index:1000;top:calc(var(--st) + 12px);left:calc(var(--sl) + 70px);right:calc(var(--sr) + 70px);
+  max-width:330px;margin:0 auto;background:var(--white);border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.25);
+  display:grid;grid-template-columns:1fr 1fr 1fr;border:0;padding:6px 4px;cursor:pointer;color:var(--ink)}
+#chip div{text-align:center;min-width:0}
+#chip b{display:block;font:700 9px var(--sans);letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+#chip span{font:700 19px/1.15 var(--mono);font-variant-numeric:tabular-nums}
+#chip i{font-style:normal;font:600 10px var(--sans);color:var(--muted)}
+#chip .gps{display:inline-block;width:8px;height:8px;border-radius:50%;background:#9aa;margin-right:4px;vertical-align:1px}
+#chip .gps.ok{background:var(--green)} #chip .gps.bad{background:var(--red)}
+
+/* Barre du bas */
+.bar{position:fixed;z-index:1000;left:50%;transform:translateX(-50%);bottom:calc(var(--sb) + 18px);display:flex;
+  background:var(--navy);border-radius:12px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+.bar button{border:0;background:transparent;color:#fff;font:700 15px var(--sans);padding:13px 18px;cursor:pointer;min-width:86px}
+.bar button.go{background:var(--green)}
+.bar button.on{background:var(--blue)}
 
 /* Panneaux */
-.sheet{position:fixed;z-index:1100;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);
-  padding:14px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
-  border-radius:16px 16px 0 0;max-height:70vh;overflow:auto;backdrop-filter:blur(6px)}
-.sheet h2{margin:0 0 10px;font-size:16px;display:flex;justify-content:space-between;align-items:center}
-.sheet h2 button{background:none;border:0;color:var(--muted);font-size:24px;line-height:1;cursor:pointer}
-.opt{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
-.opt input[type=radio],.opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+.sheet{position:fixed;z-index:1100;left:0;right:0;bottom:0;background:var(--white);color:var(--ink);border-radius:18px 18px 0 0;
+  box-shadow:0 -4px 20px rgba(0,0,0,.25);max-height:78vh;overflow:auto;
+  padding:6px max(16px,var(--sr)) calc(18px + var(--sb)) max(16px,var(--sl))}
+.sheet .grab{width:42px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 8px}
+.sheet h2{margin:0 0 10px;font:700 18px var(--sans);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.x{width:32px;height:32px;border-radius:50%;border:0;background:var(--soft);color:var(--muted);font-size:20px;cursor:pointer;flex:none}
+.info{background:var(--soft);border-radius:12px;padding:10px 12px;display:grid;gap:8px}
+.info b{display:block;font:600 12px var(--sans);color:var(--muted)}
+.info span{font:700 16px var(--mono);font-variant-numeric:tabular-nums}
+.acts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.act{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--blue);font:600 12px var(--sans);cursor:pointer}
+.act span{width:46px;height:46px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center}
+.act svg{width:22px;height:22px}
+.opt{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.opt input[type=radio],.opt input[type=checkbox]{width:20px;height:20px;accent-color:var(--blue)}
 .opt small{display:block;color:var(--muted);font-size:12px}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.pill{flex:1;min-width:120px;padding:12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--fg);font:600 14px var(--sans);cursor:pointer}
-.pill.primary{background:var(--accent);color:#1b1200;border:0}
+.opt select{font:15px var(--sans);padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.pill{flex:1;min-width:110px;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 14px var(--sans);cursor:pointer}
+.pill.primary{background:var(--blue);color:#fff;border:0}
 .note{color:var(--muted);font-size:12px;line-height:1.45;margin:10px 0 0}
-input[type=range]{width:100%;accent-color:var(--accent)}
+h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 0 4px}
+.wplist div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.wplist button{border:0;background:none;color:var(--blue);font:600 13px var(--sans);cursor:pointer;padding:4px}
 
-/* Barre courants */
-#curbar{position:fixed;z-index:1000;left:max(10px,env(safe-area-inset-left,0px));right:82px;
-  bottom:calc(env(safe-area-inset-bottom,0px) + 24px);background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:8px 12px;box-shadow:0 4px 18px rgba(0,0,0,.4)}
-#curbar .t{display:flex;justify-content:space-between;font:600 13px var(--mono);font-variant-numeric:tabular-nums;gap:8px}
-#curbar .t em{font-style:normal;color:var(--accent)}
-#curbar .t span:last-child{color:var(--muted);white-space:nowrap}
-#curbar .big{font:700 20px var(--mono);font-variant-numeric:tabular-nums;color:var(--accent)}
-#curbar .here{font:600 13px var(--mono);color:var(--fg)}
-.tl{position:relative;height:84px;margin-top:6px;touch-action:none}
+/* Mesure : carte compacte */
+#measure{position:fixed;z-index:1050;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);bottom:calc(var(--sb) + 80px);
+  max-width:460px;margin:0 auto;background:var(--white);border-radius:14px;box-shadow:0 3px 12px rgba(0,0,0,.3);padding:10px 12px}
+#measure .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#measure .tot{font:800 24px var(--mono);color:var(--ink)}
+#measure .sub{font:600 13px var(--mono);color:var(--muted)}
+#measure .hint{font-size:13px;color:var(--muted);margin-top:2px}
+#measure .ctl{display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap}
+#measure .ctl button{flex:1;padding:9px 4px;border-radius:9px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 13px var(--sans);cursor:pointer}
+#measure .ctl label{font:600 12px var(--sans);color:var(--muted);display:flex;align-items:center;gap:4px;white-space:nowrap}
+#measure .ctl input{width:52px;padding:7px 4px;border-radius:8px;border:1px solid var(--line);font:600 14px var(--mono);text-align:center;background:var(--white);color:var(--ink)}
+.mlabel{background:var(--navy);color:#fff;border:0;border-radius:6px;font:700 11px var(--mono);padding:2px 6px;box-shadow:none}
+.mlabel::before{display:none}
+
+/* Météo : panneau bleu nuit */
+#sMeteo,#sCurve{background:var(--navy);color:#fff}
+#sMeteo{padding-left:0;padding-right:0}
+#sMeteo .grab,#sCurve .grab{background:rgba(255,255,255,.3)}
+#sMeteo h2{padding:0 max(16px,var(--sr)) 0 max(16px,var(--sl))}
+#sMeteo .x,#sCurve .x{background:rgba(255,255,255,.15);color:#fff}
+.sun{display:flex;justify-content:space-around;align-items:center;background:var(--navy2);padding:8px 12px;font:600 14px var(--mono)}
+.sun div{display:flex;align-items:center;gap:8px}
+.sun svg{width:28px;height:28px}
+.sun small{display:block;font:600 10px var(--sans);color:#9fc0e6;text-transform:uppercase;letter-spacing:.06em}
+.hours{display:flex;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;background:var(--navy2);border-top:1px solid rgba(255,255,255,.08)}
+.hr{flex:0 0 74px;display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 2px 10px;border-right:1px solid rgba(255,255,255,.08);
+  scroll-snap-align:start;cursor:pointer;background:transparent;border-top:0;border-bottom:0;border-left:0;color:#fff;font-family:var(--sans)}
+.hr.sel{background:var(--navy3)}
+.hr.now .h{color:var(--amber)}
+.hr .h{font:700 13px var(--mono)}
+.hr .d{font:600 10px var(--sans);color:#9fc0e6;height:12px}
+.hr svg.wx{width:34px;height:34px}
+.hr .tp{font:700 15px var(--sans)}
+.tile{width:56px;height:42px;border-radius:7px;background:#fff;color:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;font:800 14px var(--mono);line-height:1.1}
+.tile small{font:700 9px var(--sans);color:#4c6a8c;text-transform:uppercase}
+.tile svg{width:14px;height:14px}
+.tile.w1{background:#d8f0ff} .tile.w2{background:#ffe9a8} .tile.w3{background:#ffbf80} .tile.w4{background:#ff8a80}
+.tile.cur{background:#e4f6e9} .tile.cur.c2{background:#ffe9a8} .tile.cur.c3{background:#ffbf80}
+.hwrap{display:flex;background:var(--navy2)}
+.hwrap .hours{flex:1;min-width:0}
+.legend{display:flex;flex-direction:column;gap:5px;padding:8px 6px 10px;flex:0 0 58px;background:var(--navy);border-top:1px solid rgba(255,255,255,.08)}
+.legend span{font:700 9px var(--sans);color:#9fc0e6;text-transform:uppercase;display:flex;align-items:center}
+.days{display:flex;overflow-x:auto;background:var(--navy)}
+.day{flex:1 0 76px;text-align:center;padding:10px 4px;border-right:1px solid rgba(255,255,255,.08);font:600 13px var(--sans)}
+.day svg{width:36px;height:36px;display:block;margin:4px auto}
+.day .t{font:700 14px var(--sans)} .day .t span{color:#9fc0e6;font-weight:600}
+.day .w{font:600 12px var(--mono);color:#cfe3ff;margin-top:2px}
+.maps{padding:12px max(16px,var(--sr)) 0 max(16px,var(--sl))}
+.maps h3{color:#fff;letter-spacing:0;text-transform:none;font-size:18px;margin:0 0 8px}
+.maptiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.maptiles button{border:0;border-radius:10px;background:#fff;color:var(--navy);font:700 13px var(--sans);padding:10px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.maptiles button svg{width:42px;height:42px}
+.maptiles button.on{outline:3px solid var(--amber)}
+#meteoMsg,#cvMsg{padding:20px;text-align:center;color:#cfe3ff}
+#sMeteo .note{color:#9fc0e6;padding:0 max(16px,var(--sr)) 0 max(16px,var(--sl))}
+
+/* Courbe courant + marée */
+#sCurve .note{color:#9fc0e6}
+#cvInfo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+#cvInfo div{background:var(--navy2);border-radius:10px;padding:8px 10px}
+#cvInfo b{display:block;font:700 10px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:#9fc0e6}
+#cvInfo span{font:800 18px var(--mono);font-variant-numeric:tabular-nums}
+#cvInfo small{font:600 12px var(--mono);color:#cfe3ff}
+#cvTime{font:800 16px var(--mono);color:var(--amber);margin:0 0 6px}
+#cvWrap{position:relative;height:210px;touch-action:none;cursor:crosshair}
+#cvWrap canvas{position:absolute;inset:0;width:100%;height:100%}
+.cvleg{display:flex;gap:14px;flex-wrap:wrap;font:600 12px var(--sans);color:#cfe3ff;margin-top:6px}
+.cvleg i{display:inline-block;width:14px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
+
+/* Frise de temps des calques vent/courant */
+#tbar{position:fixed;z-index:1000;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);bottom:calc(var(--sb) + 80px);
+  max-width:560px;margin:0 auto;background:var(--navy);color:#fff;border-radius:14px;box-shadow:0 3px 12px rgba(0,0,0,.35);padding:8px 12px 10px}
+#tbar .t{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#tbar .big{font:800 17px var(--mono);color:var(--amber);font-variant-numeric:tabular-nums}
+#tbar .lbl{font:600 11px var(--sans);color:#9fc0e6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tbar .here{font:600 13px var(--mono)}
+.tl{position:relative;height:74px;margin-top:4px;touch-action:none}
 .tl canvas{position:absolute;inset:0;width:100%;height:100%}
 .tl input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;-webkit-appearance:none;appearance:none;touch-action:none}
 .tl input[type=range]::-webkit-slider-runnable-track{background:transparent;height:100%}
 .tl input[type=range]::-moz-range-track{background:transparent;height:100%}
-.tl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:84px;border-radius:8px;background:rgba(255,176,32,.25);border:2px solid var(--accent);box-shadow:0 0 0 1px #000}
-.tl input[type=range]::-moz-range-thumb{width:28px;height:80px;border-radius:8px;background:rgba(255,176,32,.25);border:2px solid var(--accent)}
+.tl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:74px;border-radius:8px;background:rgba(255,176,32,.25);border:2px solid var(--amber)}
+.tl input[type=range]::-moz-range-thumb{width:26px;height:70px;border-radius:8px;background:rgba(255,176,32,.25);border:2px solid var(--amber)}
 .tlbtns{display:flex;gap:6px;margin-top:6px}
-.tlbtns button{flex:1;padding:8px 0;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--fg);font:600 13px var(--sans);cursor:pointer}
-.tlbtns button:focus-visible{outline:2px solid var(--accent)}
+.tlbtns button{flex:1;padding:8px 0;border-radius:8px;border:0;background:rgba(255,255,255,.12);color:#fff;font:600 13px var(--sans);cursor:pointer}
 
-/* Bateau / flèches */
-.boat{width:34px;height:34px;margin:-17px 0 0 -17px}
-.boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
-.carrow{pointer-events:none}
-.carrow div{font:700 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
-.leaflet-control-scale{margin-left:max(10px,env(safe-area-inset-left,0px))!important}
-.leaflet-top{top:calc(env(safe-area-inset-top,0px) + 92px)}
-#toast{position:fixed;z-index:1200;left:50%;top:calc(env(safe-area-inset-top,0px) + 100px);transform:translateX(-50%);
-  background:var(--panel);border:1px solid var(--line);padding:8px 14px;border-radius:10px;font-size:14px;max-width:90vw}
+/* Carte : bateau, flèches */
+.boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+.arr div{font:800 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
+.arr.tap{cursor:pointer}
+.leaflet-control-attribution{font-size:10px}
+.leaflet-bottom.leaflet-left{bottom:calc(var(--sb) + 4px)}
+#toast{position:fixed;z-index:1300;left:50%;top:calc(var(--st) + 74px);transform:translateX(-50%);background:var(--navy);color:#fff;
+  padding:9px 14px;border-radius:10px;font-size:14px;max-width:90vw;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div id="map"></div>
 
-<div id="hud">
-  <div class="cell"><b>SOG nd</b><span id="sog">—</span></div>
-  <div class="cell"><b>COG °</b><span id="cog">—</span></div>
-  <div class="cell"><b>Courant</b><span id="cur">—</span></div>
-  <div class="cell"><b id="wplab">Précision</b><span id="acc">—</span></div>
-  <div class="cell" id="pos"><span id="ll">Position GPS en attente…</span><span class="st" id="gpsst">GPS</span></div>
+<button id="chip" aria-label="Ma position GPS">
+  <div><b>Vitesse</b><span id="sog">—</span> <i>nd</i></div>
+  <div><b>Cap</b><span id="cog">—</span><i>°</i></div>
+  <div><b><em class="gps" id="gpsdot"></em>GPS</b><span id="acc" style="font-size:15px">—</span></div>
+</button>
+
+<div class="col" id="colTL">
+  <button class="fab" id="bSearch" aria-label="Aller à un lieu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></button>
+</div>
+<div class="col" id="colTR">
+  <button class="fab" id="bZin" aria-label="Zoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="fab" id="bZout" aria-label="Dézoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+  <div id="scale">—</div>
+</div>
+<div class="col" id="colBL">
+  <button class="fab" id="bPin" aria-label="Poser un repère"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6c0 4.5 6 12 6 12s6-7.5 6-12a6 6 0 0 0-6-6zm0 8.2A2.2 2.2 0 1 1 12 5.8a2.2 2.2 0 0 1 0 4.4z"/></svg><small>Repère</small></button>
+  <button class="fab" id="bLayers" aria-label="Cartes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg><small>Cartes</small></button>
+  <button class="fab on" id="bFollow" aria-label="Suivre le bateau"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small>Bateau</small></button>
+</div>
+<div class="col" id="colBR">
+  <button class="fab" id="bWind" aria-label="Vent sur la carte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><small>Vent</small></button>
+  <button class="fab" id="bCur" aria-label="Courants sur la carte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg><small>Courant</small></button>
+  <button class="fab mob" id="bMob" aria-label="Homme à la mer">MOB</button>
 </div>
 
-<div id="tools">
-  <div id="zoomgrp">
-    <button class="btn zoom" id="bZin" title="Zoomer" aria-label="Zoomer">+</button>
-    <button class="btn zoom" id="bZout" title="Dézoomer" aria-label="Dézoomer">−</button>
+<nav class="bar" aria-label="Actions">
+  <button id="bMeasure">Mesurer</button>
+  <button id="bMeteo" class="go">Météo</button>
+  <button id="bMenu">Menu</button>
+</nav>
+
+<!-- Mesure -->
+<div id="measure" hidden>
+  <div class="row1"><span class="tot" id="mTot">0,00 M</span><span class="sub" id="mEta">—</span></div>
+  <div class="hint" id="mHint">Touchez la carte pour poser les points de la route.</div>
+  <div class="ctl">
+    <button id="mBoat">Depuis bateau</button><button id="mUndo">Annuler</button><button id="mClear">Effacer</button>
+    <label for="mSpeed">Vitesse<input id="mSpeed" type="number" inputmode="decimal" min="0.5" max="40" step="0.5" value="5"></label>
+    <button id="mDone" style="background:var(--blue);color:#fff;border:0">OK</button>
   </div>
-  <div id="scaleinfo" aria-live="polite">—</div>
-  <button class="btn on" id="bFollow" title="Suivre le bateau" aria-label="Suivre le bateau">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><i>Bateau</i></button>
-  <button class="btn" id="bCur" title="Courants" aria-label="Afficher les courants">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg><i>Courants</i></button>
-  <button class="btn" id="bLayers" title="Cartes" aria-label="Choisir la carte">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg><i>Cartes</i></button>
-  <button class="btn mob" id="bMob" title="Homme à la mer" aria-label="Homme à la mer">MOB</button>
 </div>
 
-<div id="curbar" hidden>
-  <div class="t"><span class="big" id="curtime">—</span><span id="cursrc">Open-Meteo</span></div>
-  <div class="t"><span class="here" id="curhere">Courant au bateau : —</span></div>
-  <div class="tl"><canvas id="curgraph"></canvas>
-    <input type="range" id="curslider" min="0" max="47" value="0" aria-label="Heure des courants, faire glisser"></div>
-  <div class="tlbtns"><button id="tlm3">−3 h</button><button id="tlm1">−1 h</button><button id="tlnow">Maintenant</button><button id="tlp1">+1 h</button><button id="tlp3">+3 h</button></div>
+<!-- Frise temps vent / courant -->
+<div id="tbar" hidden>
+  <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
+  <div class="here" id="tHere">—</div>
+  <div class="tl"><canvas id="tGraph"></canvas><input type="range" id="tSlider" min="0" max="47" value="0" aria-label="Heure, faire glisser"></div>
+  <div class="tlbtns"><button id="tm3">−3 h</button><button id="tm1">−1 h</button><button id="tnow">Maintenant</button><button id="tp1">+1 h</button><button id="tp3">+3 h</button></div>
 </div>
 
-<div class="sheet" id="layers" hidden>
-  <h2>Cartes &amp; réglages <button id="closeLayers" aria-label="Fermer">×</button></h2>
-  <label class="opt" for="spot"><div style="flex:1">Aller à<small>Bretagne et îles Anglo-Normandes</small></div>
-    <select id="spot" style="font:15px var(--sans);padding:8px;border-radius:8px;background:var(--bg);color:var(--fg);border:1px solid var(--line)"></select></label>
-  <label class="opt"><input type="radio" name="base" value="shom" checked><div>Cartes marines SHOM<small>Raster des cartes papier (services.data.shom.fr)</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="gebco"><div>Fond GEBCO (SHOM)<small>Bathymétrie mondiale</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="osm"><div>OpenStreetMap<small>Carte terrestre</small></div></label>
-  <label class="opt"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers en surimpression</small></div></label>
+<!-- Point / position -->
+<section class="sheet" id="sPoint" hidden>
+  <div class="grab"></div>
+  <h2><span id="pTitle">Ma position GPS</span><button class="x" data-close aria-label="Fermer">×</button></h2>
+  <div class="info">
+    <div><b id="pLabel">Position</b><span id="pLL">—</span></div>
+    <div id="pDistRow"><b>Depuis le bateau</b><span id="pDist">—</span></div>
+  </div>
+  <div class="acts">
+    <button class="act" id="aRoute"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></span>Aller ici</button>
+    <button class="act" id="aCurve"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 12c2.5-6 5-6 7.5 0s5 6 7.5 0 3-4 5-2"/></svg></span>Marée</button>
+    <button class="act" id="aMeteo"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 18z"/></svg></span>Météo ici</button>
+    <button class="act" id="aMeasure"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 17 17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2"/></svg></span>Mesurer</button>
+  </div>
+  <div class="btnrow"><button class="pill" id="aPin">Poser un repère ici</button></div>
+</section>
+
+<!-- Courbe courant + marée -->
+<section class="sheet" id="sCurve" hidden>
+  <div class="grab"></div>
+  <h2><span id="cvTitle">Courant et marée</span><button class="x" data-close aria-label="Fermer">×</button></h2>
+  <div id="cvMsg">Chargement…</div>
+  <div id="cvBody" hidden>
+    <div id="cvTime">—</div>
+    <div id="cvInfo">
+      <div><b>Courant</b><span id="cvCur">—</span> <small id="cvDir"></small></div>
+      <div><b>Hauteur d'eau</b><span id="cvSea">—</span> <small id="cvTrend"></small></div>
+    </div>
+    <div id="cvWrap"><canvas id="cvGraph"></canvas></div>
+    <div class="cvleg"><span><i style="background:#ffb74d"></i>Courant (nd)</span><span><i style="background:#5ab4ff"></i>Hauteur d'eau (m)</span><span><i style="background:#3fd18b"></i>Maintenant</span></div>
+    <p class="note">Faites glisser le doigt sur la courbe pour choisir l'heure : les flèches de la carte suivent. PM = pleine mer, BM = basse mer. Hauteur modélisée par rapport au niveau moyen (et non au zéro des cartes) : pour les hauteurs exactes, utilisez l'annuaire des marées SHOM.</p>
+  </div>
+</section>
+
+<!-- Météo -->
+<section class="sheet" id="sMeteo" hidden>
+  <div class="grab"></div>
+  <h2><span id="mtPlace">Météo marine</span><button class="x" data-close aria-label="Fermer">×</button></h2>
+  <div id="meteoMsg">Chargement de la météo…</div>
+  <div id="meteoBody" hidden>
+    <div class="sun" id="mtSun"></div>
+    <div class="hwrap"><div class="legend"><span style="height:12px"></span><span style="height:16px"></span><span style="height:34px">Ciel</span><span style="height:18px">Temp.</span><span style="height:42px">Vent nd</span><span style="height:42px">Vagues</span><span style="height:42px">Courant</span><span style="height:42px">Marée</span></div><div class="hours" id="mtHours"></div></div>
+    <div class="days" id="mtDays"></div>
+    <div class="maps"><h3>Sur la carte</h3>
+      <div class="maptiles">
+        <button id="mapWind"><svg viewBox="0 0 48 48"><path d="M6 30 40 12" stroke="#2e9e3e" stroke-width="5" stroke-linecap="round"/><path d="M40 12 30 12 36 22Z" fill="#2e9e3e"/><path d="M8 38 26 28" stroke="#86c98e" stroke-width="4" stroke-linecap="round"/></svg>Vent</button>
+        <button id="mapCur"><svg viewBox="0 0 48 48"><path d="M6 20 38 20" stroke="#e5372b" stroke-width="6" stroke-linecap="round"/><path d="M42 20 32 12 32 28Z" fill="#e5372b"/><path d="M42 34 10 34" stroke="#2d6fd6" stroke-width="6" stroke-linecap="round"/><path d="M6 34 16 26 16 42Z" fill="#2d6fd6"/></svg>Courants</button>
+        <button id="mapSea"><svg viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="36" rx="4" fill="#d8f0ff"/><path d="M8 30c5-6 9 6 16 0s11 6 16 0" stroke="#0b63b6" stroke-width="4" fill="none"/><path d="M24 10v12M19 15l5-5 5 5" stroke="#0b2f5b" stroke-width="3" fill="none"/></svg>Marée</button>
+      </div>
+    </div>
+    <p class="note">Prévisions Open-Meteo : vent (Météo-France, ECMWF), vagues, courant (Mercator, marée incluse) et hauteur d'eau modélisée. Maille de plusieurs km : recoupez avec les bulletins officiels et l'annuaire des marées SHOM.</p>
+  </div>
+</section>
+
+<!-- Menu -->
+<section class="sheet" id="sMenu" hidden>
+  <div class="grab"></div>
+  <h2>Menu<button class="x" data-close aria-label="Fermer">×</button></h2>
+  <label class="opt" for="spot"><div style="flex:1">Aller à<small>Bretagne et îles Anglo-Normandes</small></div><select id="spot"></select></label>
+  <h3>Carte</h3>
+  <label class="opt"><input type="radio" name="base" value="shom" checked><div>Cartes marines SHOM<small>Assemblage RasterMarine</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="gebco"><div>Fond GEBCO (SHOM)<small>Bathymétrie</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="osm"><div>OpenStreetMap</div></label>
+  <label class="opt"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers</small></div></label>
+  <h3>Navigation</h3>
   <label class="opt"><input type="checkbox" id="track" checked><div>Trace du bateau</div></label>
   <label class="opt"><input type="checkbox" id="night"><div>Mode nuit<small>Rouge, préserve la vision nocturne</small></div></label>
   <label class="opt"><input type="checkbox" id="wake" checked><div>Garder l'écran allumé</div></label>
-  <div class="row">
-    <button class="pill primary" id="bCache">Télécharger la zone (hors ligne)</button>
-    <button class="pill" id="bClearTrack">Effacer la trace</button>
-  </div>
-  <p class="note" id="cacheinfo">Enregistre les cartes de la zone affichée (zoom actuel +3) pour les consulter sans réseau en mer.</p>
-  <p class="note">Les cartes SHOM affichées ici sont celles du visualiseur public data.shom.fr. Elles ne remplacent pas les cartes officielles à jour ni la veille visuelle. Courants : modèle Mercator SMOC (marée incluse) via Open-Meteo, maille ≈ 8 km, indicatifs près des côtes.</p>
-</div>
+  <div class="btnrow"><button class="pill" id="bClearTrack">Effacer la trace</button><button class="pill primary" id="bCache">Cartes hors ligne</button></div>
+  <p class="note" id="cacheinfo">« Cartes hors ligne » enregistre la zone affichée (zoom actuel +3) pour naviguer sans réseau.</p>
+  <h3>Repères</h3>
+  <div class="wplist" id="wplist"></div>
+  <p class="note">Cartes : visualiseur public data.shom.fr. Ne remplace pas les cartes officielles à jour ni la veille visuelle.</p>
+</section>
 
 <div id="toast" hidden></div>
 
@@ -163,9 +326,18 @@ const store = {
   set(k, v){ try{ localStorage.setItem("nav_"+k, JSON.stringify(v)); }catch(e){} }
 };
 function toast(msg, ms=2600){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true, ms); }
+const KN = 1.943844, NM = 1852;
+const pad3 = v => String(Math.round(v)%360).padStart(3,"0");
+function dm(v,pos,neg){ const h=v>=0?pos:neg; v=Math.abs(v); const d=Math.floor(v); const m=(v-d)*60; return d+"°"+m.toFixed(3).padStart(6,"0")+"'"+h; }
+const fmtLL = (la,lo) => dm(la,"N","S")+" · "+dm(lo,"E","W");
+const fmtNM = m => m < 0.1*NM ? Math.round(m)+" m" : (m/NM).toFixed(2).replace(".",",")+" M";
+function bearing(a,b){ const r=Math.PI/180, f1=a.lat*r, f2=b.lat*r, dl=(b.lng-a.lng)*r;
+  return (Math.atan2(Math.sin(dl)*Math.cos(f2), Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))/r+360)%360; }
+function fmtDur(h){ if(!isFinite(h)) return "—"; const m=Math.round(h*60); return m<60 ? m+" min" : Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"); }
+const fmtT = t => { const d=new Date(t); return d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"})+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); };
+function compass(d){ return ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"][Math.round(d/22.5)%16]; }
 
-/* ---------- Carte ---------- */
-/* Zone : Bretagne + îles Anglo-Normandes */
+/* ================= Carte ================= */
 const ZONE = L.latLngBounds([46.80,-6.00],[50.05,-1.00]);
 const SPOTS = [
   ["Toute la zone",[48.4,-3.4],8], ["Iroise / Brest",[48.35,-4.75],11], ["Raz de Sein",[48.04,-4.75],12],
@@ -176,309 +348,462 @@ const SPOTS = [
 ];
 let view = store.get("view", {c:[48.4,-3.4], z:8});
 if(!ZONE.contains(view.c)) view = {c:[48.4,-3.4], z:8};
-const map = L.map("map", {zoomControl:false, attributionControl:true, minZoom:7,
-  maxBounds:ZONE.pad(0.15), maxBoundsViscosity:1}).setView(view.c, view.z);
-L.control.scale({imperial:false, metric:true, position:"bottomleft"}).addTo(map);
+const map = L.map("map", {zoomControl:false, minZoom:7, maxBounds:ZONE.pad(0.15), maxBoundsViscosity:1}).setView(view.c, view.z);
 map.attributionControl.setPrefix(false);
-
-const shomUrl = layer =>
-  "https://services.data.shom.fr/clevisu/wmts?layer="+layer+
-  "&style=normal&tilematrixset=3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png"+
-  "&TileMatrix={z}&TileCol={x}&TileRow={y}";
-
+const shomUrl = layer => "https://services.data.shom.fr/clevisu/wmts?layer="+layer+
+  "&style=normal&tilematrixset=3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}";
 const bases = {
-  shom:  L.tileLayer(shomUrl("RASTER_MARINE_3857_WMTS"), {maxZoom:18, maxNativeZoom:18, bounds:ZONE, attribution:"© SHOM"}),
+  shom:  L.tileLayer(shomUrl("RASTER_MARINE_3857_WMTS"), {maxZoom:18, bounds:ZONE, attribution:"© SHOM"}),
   gebco: L.tileLayer(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"), {maxZoom:18, maxNativeZoom:12, bounds:ZONE, attribution:"© SHOM / GEBCO"}),
   osm:   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, bounds:ZONE, attribution:"© OpenStreetMap"})
 };
 const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:ZONE, attribution:"© OpenSeaMap"});
-// Si les tuiles SHOM ne répondent pas : prévenir et basculer sur OSM + balisage
-let shomOk = 0, shomErr = 0;
-bases.shom.on("tileload", () => shomOk++);
-bases.shom.on("tileerror", () => { shomErr++;
+let curBase = store.get("base","shom"); if(!bases[curBase]) curBase="shom";
+let shomOk=0, shomErr=0;
+bases.shom.on("tileload", ()=>shomOk++);
+bases.shom.on("tileerror", ()=>{ shomErr++;
   if(shomErr===6 && shomOk===0 && curBase==="shom" && navigator.onLine){
     toast("Cartes SHOM indisponibles : passage sur OpenStreetMap + balisage", 6000);
-    document.querySelector("input[name=base][value=osm]").click();
-    if(!$("seamarks").checked) $("seamarks").click();
-  }});
-let curBase = store.get("base","shom"); if(!bases[curBase]) curBase="shom";
+    document.querySelector("input[name=base][value=osm]").click(); if(!$("seamarks").checked) $("seamarks").click(); }});
 bases[curBase].addTo(map);
 document.querySelector(`input[name=base][value=${curBase}]`).checked = true;
 document.querySelectorAll("input[name=base]").forEach(r => r.addEventListener("change", e => {
-  map.removeLayer(bases[curBase]); curBase = e.target.value; bases[curBase].addTo(map); bases[curBase].bringToBack(); store.set("base",curBase);
-}));
-$("seamarks").checked = store.get("seamarks", false);
-if($("seamarks").checked) seamarks.addTo(map);
+  map.removeLayer(bases[curBase]); curBase=e.target.value; bases[curBase].addTo(map); bases[curBase].bringToBack(); store.set("base",curBase); }));
+$("seamarks").checked = store.get("seamarks", false); if($("seamarks").checked) seamarks.addTo(map);
 $("seamarks").addEventListener("change", e => { e.target.checked ? seamarks.addTo(map) : map.removeLayer(seamarks); store.set("seamarks", e.target.checked); });
-
-$("bZin").addEventListener("click", () => map.zoomIn());
-$("bZout").addEventListener("click", () => map.zoomOut());
-function updScale(){
-  const z = map.getZoom(), lat = map.getCenter().lat;
-  const den = 156543.034 * Math.cos(lat*Math.PI/180) / 2**z / 0.00028; // 1 px écran ≈ 0,28 mm
-  const nice = den>=1e6 ? (den/1e6).toFixed(1)+" M" : den>=1e3 ? Math.round(den/1e3)+" 000" : Math.round(den);
-  $("scaleinfo").textContent = "1:"+nice;
-  $("bZin").disabled = z>=map.getMaxZoom(); $("bZout").disabled = z<=map.getMinZoom();
-}
-map.on("zoomend", updScale); updScale();
 map.on("moveend", () => store.set("view", {c:[map.getCenter().lat, map.getCenter().lng], z:map.getZoom()}));
+L.control.scale({imperial:false, position:"bottomleft"}).addTo(map);
 
-/* ---------- Formats ---------- */
-function dm(v, pos, neg){ const h = v>=0?pos:neg; v=Math.abs(v); const d=Math.floor(v); const m=(v-d)*60;
-  return d+"°"+m.toFixed(3).padStart(6,"0")+"'"+h; }
-const fmtLL = (la,lo) => dm(la,"N","S")+"  "+dm(lo,"E","W");
-const KN = 1.943844; // m/s -> nœuds
-function bearing(a,b){ const r=Math.PI/180, f1=a.lat*r, f2=b.lat*r, dl=(b.lng-a.lng)*r;
-  const y=Math.sin(dl)*Math.cos(f2), x=Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl);
-  return (Math.atan2(y,x)/r+360)%360; }
+$("bZin").onclick = () => map.zoomIn(); $("bZout").onclick = () => map.zoomOut();
+function updScale(){ const z=map.getZoom(), den=156543.034*Math.cos(map.getCenter().lat*Math.PI/180)/2**z/0.00028;
+  $("scale").textContent = "1:"+(den>=1e6?(den/1e6).toFixed(1)+" M":den>=1e3?Math.round(den/1e3)+" 000":Math.round(den)); }
+map.on("zoomend", updScale); updScale();
 
-/* ---------- GPS ---------- */
-const boatIcon = L.divIcon({className:"boat", html:
-  '<svg viewBox="0 0 34 34"><path d="M17 2 26 30 17 24 8 30Z" fill="#ff3b30" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'});
-let boat=null, accCircle=null, last=null, follow=true, headingLine=null;
-const trackPts = store.get("track", []);
-const trackLine = L.polyline(trackPts, {color:"#ff3b30", weight:3, opacity:.75});
-$("track").checked = store.get("showTrack", true);
-if($("track").checked) trackLine.addTo(map);
-$("track").addEventListener("change", e => { e.target.checked ? trackLine.addTo(map) : map.removeLayer(trackLine); store.set("showTrack", e.target.checked); });
-$("bClearTrack").addEventListener("click", () => { trackLine.setLatLngs([]); store.set("track", []); toast("Trace effacée"); });
-
-function onPos(p){
-  const c = p.coords, ll = L.latLng(c.latitude, c.longitude);
-  $("gpsst").textContent = "GPS"; $("gpsst").className = "st ok";
-  $("ll").textContent = fmtLL(ll.lat, ll.lng) + (ZONE.contains(ll) ? "" : "  (hors zone)");
-  $("acc").innerHTML = Math.round(c.accuracy)+"<small> m</small>";
-  let sog = (c.speed!=null && !isNaN(c.speed)) ? c.speed*KN : null;
-  let cog = (c.heading!=null && !isNaN(c.heading)) ? c.heading : null;
-  if(last && (sog===null || cog===null)){ // calcul si le navigateur ne fournit pas vitesse/cap
-    const dt = (p.timestamp - last.t)/1000, d = map.distance(last.ll, ll);
-    if(dt>0 && d>3){ if(sog===null) sog = d/dt*KN; if(cog===null) cog = bearing(last.ll, ll); }
-  }
-  if(sog!==null && sog>60) sog = null;      // saut GPS aberrant
-  if(sog!==null) $("sog").textContent = sog.toFixed(1);
-  if(cog!==null && (sog===null || sog>0.4)) $("cog").textContent = String(Math.round(cog)).padStart(3,"0");
-  if(!boat){
-    accCircle = L.circle(ll, {radius:c.accuracy, color:"#ff3b30", weight:1, fillOpacity:.08, interactive:false}).addTo(map);
-    boat = L.marker(ll, {icon:boatIcon, interactive:false, zIndexOffset:1000}).addTo(map);
-    if(ZONE.contains(ll)) map.setView(ll, Math.max(map.getZoom(), 13)); else follow=false, $("bFollow").classList.remove("on");
-  } else { boat.setLatLng(ll); accCircle.setLatLng(ll).setRadius(c.accuracy); }
-  if(cog!==null){ const s = boat.getElement() && boat.getElement().querySelector("svg"); if(s) s.style.transform = "rotate("+cog+"deg)"; }
-  // vecteur de route 6 min
-  if(cog!==null && sog>0.4){
-    const dist = sog/KN*360, r=Math.PI/180, R=6371000;
-    const la2 = Math.asin(Math.sin(ll.lat*r)*Math.cos(dist/R)+Math.cos(ll.lat*r)*Math.sin(dist/R)*Math.cos(cog*r));
-    const lo2 = ll.lng*r+Math.atan2(Math.sin(cog*r)*Math.sin(dist/R)*Math.cos(ll.lat*r), Math.cos(dist/R)-Math.sin(ll.lat*r)*Math.sin(la2));
-    const end = [la2/r, lo2/r];
-    headingLine ? headingLine.setLatLngs([ll,end]) : headingLine = L.polyline([ll,end], {color:"#ff3b30", weight:2, dashArray:"6 5"}).addTo(map);
-  }
-  // trace : un point tous les 15 m
-  const lt = trackLine.getLatLngs();
-  if(c.accuracy < 50 && (!lt.length || map.distance(lt[lt.length-1], ll) > 15)){
-    trackLine.addLatLng(ll); const arr = trackLine.getLatLngs().slice(-5000).map(x=>[+x.lat.toFixed(6),+x.lng.toFixed(6)]); store.set("track", arr);
-  }
-  last = {ll, t:p.timestamp};
-  if(follow && ZONE.contains(ll)) map.panTo(ll, {animate:true});
-  updateMob(); updateCurrentHere();
-}
-function onErr(e){
-  $("gpsst").textContent = e.code===1 ? "GPS refusé" : "GPS ?"; $("gpsst").className = "st bad";
-  if(e.code===1) $("ll").textContent = "Autorisez la localisation pour ce site";
-}
-if("geolocation" in navigator){
-  navigator.geolocation.watchPosition(onPos, onErr, {enableHighAccuracy:true, maximumAge:1000, timeout:30000});
-} else onErr({code:0});
-
-$("bFollow").addEventListener("click", () => { follow = !follow; $("bFollow").classList.toggle("on", follow); if(follow && last) map.setView(last.ll); });
-map.on("dragstart", () => { follow = false; $("bFollow").classList.remove("on"); });
-
-/* ---------- Homme à la mer ---------- */
-let mob = store.get("mob", null), mobMarker = null;
-function drawMob(){
-  if(mobMarker){ map.removeLayer(mobMarker); mobMarker=null; }
-  if(!mob) { $("wplab").textContent = "Précision"; return; }
-  mobMarker = L.circleMarker(mob, {radius:10, color:"#fff", weight:3, fillColor:"#ff3b30", fillOpacity:1}).addTo(map)
-    .bindTooltip("MOB", {permanent:true, direction:"right"});
-}
-function updateMob(){
-  if(!mob || !last) return;
-  const d = map.distance(last.ll, mob), b = bearing(last.ll, L.latLng(mob));
-  $("wplab").textContent = "MOB "+String(Math.round(b)).padStart(3,"0")+"°";
-  $("acc").innerHTML = (d<1852 ? Math.round(d)+"<small> m</small>" : (d/1852).toFixed(2)+"<small> M</small>");
-}
-$("bMob").addEventListener("click", () => {
-  if(mob && $("bMob").dataset.armed !== "1"){ $("bMob").dataset.armed="1"; toast("Appuyez encore pour effacer le point MOB"); setTimeout(()=>$("bMob").dataset.armed="",3000); return; }
-  if(mob){ mob=null; store.set("mob",null); drawMob(); toast("Point MOB effacé"); $("bMob").dataset.armed=""; return; }
-  if(!last){ toast("Pas de position GPS"); return; }
-  mob = [last.ll.lat, last.ll.lng]; store.set("mob", mob); drawMob(); updateMob();
-  toast("MOB enregistré "+fmtLL(mob[0],mob[1]), 5000);
-  if(navigator.vibrate) navigator.vibrate([200,100,200]);
-});
-drawMob();
-
-/* ---------- Courants (Open-Meteo Marine, modèle Mercator SMOC) ---------- */
-const curLayer = L.layerGroup();
-let curOn = false, curData = null, curHourIdx = 0, curPts = [], curGridN = 0;
-function arrowIcon(dirTo, kn){
-  const len = Math.min(16 + kn*14, 54), col = kn<0.5 ? "#4fc3f7" : kn<1.5 ? "#ffd54f" : kn<3 ? "#ff9800" : "#ff3d00";
-  return L.divIcon({className:"carrow", iconSize:[60,74], iconAnchor:[30,30], html:
-    `<svg width="60" height="60" viewBox="-30 -30 60 60" style="transform:rotate(${dirTo}deg)">
-      <line x1="0" y1="${len/2}" x2="0" y2="${-len/2}" stroke="#000" stroke-opacity=".55" stroke-width="6" stroke-linecap="round"/>
-      <line x1="0" y1="${len/2}" x2="0" y2="${-len/2+2}" stroke="${col}" stroke-width="3.5" stroke-linecap="round"/>
-      <path d="M0 ${-len/2-4} L7 ${-len/2+8} L-7 ${-len/2+8}Z" fill="${col}" stroke="#000" stroke-opacity=".55" stroke-width="1.5"/></svg>
-      <div>${kn.toFixed(1)}</div>`});
-}
-async function loadCurrents(){
-  const b = map.getBounds(), sz = map.getSize();
-  const cols = Math.max(3, Math.min(8, Math.round(sz.x/80))), rows = Math.max(3, Math.min(10, Math.round(sz.y/90)));
-  const pts = [];
-  for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){
-    const p = map.containerPointToLatLng([ (j+.5)*sz.x/cols, (i+.5)*sz.y/rows ]);
-    pts.push([+p.lat.toFixed(4), +p.lng.toFixed(4)]);
-  }
-  curGridN = pts.length;
-  if(last) pts.push([+last.ll.lat.toFixed(4), +last.ll.lng.toFixed(4)]);
-  const url = "https://marine-api.open-meteo.com/v1/marine?latitude="+pts.map(p=>p[0]).join(",")+
-    "&longitude="+pts.map(p=>p[1]).join(",")+
-    "&hourly=ocean_current_velocity,ocean_current_direction&timezone=auto&forecast_days=2&cell_selection=sea";
-  $("cursrc").textContent = "chargement…";
-  try{
-    const r = await fetch(url); if(!r.ok) throw new Error(r.status);
-    let j = await r.json(); if(!Array.isArray(j)) j=[j];
-    curData = j; curPts = pts;
-    const times = j[0].hourly.time, now = Date.now();
-    // heure courante la plus proche
-    curHourIdx = 0; let best = 1e15;
-    times.forEach((t,i)=>{ const d=Math.abs(new Date(t).getTime()-now); if(d<best){best=d;curHourIdx=i;} });
-    nowIdx = curHourIdx;
-    $("curslider").max = times.length-1; $("curslider").value = curHourIdx;
-    $("cursrc").textContent = "Mercator · Open-Meteo";
-    drawCurrents();
-  }catch(e){ $("cursrc").textContent = "indisponible"; toast("Courants indisponibles (réseau ?)"); }
-}
-function drawCurrents(){
-  curLayer.clearLayers(); if(!curData) return;
-  const i = curHourIdx;
-  curData.forEach((d,k)=>{
-    const v = d.hourly.ocean_current_velocity[i], dir = d.hourly.ocean_current_direction[i];
-    if(v==null || dir==null || k>=curGridN) return; // terre, ou point du bateau (affiché dans le bandeau)
-    const kn = v/1.852;                        // km/h -> nœuds
-    L.marker(curPts[k], {icon:arrowIcon(dir, kn), interactive:false}).addTo(curLayer);
-  });
-  const t = new Date(curData[0].hourly.time[i]);
-  drawTimeline();
-  $("curtime").textContent = t.toLocaleDateString("fr-FR",{weekday:"short", day:"numeric"})+" "+t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-  updateCurrentHere();
-}
-function updateCurrentHere(){
-  if(!curOn || !curData || !last) { if(!curOn) $("cur").textContent="—"; return; }
-  // point le plus proche du bateau
-  let bi=-1, bd=1e12; curPts.forEach((p,k)=>{ const d=map.distance(last.ll,p); if(d<bd && curData[k].hourly.ocean_current_velocity[curHourIdx]!=null){bd=d;bi=k;} });
-  if(bi<0 || bd>15000){ $("cur").textContent="—"; return; }
-  const h = curData[bi].hourly, kn = h.ocean_current_velocity[curHourIdx]/1.852;
-  $("cur").innerHTML = kn.toFixed(1)+"<small> "+String(Math.round(h.ocean_current_direction[curHourIdx])).padStart(3,"0")+"°</small>";
-}
-$("curslider").addEventListener("input", e => { curHourIdx = +e.target.value; drawCurrents(); });
-let nowIdx = 0;
-function setHour(i){ if(!curData) return; curHourIdx = Math.max(0, Math.min(curData[0].hourly.time.length-1, i)); $("curslider").value = curHourIdx; drawCurrents(); }
-$("tlm3").onclick = () => setHour(curHourIdx-3); $("tlm1").onclick = () => setHour(curHourIdx-1);
-$("tlp1").onclick = () => setHour(curHourIdx+1); $("tlp3").onclick = () => setHour(curHourIdx+3);
-$("tlnow").onclick = () => setHour(nowIdx);
-// point de référence de la frise : bateau si dispo, sinon centre de la carte
-function refIndex(){
-  if(!curData) return -1; const ref = last ? last.ll : map.getCenter(); let bi=-1, bd=1e12;
-  curPts.forEach((p,k)=>{ if(curData[k].hourly.ocean_current_velocity.every(v=>v==null)) return; const d=map.distance(ref,p); if(d<bd){bd=d;bi=k;} });
-  return bi;
-}
-function drawTimeline(){
-  const cv = $("curgraph"), dpr = window.devicePixelRatio||1, W = cv.clientWidth, H = cv.clientHeight;
-  if(!W) return; cv.width = W*dpr; cv.height = H*dpr; const g = cv.getContext("2d"); g.scale(dpr,dpr); g.clearRect(0,0,W,H);
-  const k = refIndex(); if(k<0) return;
-  const h = curData[k].hourly, times = h.time, n = times.length;
-  const kn = h.ocean_current_velocity.map(v => v==null ? 0 : v/1.852), dir = h.ocean_current_direction;
-  const max = Math.max(1, ...kn), pad = 15, top = 14, bot = H-16;
-  const X = i => pad + i*(W-2*pad)/(n-1), Y = v => bot - v/max*(bot-top);
-  const css = getComputedStyle(document.body), fg = css.getPropertyValue("--fg"), muted = css.getPropertyValue("--muted"), acc = css.getPropertyValue("--accent");
-  // nuit (20h-7h) en fond plus sombre, séparateurs de jours
-  g.font = "600 10px ui-monospace,Menlo,monospace"; g.textAlign = "center";
-  times.forEach((t,i)=>{ const d = new Date(t), hr = d.getHours();
-    if(hr>=21 || hr<7){ g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(X(i)-(W-2*pad)/(n-1)/2, 0, (W-2*pad)/(n-1)+.5, bot); }
-    if(hr===0){ g.strokeStyle = muted; g.globalAlpha=.6; g.beginPath(); g.moveTo(X(i),0); g.lineTo(X(i),bot); g.stroke(); g.globalAlpha=1;
-      g.fillStyle = fg; g.textAlign="left"; g.fillText(d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}), X(i)+3, 10); g.textAlign="center"; }
-    if(hr%6===0){ g.fillStyle = muted; g.fillText(String(hr).padStart(2,"0")+"h", X(i), H-3); }
-  });
-  // courbe de vitesse
-  g.beginPath(); g.moveTo(X(0), bot); kn.forEach((v,i)=>g.lineTo(X(i), Y(v))); g.lineTo(X(n-1), bot); g.closePath();
-  const grad = g.createLinearGradient(0,top,0,bot); grad.addColorStop(0,"rgba(255,152,0,.55)"); grad.addColorStop(1,"rgba(79,195,247,.15)");
-  g.fillStyle = grad; g.fill();
-  g.beginPath(); kn.forEach((v,i)=> i ? g.lineTo(X(i),Y(v)) : g.moveTo(X(i),Y(v))); g.strokeStyle = "#ffb74d"; g.lineWidth = 2; g.stroke();
-  // petites flèches de direction toutes les 3 h
-  for(let i=0;i<n;i+=3){ if(dir[i]==null) continue; g.save(); g.translate(X(i), Y(kn[i])-9); g.rotate(dir[i]*Math.PI/180);
-    g.fillStyle = fg; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
-  // maintenant
-  g.strokeStyle = "#3fd18b"; g.lineWidth = 2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(nowIdx),top-4); g.lineTo(X(nowIdx),bot); g.stroke(); g.setLineDash([]);
-  g.fillStyle = "#3fd18b"; g.textAlign = X(nowIdx) < 30 ? "left" : "center"; g.fillText("maint.", X(nowIdx)+(X(nowIdx)<30?3:0), 22); g.textAlign = "center";
-  // max
-  g.fillStyle = muted; g.textAlign = "right"; g.fillText("max "+max.toFixed(1)+" nd", W-2, 22);
-  // heure choisie
-  const v = kn[curHourIdx], dd = dir[curHourIdx];
-  $("curhere").textContent = (last ? "Au bateau : " : "Centre carte : ") + (h.ocean_current_velocity[curHourIdx]==null ? "—" : v.toFixed(1)+" nd vers "+String(Math.round(dd)).padStart(3,"0")+"°");
-}
-window.addEventListener("resize", () => { if(curOn && curData) drawTimeline(); });
-$("bCur").addEventListener("click", () => {
-  curOn = !curOn; $("bCur").classList.toggle("on", curOn); $("curbar").hidden = !curOn;
-  if(curOn){ curLayer.addTo(map); loadCurrents(); } else { map.removeLayer(curLayer); $("cur").textContent="—"; }
-});
-let curTimer; map.on("moveend", () => { if(!curOn) return; clearTimeout(curTimer); curTimer = setTimeout(() => {
-  const keep = curHourIdx; loadCurrents().then(()=>{ if(curData && keep < curData[0].hourly.time.length){ curHourIdx=keep; $("curslider").value=keep; drawCurrents(); } }); }, 700); });
-
-/* ---------- Panneau réglages ---------- */
+/* ================= Panneaux ================= */
+const sheets = ["sPoint","sMeteo","sMenu","sCurve"];
+let tmpMarker=null;
+function openSheet(id){ sheets.forEach(s => $(s).hidden = s!==id); }
+function closeSheets(){ sheets.forEach(s => $(s).hidden = true); if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; } }
+document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeSheets);
+$("bMenu").onclick = () => { if(!$("sMenu").hidden) return closeSheets(); renderWps(); openSheet("sMenu"); };
+$("bLayers").onclick = $("bMenu").onclick;
 SPOTS.forEach((sp,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=sp[0]; $("spot").appendChild(o); });
 $("spot").insertAdjacentHTML("afterbegin",'<option value="" selected>Choisir…</option>');
-$("spot").addEventListener("change", e => { if(e.target.value==="") return; const sp=SPOTS[+e.target.value];
-  follow=false; $("bFollow").classList.remove("on"); map.setView(sp[1], sp[2]); $("layers").hidden=true; e.target.value=""; });
-$("bLayers").addEventListener("click", () => $("layers").hidden = !$("layers").hidden);
-$("closeLayers").addEventListener("click", () => $("layers").hidden = true);
-$("night").checked = store.get("night", false); document.body.classList.toggle("night", $("night").checked);
-$("night").addEventListener("change", e => { document.body.classList.toggle("night", e.target.checked); store.set("night", e.target.checked); });
+$("spot").onchange = e => { if(e.target.value==="") return; const sp=SPOTS[+e.target.value]; setFollow(false); map.setView(sp[1], sp[2]); closeSheets(); e.target.value=""; };
+$("bSearch").onclick = () => { renderWps(); openSheet("sMenu"); $("spot").focus(); };
+function markTmp(ll){ if(tmpMarker) map.removeLayer(tmpMarker); tmpMarker=L.circleMarker(ll,{radius:8,color:"#fff",weight:3,fillColor:"#0b63b6",fillOpacity:1}).addTo(map); }
 
-/* Écran allumé */
-let wakeLock = null;
-async function wake(){ if(!$("wake").checked || !("wakeLock" in navigator)) return; try{ wakeLock = await navigator.wakeLock.request("screen"); }catch(e){} }
-$("wake").checked = store.get("wake", true);
-$("wake").addEventListener("change", e => { store.set("wake", e.target.checked); if(e.target.checked) wake(); else if(wakeLock){ wakeLock.release(); wakeLock=null; } });
-document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") wake(); });
-document.addEventListener("click", wake, {once:true}); wake();
+/* ================= GPS ================= */
+const boatIcon = L.divIcon({className:"boat", iconSize:[34,34], iconAnchor:[17,17], html:
+  '<svg viewBox="0 0 34 34"><path d="M17 2 26 30 17 24 8 30Z" fill="#e5372b" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'});
+let boat=null, accCircle=null, last=null, follow=true, vecLine=null, sogNow=null;
+const trackLine = L.polyline(store.get("track", []), {color:"#e5372b", weight:3, opacity:.7, interactive:false});
+$("track").checked = store.get("showTrack", true); if($("track").checked) trackLine.addTo(map);
+$("track").onchange = e => { e.target.checked ? trackLine.addTo(map) : map.removeLayer(trackLine); store.set("showTrack", e.target.checked); };
+$("bClearTrack").onclick = () => { trackLine.setLatLngs([]); store.set("track", []); toast("Trace effacée"); };
+function setFollow(v){ follow=v; $("bFollow").classList.toggle("on", v); }
+$("bFollow").onclick = () => { setFollow(!follow); if(follow && last) map.setView(last.ll, Math.max(map.getZoom(),12)); else if(follow) toast("Pas encore de position GPS"); };
+map.on("dragstart", () => setFollow(false));
+function dest(ll, brg, dist){ const r=Math.PI/180, R=6371000, d=dist/R, b=brg*r, f1=ll.lat*r, l1=ll.lng*r;
+  const f2=Math.asin(Math.sin(f1)*Math.cos(d)+Math.cos(f1)*Math.sin(d)*Math.cos(b));
+  return L.latLng(f2/r, (l1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(f1), Math.cos(d)-Math.sin(f1)*Math.sin(f2)))/r); }
 
-/* ---------- Hors ligne : téléchargement de zone ---------- */
-function tileRange(b, z){
-  const n = 2**z, x = lng => Math.floor((lng+180)/360*n),
-    y = lat => { const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n); };
-  return {x0:x(b.getWest()), x1:x(b.getEast()), y0:y(b.getNorth()), y1:y(b.getSouth())};
+function onPos(p){
+  const c=p.coords, ll=L.latLng(c.latitude, c.longitude);
+  $("gpsdot").className="gps ok"; $("acc").textContent = "±"+Math.round(c.accuracy)+" m";
+  let sog=(c.speed!=null&&!isNaN(c.speed))?c.speed*KN:null, cog=(c.heading!=null&&!isNaN(c.heading))?c.heading:null;
+  if(last && (sog===null||cog===null)){ const dt=(p.timestamp-last.t)/1000, d=map.distance(last.ll,ll);
+    if(dt>0 && d>3){ if(sog===null) sog=d/dt*KN; if(cog===null) cog=bearing(last.ll,ll); } }
+  if(sog!==null && sog>60) sog=null;
+  if(sog!==null){ sogNow=sog; $("sog").textContent=sog.toFixed(1); }
+  if(cog!==null && (sog===null||sog>0.4)) $("cog").textContent=pad3(cog);
+  if(!boat){
+    accCircle=L.circle(ll,{radius:c.accuracy,color:"#e5372b",weight:1,fillOpacity:.07,interactive:false}).addTo(map);
+    boat=L.marker(ll,{icon:boatIcon,interactive:false,zIndexOffset:1000}).addTo(map);
+    if(ZONE.contains(ll)) map.setView(ll, Math.max(map.getZoom(),13)); else setFollow(false);
+  } else { boat.setLatLng(ll); accCircle.setLatLng(ll).setRadius(c.accuracy); }
+  if(cog!==null){ const s=boat.getElement()&&boat.getElement().querySelector("svg"); if(s) s.style.transform="rotate("+cog+"deg)"; }
+  if(cog!==null && sog>0.4){ const end=dest(ll, cog, sog/KN*360);
+    vecLine ? vecLine.setLatLngs([ll,end]) : vecLine=L.polyline([ll,end],{color:"#e5372b",weight:2,dashArray:"6 5",interactive:false}).addTo(map); }
+  const lt=trackLine.getLatLngs();
+  if(c.accuracy<50 && (!lt.length || map.distance(lt[lt.length-1],ll)>15)){
+    trackLine.addLatLng(ll); store.set("track", trackLine.getLatLngs().slice(-5000).map(x=>[+x.lat.toFixed(6),+x.lng.toFixed(6)])); }
+  last={ll,t:p.timestamp};
+  if(follow && ZONE.contains(ll)) map.panTo(ll,{animate:true});
+  updateMob(); updateRoute(); if(ov.data) drawTimeline();
+  if(!$("sPoint").hidden && pointMode==="gps") showGps();
 }
-$("bCache").addEventListener("click", async () => {
-  if(!("caches" in window)){ toast("Hors ligne non supporté par ce navigateur"); return; }
-  const layer = bases[curBase], z0 = map.getZoom(), urls = [];
-  for(let z=z0; z<=Math.min(z0+3, 17); z++){
-    const vb = map.getBounds(), cb = L.latLngBounds(
-      [Math.max(vb.getSouth(),ZONE.getSouth()), Math.max(vb.getWest(),ZONE.getWest())],
-      [Math.min(vb.getNorth(),ZONE.getNorth()), Math.min(vb.getEast(),ZONE.getEast())]);
-    const r = tileRange(cb, z);
-    for(let x=r.x0;x<=r.x1;x++) for(let y=r.y0;y<=r.y1;y++){
-      urls.push(L.Util.template(layer._url, {z, x, y, s:"a", r:""}));
-      if($("seamarks").checked) urls.push(L.Util.template(seamarks._url, {z, x, y}));
-    }
-  }
-  if(urls.length > 4000){ toast("Zone trop grande ("+urls.length+" tuiles). Zoomez davantage."); return; }
-  const cache = await caches.open("navshom-tiles"); let done=0, fail=0;
-  const info = $("cacheinfo"), btn = $("bCache"); btn.disabled = true;
-  const worker = async () => { while(urls.length){ const u = urls.pop();
-    try{ if(!(await cache.match(u))){ const r = await fetch(u, {mode:"no-cors"}); await cache.put(u, r); } done++; }catch(e){ fail++; }
-    info.textContent = "Téléchargement… "+done+" tuiles"+(fail?" ("+fail+" échecs)":""); } };
-  await Promise.all([worker(),worker(),worker(),worker()]);
-  info.textContent = "Zone enregistrée : "+done+" tuiles disponibles hors ligne"+(fail?" ("+fail+" échecs)":"")+".";
-  btn.disabled = false;
-});
+function onErr(e){ $("gpsdot").className="gps bad"; $("acc").textContent = e.code===1 ? "refusé" : "—"; if(e.code===1) toast("Autorisez la localisation pour ce site", 5000); }
+if("geolocation" in navigator) navigator.geolocation.watchPosition(onPos, onErr, {enableHighAccuracy:true, maximumAge:1000, timeout:30000}); else onErr({code:0});
 
+/* ================= Point / position ================= */
+let pointMode="gps", pointLL=null;
+function showGps(){
+  pointMode="gps"; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
+  $("pDistRow").querySelector("b").textContent="Vitesse et cap"; $("aRoute").hidden=true;
+  if(!last){ pointLL=null; $("pLL").textContent="En attente du GPS…"; $("pDistRow").hidden=true; }
+  else { pointLL=last.ll; $("pLL").textContent=fmtLL(last.ll.lat,last.ll.lng); $("pDistRow").hidden=false;
+    $("pDist").textContent=(sogNow!=null?sogNow.toFixed(1)+" nd":"—")+" · cap "+$("cog").textContent+"°"; }
+  openSheet("sPoint");
+}
+function showPoint(ll){
+  pointMode="pt"; pointLL=ll; $("pTitle").textContent="Point sur la carte"; $("pLabel").textContent="Coordonnées";
+  $("pLL").textContent=fmtLL(ll.lat,ll.lng); $("pDistRow").querySelector("b").textContent="Depuis le bateau";
+  $("pDistRow").hidden=false; $("pDist").textContent = last ? fmtNM(map.distance(last.ll,ll))+" · "+pad3(bearing(last.ll,ll))+"°" : "GPS en attente";
+  $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint");
+}
+$("chip").onclick = showGps;
+map.on("click", e => { if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets(); showPoint(e.latlng); });
+$("aPin").onclick = () => { if(pointLL) addWp(pointLL); closeSheets(); };
+$("aMeteo").onclick = () => { if(pointLL) openMeteo(pointLL); };
+$("aCurve").onclick = () => { const p = pointLL || map.getCenter(); showCurve(p); };
+$("aMeasure").onclick = () => { const p=pointLL; closeSheets(); startMeasure(); if(p) addMeasure(p); };
+
+/* Aller ici : ligne directe bateau -> destination */
+let routeTo = store.get("route", null), routeLine=null, routeMk=null;
+function updateRoute(){
+  if(routeLine){ map.removeLayer(routeLine); routeLine=null; } if(routeMk){ map.removeLayer(routeMk); routeMk=null; }
+  if(!routeTo) return;
+  routeMk=L.circleMarker(routeTo,{radius:8,color:"#fff",weight:3,fillColor:"#1c9e47",fillOpacity:1}).addTo(map)
+    .on("click", ev=>{ L.DomEvent.stop(ev); routeTo=null; store.set("route",null); updateRoute(); toast("Destination effacée"); });
+  if(!last){ routeMk.bindTooltip("Destination",{permanent:true,direction:"top",className:"mlabel",offset:[0,-8]}); return; }
+  const d=map.distance(last.ll,routeTo), b=bearing(last.ll,L.latLng(routeTo)), eta = sogNow>0.5 ? fmtDur(d/NM/sogNow) : "—";
+  routeLine=L.polyline([last.ll,routeTo],{color:"#1c9e47",weight:3,dashArray:"8 6",interactive:false}).addTo(map);
+  routeMk.bindTooltip(fmtNM(d)+" · "+pad3(b)+"° · "+eta,{permanent:true,direction:"top",className:"mlabel",offset:[0,-8]});
+}
+$("aRoute").onclick = () => { routeTo=[pointLL.lat,pointLL.lng]; store.set("route",routeTo); closeSheets(); updateRoute();
+  toast("Destination posée. Touchez le point vert pour l'effacer.", 4000); };
+updateRoute();
+
+/* ================= Repères ================= */
+let wps = store.get("wps", []); const wpLayer = L.layerGroup().addTo(map);
+function drawWps(){ wpLayer.clearLayers(); wps.forEach(w => L.marker([w.lat,w.lng],{icon:L.divIcon({className:"",iconSize:[26,26],iconAnchor:[13,26],
+  html:'<svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 1a7 7 0 0 0-7 7c0 5 7 15 7 15s7-10 7-15a7 7 0 0 0-7-7z" fill="#0b63b6" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="8" r="2.6" fill="#fff"/></svg>'})})
+  .bindTooltip(w.n,{direction:"top",offset:[0,-24]}).on("click",ev=>{ L.DomEvent.stop(ev); showPoint(L.latLng(w.lat,w.lng)); }).addTo(wpLayer)); }
+function addWp(ll){ const n="Repère "+(wps.length+1); wps.push({n,lat:+ll.lat.toFixed(6),lng:+ll.lng.toFixed(6)}); store.set("wps",wps); drawWps(); toast(n+" enregistré"); }
+function renderWps(){ const el=$("wplist"); el.innerHTML="";
+  if(!wps.length){ el.innerHTML='<p class="note">Aucun repère. Touchez la carte puis « Poser un repère ici », ou le bouton Repère pour marquer la position du bateau.</p>'; return; }
+  wps.forEach((w,i)=>{ const d=document.createElement("div"), t=document.createElement("span");
+    t.innerHTML=`<b></b><br><small style="color:var(--muted);font-family:var(--mono)">${fmtLL(w.lat,w.lng)}${last?" · "+fmtNM(map.distance(last.ll,[w.lat,w.lng])):""}</small>`; t.querySelector("b").textContent=w.n;
+    const go=document.createElement("button"); go.textContent="Voir"; go.onclick=()=>{ setFollow(false); map.setView([w.lat,w.lng],14); closeSheets(); };
+    const del=document.createElement("button"); del.textContent="Suppr."; del.style.color="var(--red)"; del.onclick=()=>{ wps.splice(i,1); store.set("wps",wps); drawWps(); renderWps(); };
+    const s=document.createElement("span"); s.style.whiteSpace="nowrap"; s.append(go,del); d.append(t,s); el.append(d); }); }
+$("bPin").onclick = () => { if(!last) return toast("Pas de position GPS : touchez la carte pour poser un repère"); addWp(last.ll); };
+drawWps();
+
+/* ================= MOB ================= */
+let mob=store.get("mob",null), mobMk=null, mobArmed=false;
+function drawMob(){ if(mobMk){ map.removeLayer(mobMk); mobMk=null; } if(!mob) return;
+  mobMk=L.circleMarker(mob,{radius:11,color:"#fff",weight:3,fillColor:"#e5372b",fillOpacity:1}).addTo(map).bindTooltip("MOB",{permanent:true,direction:"right",className:"mlabel"}); }
+function updateMob(){ if(!mob||!last||!mobMk) return; mobMk.setTooltipContent("MOB "+fmtNM(map.distance(last.ll,mob))+" · "+pad3(bearing(last.ll,L.latLng(mob)))+"°"); }
+$("bMob").onclick = () => {
+  if(mob && !mobArmed){ mobArmed=true; toast("Appuyez encore pour effacer le point MOB"); setTimeout(()=>mobArmed=false,3000); return; }
+  if(mob){ mob=null; store.set("mob",null); drawMob(); mobArmed=false; return toast("Point MOB effacé"); }
+  if(!last) return toast("Pas de position GPS");
+  mob=[last.ll.lat,last.ll.lng]; store.set("mob",mob); drawMob(); updateMob(); setFollow(true);
+  toast("MOB enregistré "+fmtLL(mob[0],mob[1]),6000); if(navigator.vibrate) navigator.vibrate([300,100,300]);
+};
+drawMob();
+
+/* ================= Mesure de distance ================= */
+let measuring=false, mPts=[]; const mLayer=L.layerGroup();
+$("mSpeed").value = store.get("mspeed",5);
+function startMeasure(){ setOverlay(null); closeSheets(); measuring=true; mLayer.addTo(map); $("measure").hidden=false; $("bMeasure").classList.add("on"); drawMeasure();
+  document.documentElement.style.setProperty("--tl", ($("measure").offsetHeight+8)+"px"); }
+function stopMeasure(){ measuring=false; $("measure").hidden=true; document.documentElement.style.setProperty("--tl","0px"); $("bMeasure").classList.remove("on"); mPts=[]; mLayer.clearLayers(); map.removeLayer(mLayer); }
+function addMeasure(ll){ mPts.push(ll); drawMeasure(); }
+function drawMeasure(){
+  mLayer.clearLayers(); let tot=0;
+  if(mPts.length>1) L.polyline(mPts,{color:"#0b2f5b",weight:3,dashArray:"2 6",lineCap:"round",interactive:false}).addTo(mLayer);
+  mPts.forEach((p,i)=>{
+    L.circleMarker(p,{radius:6,color:"#fff",weight:2,fillColor:"#0b2f5b",fillOpacity:1,interactive:false}).addTo(mLayer);
+    if(i>0){ const d=map.distance(mPts[i-1],p); tot+=d;
+      L.marker(L.latLng((mPts[i-1].lat+p.lat)/2,(mPts[i-1].lng+p.lng)/2),{opacity:0,interactive:false}).addTo(mLayer)
+        .bindTooltip(fmtNM(d)+" · "+pad3(bearing(mPts[i-1],p))+"°",{permanent:true,direction:"center",className:"mlabel"}); }
+  });
+  const sp=parseFloat(String($("mSpeed").value).replace(",","."))||5;
+  $("mTot").textContent = fmtNM(tot);
+  $("mEta").textContent = mPts.length>1 ? fmtDur(tot/NM/sp)+" à "+sp+" nd" : "—";
+  $("mHint").textContent = mPts.length===0 ? "Touchez la carte pour poser les points de la route." :
+    mPts.length===1 ? "Touchez un deuxième point." : (mPts.length-1)+" segment"+(mPts.length>2?"s":"")+" · touchez pour prolonger";
+}
+$("bMeasure").onclick = () => measuring ? stopMeasure() : startMeasure();
+$("mDone").onclick = stopMeasure;
+$("mUndo").onclick = () => { mPts.pop(); drawMeasure(); };
+$("mClear").onclick = () => { mPts=[]; drawMeasure(); };
+$("mBoat").onclick = () => { if(!last) return toast("Pas de position GPS"); mPts.unshift(last.ll); drawMeasure(); };
+$("mSpeed").oninput = () => { store.set("mspeed", $("mSpeed").value); drawMeasure(); };
+
+/* ================= Calques vent / courant + frise ================= */
+const ov = {type:null, data:null, pts:[], grid:0, idx:0, now:0, layer:L.layerGroup()};
+const OVT = {
+  cur:  {name:"Courant", src:"Mercator · Open-Meteo", cols:[0.5,1.5,3], colors:["#4fc3f7","#ffd54f","#ff9800","#ff3d00"]},
+  wind: {name:"Vent", src:"Météo-France/ECMWF · Open-Meteo", cols:[10,17,25], colors:["#7ed957","#ffd54f","#ff9800","#e5372b"]}
+};
+function arrowIcon(dirTo, v, type){
+  const t=OVT[type], col=v<t.cols[0]?t.colors[0]:v<t.cols[1]?t.colors[1]:v<t.cols[2]?t.colors[2]:t.colors[3];
+  const len = type==="cur" ? Math.min(16+v*14,54) : Math.min(16+v*1.3,54);
+  return L.divIcon({className:"arr tap", iconSize:[56,70], iconAnchor:[28,28], html:
+    `<svg width="56" height="56" viewBox="-28 -28 56 56"><circle r="26" fill="transparent"/><g transform="rotate(${dirTo})">
+     <line x1="0" y1="${len/2}" x2="0" y2="${-len/2}" stroke="#000" stroke-opacity=".5" stroke-width="6" stroke-linecap="round"/>
+     <line x1="0" y1="${len/2}" x2="0" y2="${-len/2+2}" stroke="${col}" stroke-width="3.5" stroke-linecap="round"/>
+     <path d="M0 ${-len/2-4} L7 ${-len/2+8} L-7 ${-len/2+8}Z" fill="${col}" stroke="#000" stroke-opacity=".5" stroke-width="1.5"/></g></svg>
+     <div>${type==="cur"?v.toFixed(1):Math.round(v)}</div>`});
+}
+async function getJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function fetchSeries(type, pts, days){
+  const la=pts.map(p=>p[0]).join(","), lo=pts.map(p=>p[1]).join(",");
+  let j = await getJSON(type==="cur"
+    ? `https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=ocean_current_velocity,ocean_current_direction&timezone=auto&forecast_days=${days}&cell_selection=sea`
+    : `https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&timezone=auto&forecast_days=${days}`);
+  if(!Array.isArray(j)) j=[j];
+  return j.map(d => { const h=d.hourly;
+    return type==="cur"
+      ? {time:h.time, v:h.ocean_current_velocity.map(x=>x==null?null:x/1.852), dir:h.ocean_current_direction}
+      : {time:h.time, v:h.wind_speed_10m, g:h.wind_gusts_10m, dir:h.wind_direction_10m.map(x=>x==null?null:(x+180)%360), from:h.wind_direction_10m}; });
+}
+function gridPts(){ const sz=map.getSize(), cols=Math.max(3,Math.min(8,Math.round(sz.x/80))), rows=Math.max(3,Math.min(10,Math.round(sz.y/95))), pts=[];
+  for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){ const p=map.containerPointToLatLng([(j+.5)*sz.x/cols,(i+.5)*sz.y/rows]); pts.push([+p.lat.toFixed(3),+p.lng.toFixed(3)]); }
+  return pts; }
+async function loadOverlay(keepIdx){
+  const type=ov.type; if(!type) return;
+  const pts=gridPts(); const grid=pts.length; if(last) pts.push([+last.ll.lat.toFixed(3),+last.ll.lng.toFixed(3)]);
+  $("tSrc").textContent="chargement…";
+  try{
+    const data = await fetchSeries(type, pts, 2); if(ov.type!==type) return;
+    ov.data=data; ov.pts=pts; ov.grid=grid;
+    const now=Date.now(); let best=1e15; ov.now=0; data[0].time.forEach((t,i)=>{ const d=Math.abs(new Date(t)-now); if(d<best){best=d;ov.now=i;} });
+    ov.idx = keepIdx!=null && keepIdx<data[0].time.length ? keepIdx : ov.now;
+    $("tSlider").max=data[0].time.length-1; $("tSlider").value=ov.idx;
+    $("tSrc").textContent = type==="cur" ? "Touchez une flèche : courbe + marée" : OVT[type].src; drawOverlay();
+  }catch(e){ $("tSrc").textContent="indisponible"; toast(OVT[type].name+" indisponible (réseau ?)"); }
+}
+function drawOverlay(){
+  ov.layer.clearLayers(); if(!ov.data) return; const i=ov.idx;
+  ov.data.forEach((d,k)=>{ if(k>=ov.grid||d.v[i]==null||d.dir[i]==null) return;
+    L.marker(ov.pts[k],{icon:arrowIcon(d.dir[i],d.v[i],ov.type),keyboard:false}).on("click",ev=>{ L.DomEvent.stop(ev);
+      ov.type==="cur" ? showCurve(L.latLng(ov.pts[k])) : openMeteo(L.latLng(ov.pts[k])); }).addTo(ov.layer); });
+  $("tTime").textContent = OVT[ov.type].name+" · "+fmtT(ov.data[0].time[i]);
+  drawTimeline(); if(!$("sCurve").hidden && cv.data) drawCurve();
+}
+function refIdx(){ if(!ov.data) return -1; const ref=last?last.ll:map.getCenter(); let bi=-1,bd=1e12;
+  ov.pts.forEach((p,k)=>{ if(ov.data[k].v.every(v=>v==null)) return; const d=map.distance(ref,p); if(d<bd){bd=d;bi=k;} }); return bi; }
+function drawTimeline(){
+  const c=$("tGraph"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W||!ov.data) return;
+  c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
+  const k=refIdx(); if(k<0) return; const s=ov.data[k], n=s.time.length, vs=s.v.map(v=>v==null?0:v), gs=s.g||vs;
+  const max=Math.max(ov.type==="cur"?1:10,...gs), pad=14, top=14, bot=H-15, X=i=>pad+i*(W-2*pad)/(n-1), Y=v=>bot-v/max*(bot-top);
+  g.font="600 10px ui-monospace,Menlo,monospace"; g.textAlign="center";
+  s.time.forEach((t,i)=>{ const d=new Date(t), hr=d.getHours();
+    if(hr>=21||hr<7){ g.fillStyle="rgba(0,0,0,.28)"; g.fillRect(X(i)-(W-2*pad)/(n-1)/2,0,(W-2*pad)/(n-1)+.5,bot); }
+    if(hr===0){ g.strokeStyle="rgba(255,255,255,.45)"; g.lineWidth=1; g.beginPath(); g.moveTo(X(i),0); g.lineTo(X(i),bot); g.stroke();
+      g.fillStyle="#fff"; g.textAlign="left"; g.fillText(d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}),X(i)+3,10); g.textAlign="center"; }
+    if(hr%6===0){ g.fillStyle="#9fc0e6"; g.fillText(String(hr).padStart(2,"0")+"h",X(i),H-3); } });
+  if(s.g){ g.beginPath(); gs.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v))); g.strokeStyle="rgba(255,255,255,.45)"; g.setLineDash([3,3]); g.lineWidth=1.5; g.stroke(); g.setLineDash([]); }
+  g.beginPath(); g.moveTo(X(0),bot); vs.forEach((v,i)=>g.lineTo(X(i),Y(v))); g.lineTo(X(n-1),bot); g.closePath();
+  const gr=g.createLinearGradient(0,top,0,bot); gr.addColorStop(0,"rgba(255,152,0,.6)"); gr.addColorStop(1,"rgba(79,195,247,.15)"); g.fillStyle=gr; g.fill();
+  g.beginPath(); vs.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v))); g.strokeStyle="#ffb74d"; g.lineWidth=2; g.stroke();
+  for(let i=0;i<n;i+=3){ if(s.dir[i]==null) continue; g.save(); g.translate(X(i),Y(vs[i])-9); g.rotate(s.dir[i]*Math.PI/180);
+    g.fillStyle="#fff"; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
+  g.strokeStyle="#3fd18b"; g.lineWidth=2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(ov.now),top-2); g.lineTo(X(ov.now),bot); g.stroke(); g.setLineDash([]);
+  g.fillStyle="#9fc0e6"; g.textAlign="right"; g.fillText("max "+(ov.type==="cur"?max.toFixed(1):Math.round(max))+" nd",W-2,22);
+  const i=ov.idx, v=s.v[i], where=last?"Au bateau : ":"Centre carte : ";
+  $("tHere").textContent = where + (v==null ? "—" : ov.type==="cur"
+    ? v.toFixed(1)+" nd, porte au "+pad3(s.dir[i])+"°"
+    : Math.round(v)+" nd (raf. "+Math.round(s.g[i])+") du "+pad3(s.from[i])+"° "+compass(s.from[i]));
+}
+function setOverlay(type){
+  if(ov.type===type) type=null;
+  ov.type=type; ov.data=null; ov.layer.clearLayers();
+  $("bCur").classList.toggle("on",type==="cur"); $("bWind").classList.toggle("on",type==="wind");
+  $("mapCur").classList.toggle("on",type==="cur"); $("mapWind").classList.toggle("on",type==="wind");
+  $("tbar").hidden=!type; document.documentElement.style.setProperty("--tl", type ? ($("tbar").offsetHeight+8)+"px" : "0px");
+  if(type){ if(measuring) stopMeasure(); ov.layer.addTo(map); loadOverlay(); } else map.removeLayer(ov.layer);
+}
+$("bCur").onclick = () => setOverlay("cur"); $("bWind").onclick = () => setOverlay("wind");
+$("mapCur").onclick = () => { closeSheets(); if(ov.type!=="cur") setOverlay("cur"); };
+$("mapWind").onclick = () => { closeSheets(); if(ov.type!=="wind") setOverlay("wind"); };
+$("mapSea").onclick = () => showCurve(meteoLL || map.getCenter());
+function setHour(i){ if(!ov.data) return; ov.idx=Math.max(0,Math.min(ov.data[0].time.length-1,i)); $("tSlider").value=ov.idx; drawOverlay(); }
+$("tSlider").oninput = e => { ov.idx=+e.target.value; drawOverlay(); };
+$("tm3").onclick=()=>setHour(ov.idx-3); $("tm1").onclick=()=>setHour(ov.idx-1); $("tp1").onclick=()=>setHour(ov.idx+1); $("tp3").onclick=()=>setHour(ov.idx+3); $("tnow").onclick=()=>setHour(ov.now);
+let ovTimer; map.on("moveend", () => { if(!ov.type) return; clearTimeout(ovTimer); ovTimer=setTimeout(()=>loadOverlay(ov.idx),700); });
+window.addEventListener("resize", () => { if(ov.type){ document.documentElement.style.setProperty("--tl",($("tbar").offsetHeight+8)+"px"); drawTimeline(); } if(!$("sCurve").hidden) drawCurve(); });
+
+/* ================= Courbe courant + marée en un point ================= */
+const cv = {data:null, sel:0, now:0, ll:null};
+async function showCurve(ll){
+  cv.ll=ll; markTmp(ll); openSheet("sCurve"); if(tmpMarker) {} // le point reste visible
+  $("cvTitle").textContent = "Courant et marée · "+dm(ll.lat,"N","S").replace(/\.\d+'/,"'")+" "+dm(ll.lng,"E","W").replace(/\.\d+'/,"'");
+  $("cvBody").hidden=true; $("cvMsg").hidden=false; $("cvMsg").textContent="Chargement…";
+  try{
+    const j = await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${ll.lat.toFixed(3)}&longitude=${ll.lng.toFixed(3)}&hourly=ocean_current_velocity,ocean_current_direction,sea_level_height_msl&timezone=auto&forecast_days=3&cell_selection=sea`);
+    const h=j.hourly, now=Date.now(); let best=1e15, ni=0; h.time.forEach((t,i)=>{ const d=Math.abs(new Date(t)-now); if(d<best){best=d;ni=i;} });
+    const a=Math.max(0,ni-4), b=Math.min(h.time.length,a+31), cut=x=>(x||[]).slice(a,b);
+    cv.data={time:cut(h.time), cur:cut(h.ocean_current_velocity).map(x=>x==null?null:x/1.852), dir:cut(h.ocean_current_direction), sea:cut(h.sea_level_height_msl)};
+    cv.now=ni-a;
+    cv.sel = ov.data ? Math.min(h.time.length-1, Math.max(0, h.time.indexOf(ov.data[0].time[ov.idx]))) : cv.now;
+    if(cv.sel<0) cv.sel=cv.now;
+    $("cvMsg").hidden=true; $("cvBody").hidden=false; drawCurve();
+  }catch(e){ $("cvMsg").textContent="Données indisponibles (réseau ?)"; }
+}
+function extrema(a){ const out=[]; for(let i=1;i<a.length-1;i++){ if(a[i]==null||a[i-1]==null||a[i+1]==null) continue;
+  if(a[i]>=a[i-1]&&a[i]>a[i+1]) out.push({i,hi:true}); else if(a[i]<=a[i-1]&&a[i]<a[i+1]) out.push({i,hi:false}); } return out; }
+// interpolation parabolique de l'heure exacte de PM/BM
+function refine(a,i){ const y0=a[i-1],y1=a[i],y2=a[i+1], den=y0-2*y1+y2; if(!den) return {dt:0,v:y1}; const dt=.5*(y0-y2)/den; return {dt, v:y1-.25*(y0-y2)*dt}; }
+function drawCurve(){
+  const d=cv.data; if(!d) return;
+  const c=$("cvGraph"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W) return;
+  c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
+  const n=d.time.length, padL=30, padR=34, top=26, bot=H-18, X=i=>padL+i*(W-padL-padR)/(n-1);
+  const cmax=Math.max(1,...d.cur.filter(v=>v!=null)), Yc=v=>bot-v/cmax*(bot-top);
+  const sv=d.sea.filter(v=>v!=null), hasSea=sv.length>0, smin=hasSea?Math.min(...sv):0, smax=hasSea?Math.max(...sv):1, Ys=v=>bot-(v-smin)/((smax-smin)||1)*(bot-top);
+  g.font="600 10px ui-monospace,Menlo,monospace";
+  // nuit, jours, heures
+  d.time.forEach((t,i)=>{ const dt=new Date(t), hr=dt.getHours(), w=(W-padL-padR)/(n-1);
+    if(hr>=21||hr<7){ g.fillStyle="rgba(0,0,0,.28)"; g.fillRect(X(i)-w/2,top-6,w+.5,bot-top+6); }
+    if(hr===0){ g.strokeStyle="rgba(255,255,255,.4)"; g.lineWidth=1; g.beginPath(); g.moveTo(X(i),top-6); g.lineTo(X(i),bot); g.stroke();
+      g.fillStyle="#fff"; g.textAlign="left"; g.fillText(dt.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}),X(i)+3,top-10); }
+    if(hr%3===0){ g.fillStyle="#9fc0e6"; g.textAlign="center"; g.fillText(String(hr).padStart(2,"0")+"h",X(i),H-4); } });
+  // axes
+  g.fillStyle="#ffb74d"; g.textAlign="right"; g.fillText(cmax.toFixed(1),padL-4,top+4); g.fillText("0",padL-4,bot); g.fillText("nd",padL-4,top+16);
+  if(hasSea){ g.fillStyle="#5ab4ff"; g.textAlign="left"; g.fillText((smax>=0?"+":"")+smax.toFixed(1),W-padR+4,top+4); g.fillText((smin>=0?"+":"")+smin.toFixed(1),W-padR+4,bot); g.fillText("m",W-padR+4,top+16); }
+  // courant (aire)
+  g.beginPath(); g.moveTo(X(0),bot); d.cur.forEach((v,i)=>g.lineTo(X(i),Yc(v||0))); g.lineTo(X(n-1),bot); g.closePath();
+  const gr=g.createLinearGradient(0,top,0,bot); gr.addColorStop(0,"rgba(255,152,0,.55)"); gr.addColorStop(1,"rgba(255,152,0,.08)"); g.fillStyle=gr; g.fill();
+  g.beginPath(); d.cur.forEach((v,i)=>i?g.lineTo(X(i),Yc(v||0)):g.moveTo(X(i),Yc(v||0))); g.strokeStyle="#ffb74d"; g.lineWidth=2; g.stroke();
+  for(let i=1;i<n;i+=2){ if(d.dir[i]==null) continue; g.save(); g.translate(X(i),Yc(d.cur[i]||0)-9); g.rotate(d.dir[i]*Math.PI/180);
+    g.fillStyle="#ffe0b2"; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
+  // marée (sinusoïde)
+  if(hasSea){
+    g.beginPath(); let st=false; d.sea.forEach((v,i)=>{ if(v==null) return; st?g.lineTo(X(i),Ys(v)):(g.moveTo(X(i),Ys(v)),st=true); });
+    g.strokeStyle="#5ab4ff"; g.lineWidth=3; g.stroke();
+    extrema(d.sea).forEach(e=>{ const r=refine(d.sea,e.i), x=X(e.i+r.dt), y=Ys(r.v), t=new Date(new Date(d.time[e.i]).getTime()+r.dt*3600e3);
+      g.fillStyle="#5ab4ff"; g.beginPath(); g.arc(x,y,3.5,0,7); g.fill();
+      g.fillStyle="#fff"; g.textAlign="center"; const lab=(e.hi?"PM ":"BM ")+t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+      g.fillText(lab, Math.min(Math.max(x,padL+24),W-padR-24), e.hi?y+16:y-8); });
+  } else { g.fillStyle="#9fc0e6"; g.textAlign="center"; g.fillText("Hauteur d'eau non disponible ici", W/2, top+12); }
+  // maintenant + sélection
+  g.strokeStyle="#3fd18b"; g.lineWidth=2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(cv.now),top-4); g.lineTo(X(cv.now),bot); g.stroke(); g.setLineDash([]);
+  g.strokeStyle="#ffb020"; g.lineWidth=2; g.beginPath(); g.moveTo(X(cv.sel),top-4); g.lineTo(X(cv.sel),bot); g.stroke();
+  g.fillStyle="#ffb020"; g.beginPath(); g.arc(X(cv.sel),bot,5,0,7); g.fill();
+  // infos
+  const i=cv.sel, cu=d.cur[i], se=d.sea[i], se2=d.sea[i+1]??null, se0=d.sea[i-1]??null;
+  $("cvTime").textContent = fmtT(d.time[i]) + (i===cv.now ? " · maintenant" : "");
+  $("cvCur").textContent = cu==null ? "—" : cu.toFixed(1)+" nd"; $("cvDir").textContent = cu==null ? "" : "vers "+pad3(d.dir[i])+"° "+compass(d.dir[i]);
+  $("cvSea").textContent = se==null ? "—" : (se>=0?"+":"")+se.toFixed(2)+" m";
+  $("cvTrend").textContent = se==null ? "" : ((se2!=null?se2:se) > (se0!=null?se0:se) ? "▲ monte" : "▼ descend");
+}
+(function(){ const w=$("cvWrap"); let down=false;
+  const pick = ev => { if(!cv.data) return; const r=w.getBoundingClientRect(), x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, padL=30, padR=34, n=cv.data.time.length;
+    cv.sel=Math.max(0,Math.min(n-1,Math.round((x-padL)/(r.width-padL-padR)*(n-1)))); drawCurve();
+    if(ov.data){ const k=ov.data[0].time.indexOf(cv.data.time[cv.sel]); if(k>=0 && k!==ov.idx){ ov.idx=k; $("tSlider").value=k; drawOverlay(); } } };
+  w.addEventListener("pointerdown", e=>{ down=true; w.setPointerCapture(e.pointerId); pick(e); });
+  w.addEventListener("pointermove", e=>{ if(down) pick(e); });
+  w.addEventListener("pointerup", ()=>down=false); w.addEventListener("pointercancel", ()=>down=false);
+})();
+
+/* ================= Météo marine ================= */
+function wxIcon(code, day){
+  const sun='<circle cx="24" cy="22" r="9" fill="#ffc83d"/><g stroke="#ffc83d" stroke-width="3" stroke-linecap="round"><path d="M24 5v4M24 35v4M7 22h4M37 22h4M12 10l3 3M33 31l3 3M12 34l3-3M33 13l3-3"/></g>';
+  const moon='<path d="M28 8a14 14 0 1 0 12 20 11 11 0 0 1-12-20z" fill="#e8ecf5"/>';
+  const cloud=(c="#fff",y=0)=>`<path d="M14 ${38+y}a8 8 0 0 1-1-16 11 11 0 0 1 21 3 6.5 6.5 0 0 1 1 13z" fill="${c}"/>`;
+  const drops='<g stroke="#5ab4ff" stroke-width="3" stroke-linecap="round"><path d="M16 41l-2 5M24 41l-2 5M32 41l-2 5"/></g>';
+  let s;
+  if(code===0) s = day?sun:moon;
+  else if(code<=2) s = (day?'<g transform="translate(6 -4) scale(.8)">'+sun+'</g>':'<g transform="translate(8 -2) scale(.75)">'+moon+'</g>')+cloud("#fff",2);
+  else if(code===3) s = cloud("#c9d3df",-4)+cloud("#fff",2);
+  else if(code===45||code===48) s = '<g stroke="#c9d3df" stroke-width="4" stroke-linecap="round"><path d="M8 18h32M6 26h36M10 34h28"/></g>';
+  else if(code>=95) s = cloud("#9aa8b8",-4)+'<path d="M25 30 18 41h6l-3 8 9-12h-6l3-7z" fill="#ffc83d"/>';
+  else if((code>=71&&code<=77)||code===85||code===86) s = cloud("#fff",-4)+'<g fill="#fff"><circle cx="16" cy="44" r="2"/><circle cx="24" cy="44" r="2"/><circle cx="32" cy="44" r="2"/></g>';
+  else s = cloud("#dfe6ee",-6)+drops;
+  return `<svg class="wx" viewBox="0 0 48 48">${s}</svg>`;
+}
+const arrowSvg = (deg,col="#0b2f5b") => `<svg viewBox="-8 -8 16 16" style="transform:rotate(${deg}deg)"><path d="M0-7 5 6 0 3-5 6Z" fill="${col}"/></svg>`;
+let meteoLL=null;
+async function openMeteo(ll){
+  meteoLL = ll || (last?last.ll:map.getCenter());
+  if(ll) markTmp(ll); else if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; }
+  openSheet("sMeteo"); $("meteoBody").hidden=true; $("meteoMsg").hidden=false; $("meteoMsg").textContent="Chargement de la météo…";
+  $("mtPlace").textContent = (ll ? "Point " : last ? "Au bateau " : "Centre carte ") + dm(meteoLL.lat,"N","S").replace(/\.\d+'/,"'")+" "+dm(meteoLL.lng,"E","W").replace(/\.\d+'/,"'");
+  const la=meteoLL.lat.toFixed(3), lo=meteoLL.lng.toFixed(3);
+  try{
+    const [f,m] = await Promise.all([
+      getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset&wind_speed_unit=kn&timezone=auto&forecast_days=7`),
+      getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=wave_height,wave_direction,wave_period,ocean_current_velocity,ocean_current_direction,sea_level_height_msl&timezone=auto&forecast_days=7&cell_selection=sea`).catch(()=>null)
+    ]);
+    store.set("meteo",{f,m,at:Date.now()}); renderMeteo(f,m);
+  }catch(e){
+    const c=store.get("meteo",null);
+    if(c){ renderMeteo(c.f,c.m); toast("Hors ligne : météo enregistrée le "+new Date(c.at).toLocaleString("fr-FR",{weekday:"short",hour:"2-digit",minute:"2-digit"}),5000); }
+    else $("meteoMsg").textContent="Météo indisponible. Vérifiez la connexion réseau.";
+  }
+}
+function renderMeteo(f,m){
+  $("meteoMsg").hidden=true; $("meteoBody").hidden=false;
+  const d=f.daily, h=f.hourly, hm=m&&m.hourly, tf=t=>t.slice(11,16);
+  $("mtSun").innerHTML = `<div><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#ffc83d"/></svg><span><small>Lever</small>${tf(d.sunrise[0])}</span></div>
+    <div><svg viewBox="0 0 48 48"><path d="M28 8a14 14 0 1 0 12 20 11 11 0 0 1-12-20z" fill="#e8ecf5"/></svg><span><small>Coucher</small>${tf(d.sunset[0])}</span></div>`;
+  const now=Date.now(); let i0=0; h.time.forEach((t,i)=>{ if(new Date(t).getTime()<=now) i0=i; });
+  const mIdx = t => hm ? hm.time.indexOf(t) : -1;
+  let html='';
+  for(let i=i0;i<Math.min(i0+48,h.time.length);i++){
+    const t=h.time[i], dt=new Date(t), w=h.wind_speed_10m[i], gu=h.wind_gusts_10m[i], wc=w<10?"w1":w<17?"w2":w<25?"w3":"w4", j=mIdx(t);
+    let wave='<div class="tile"><small>—</small></div>', cur=wave, sea=wave;
+    if(j>=0){
+      if(hm.wave_height[j]!=null) wave=`<div class="tile"><span>${hm.wave_height[j].toFixed(1)}</span><small>m · ${Math.round(hm.wave_period[j])} s</small></div>`;
+      if(hm.ocean_current_velocity[j]!=null){ const c=hm.ocean_current_velocity[j]/1.852;
+        cur=`<div class="tile cur ${c>=3?"c3":c>=1.5?"c2":""}">${arrowSvg(hm.ocean_current_direction[j],"#c0392b")}<span>${c.toFixed(1)}</span></div>`; }
+      if(hm.sea_level_height_msl && hm.sea_level_height_msl[j]!=null){ const s=hm.sea_level_height_msl[j], s2=hm.sea_level_height_msl[j+1];
+        sea=`<div class="tile"><span>${s>=0?"+":""}${s.toFixed(1)}</span><small>${s2==null?"m":s2>s?"▲ monte":"▼ desc."}</small></div>`; }
+    }
+    const day = (i===i0 || dt.getHours()===0) ? dt.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}) : "";
+    html+=`<button class="hr${i===i0?" now sel":""}" data-t="${t}"><span class="d">${day}</span><span class="h">${i===i0?"Main.":tf(t)}</span>
+      ${wxIcon(h.weather_code[i],h.is_day[i])}<span class="tp">${Math.round(h.temperature_2m[i])}°</span>
+      <div class="tile ${wc}">${arrowSvg((h.wind_direction_10m[i]+180)%360)}<span>${Math.round(w)}</span><small>raf ${Math.round(gu)}</small></div>
+      ${wave}${cur}${sea}</button>`;
+  }
+  $("mtHours").innerHTML=html; $("mtHours").scrollLeft=0;
+  $("mtHours").querySelectorAll(".hr").forEach(b => b.onclick = () => {
+    $("mtHours").querySelectorAll(".hr").forEach(x=>x.classList.remove("sel")); b.classList.add("sel");
+    if(ov.data){ const k=ov.data[0].time.indexOf(b.dataset.t); if(k>=0) setHour(k); }
+  });
+  $("mtDays").innerHTML = d.time.map((t,i)=>`<div class="day">${i===0?"Auj.":new Date(t).toLocaleDateString("fr-FR",{weekday:"short"})}
+    ${wxIcon(d.weather_code[i],1)}<div class="t">${Math.round(d.temperature_2m_max[i])}° <span>${Math.round(d.temperature_2m_min[i])}°</span></div>
+    <div class="w">${Math.round(d.wind_speed_10m_max[i])}–${Math.round(d.wind_gusts_10m_max[i])} nd ${compass(d.wind_direction_10m_dominant[i])}</div></div>`).join("");
+}
+$("bMeteo").onclick = () => $("sMeteo").hidden ? openMeteo(null) : closeSheets();
+
+/* ================= Réglages ================= */
+$("night").checked=store.get("night",false); document.body.classList.toggle("night",$("night").checked);
+$("night").onchange=e=>{ document.body.classList.toggle("night",e.target.checked); store.set("night",e.target.checked); };
+let wakeLock=null;
+async function wake(){ if(!$("wake").checked||!("wakeLock" in navigator)) return; try{ wakeLock=await navigator.wakeLock.request("screen"); }catch(e){} }
+$("wake").checked=store.get("wake",true);
+$("wake").onchange=e=>{ store.set("wake",e.target.checked); if(e.target.checked) wake(); else if(wakeLock){ wakeLock.release(); wakeLock=null; } };
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") wake(); });
+document.addEventListener("click",wake,{once:true}); wake();
+
+/* ================= Hors ligne ================= */
+function tileRange(b,z){ const n=2**z, x=lng=>Math.floor((lng+180)/360*n),
+  y=lat=>{ const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n); };
+  return {x0:x(b.getWest()),x1:x(b.getEast()),y0:y(b.getNorth()),y1:y(b.getSouth())}; }
+$("bCache").onclick = async () => {
+  if(!("caches" in window)) return toast("Hors ligne non supporté par ce navigateur");
+  const layer=bases[curBase], z0=map.getZoom(), urls=[];
+  for(let z=z0; z<=Math.min(z0+3,17); z++){
+    const vb=map.getBounds(), cb=L.latLngBounds([Math.max(vb.getSouth(),ZONE.getSouth()),Math.max(vb.getWest(),ZONE.getWest())],[Math.min(vb.getNorth(),ZONE.getNorth()),Math.min(vb.getEast(),ZONE.getEast())]);
+    const r=tileRange(cb,z);
+    for(let x=r.x0;x<=r.x1;x++) for(let y=r.y0;y<=r.y1;y++){ urls.push(L.Util.template(layer._url,{z,x,y,s:"a",r:""})); if($("seamarks").checked) urls.push(L.Util.template(seamarks._url,{z,x,y})); }
+  }
+  if(urls.length>4000) return toast("Zone trop grande ("+urls.length+" tuiles). Zoomez davantage.");
+  const cache=await caches.open("navshom-tiles"); let done=0, fail=0; const info=$("cacheinfo"), btn=$("bCache"); btn.disabled=true;
+  const worker=async()=>{ while(urls.length){ const u=urls.pop();
+    try{ if(!(await cache.match(u))){ const r=await fetch(u,{mode:"no-cors"}); await cache.put(u,r); } done++; }catch(e){ fail++; }
+    info.textContent="Téléchargement… "+done+" tuiles"+(fail?" ("+fail+" échecs)":""); } };
+  await Promise.all([worker(),worker(),worker(),worker()]);
+  info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
+};
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
