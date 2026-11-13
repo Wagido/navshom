@@ -296,6 +296,7 @@ body.crowded #colBR .fab, body.crowded #colBL .fab{width:min(44px,calc((100vw - 
 body.crowded .fab svg{width:58%;height:58%} body.crowded .fab.mob{font-size:10px}
 body.crowded #colBR .fab small, body.crowded #colBL .fab small{display:none}
 body.crowded #bSat, body.crowded #bSlope{display:none!important}
+body.crowded2 #bMode, body.crowded2 #bZin, body.crowded2 #bZout, body.crowded2 #scale{display:none!important}
 #nightOff{position:fixed;z-index:1200;left:50%;transform:translateX(-50%);top:calc(var(--st) + 66px);border:0;border-radius:16px;padding:6px 12px;background:#3a1814;color:#ff8a7a;font:600 12px var(--sans);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .seg{display:flex;background:var(--soft);border-radius:10px;padding:3px;margin:10px 0 0;gap:3px}
 .seg button{flex:1;border:0;border-radius:8px;padding:8px;background:transparent;font:600 13px var(--sans);color:var(--muted);cursor:pointer}
@@ -1012,7 +1013,11 @@ const tbl={ll:null,f:null,m:null,model:null,open:store.get("tblOpen",false),load
 function crowdCheck(){ // panneau haut : on masque les colonnes de boutons du bas plutôt que de les empiler sur le zoom
   document.body.classList.remove("crowded");
   const tr=$("colTR").getBoundingClientRect(), br=$("colBR").getBoundingClientRect(), tl=$("colTL").getBoundingClientRect(), bl=$("colBL").getBoundingClientRect();
-  if((br.height && br.top < tr.bottom+8) || (bl.height && bl.top < tl.bottom+8)) document.body.classList.add("crowded"); }
+  document.body.classList.remove("crowded2");
+  if((br.height && br.top < tr.bottom+8) || (bl.height && bl.top < tl.bottom+8)){ document.body.classList.add("crowded");
+    // très petit écran : si la ligne touche encore le haut, on masque sélecteur de mode, échelle et zoom (le pincement reste possible)
+    const row=Math.min($("colBR").getBoundingClientRect().top, $("colBL").getBoundingClientRect().top);
+    if(row < Math.max($("colTL").getBoundingClientRect().bottom, $("colTR").getBoundingClientRect().bottom)+6) document.body.classList.add("crowded2"); } }
 const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); };
 $("tTblBtn").onclick=()=>{ tbl.open=!tbl.open; store.set("tblOpen",tbl.open); if(tbl.open) loadTable(); renderTable(); if(!tbl.open) drawTimeline(); };
 async function loadTable(force){
@@ -1983,7 +1988,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-k"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-l"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
