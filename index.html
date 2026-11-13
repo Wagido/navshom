@@ -294,13 +294,9 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
 .mapc small{font-size:10.5px}
 @media (min-width:900px){ .sheet{left:calc(var(--sl) + 16px);right:auto;margin:0;bottom:16px;border-radius:18px;max-height:calc(100vh - 32px)} #sMeteo{left:calc(var(--sl) + 16px)} }
 /* panneau haut : les colonnes de boutons passent en ligne au-dessus du panneau */
-body.crowded #colBR, body.crowded #colBL{flex-direction:row;gap:8px}
-body.crowded #colBR, body.crowded #colBL{gap:6px}
-body.crowded #colBR .fab, body.crowded #colBL .fab{width:min(44px,calc((100vw - 74px) / 7));height:min(44px,calc((100vw - 74px) / 7))}
 body.crowded .fab svg{width:58%;height:58%} body.crowded .fab.mob{font-size:10px}
-body.crowded #colBR .fab small, body.crowded #colBL .fab small{display:none}
 body.crowded #bSat, body.crowded #bSlope{display:none!important}
-body.crowded2 #bMode, body.crowded2 #bZin, body.crowded2 #bZout, body.crowded2 #scale{display:none!important}
+
 #nightOff{position:fixed;z-index:1200;left:50%;transform:translateX(-50%);top:calc(var(--st) + 66px);border:0;border-radius:16px;padding:6px 12px;background:#3a1814;color:#ff8a7a;font:600 12px var(--sans);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .seg{display:flex;background:var(--soft);border-radius:10px;padding:3px;margin:10px 0 0;gap:3px}
 .seg button{flex:1;border:0;border-radius:8px;padding:8px;background:transparent;font:600 13px var(--sans);color:var(--muted);cursor:pointer}
@@ -344,6 +340,49 @@ body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measur
 #toast{position:fixed;z-index:1300;left:50%;top:calc(var(--st) + 74px);transform:translateX(-50%);background:var(--navy);color:#fff;
   padding:9px 14px;border-radius:10px;font-size:14px;max-width:90vw;box-shadow:0 3px 10px rgba(0,0,0,.3)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ===== Direction « Clarté » : capsule en haut, groupe à droite, dock en bas ===== */
+:root{--glass:rgba(255,255,255,.93);--sh:0 6px 20px rgba(11,47,91,.16);--merc:#1D6FB8;--slate:#4A5D73}
+#colTL{top:calc(var(--st) + 10px);left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);flex-direction:row;align-items:center;gap:8px;
+  background:var(--glass);border-radius:22px;padding:5px 5px 5px 8px;box-shadow:var(--sh);backdrop-filter:blur(12px);max-width:560px;margin:0 auto}
+.cap-ic{width:36px;height:36px;flex:none;border:0;background:transparent;color:var(--navy);display:grid;place-items:center;padding:0;cursor:pointer}
+.cap-ic svg{width:19px;height:19px}
+#chip{position:static;flex:1;min-width:0;max-width:none;margin:0;box-shadow:none;background:transparent;border-radius:0;padding:0;display:flex;gap:14px;justify-content:flex-start;grid-template-columns:none}
+#chip div{text-align:left}
+#chip b{font:600 9px var(--sans);letter-spacing:.08em}
+#chip span{font:700 17px/1.15 var(--sans)} #chip i{font:500 11px var(--sans);margin-left:2px;color:var(--slate)}
+#chip .gpsv{font-size:13px;font-weight:600}
+.modesw{flex-direction:row;width:auto;flex:none;background:#EEF2F6;border-radius:16px;padding:3px;gap:0;box-shadow:none}
+.modesw button{height:30px;border-radius:13px;padding:0 11px;font:600 12px var(--sans);color:var(--slate);flex-direction:row}
+.modesw button[data-m="mer"].on{background:var(--merc);color:#fff}
+#colTR{top:calc(var(--st) + 66px);right:calc(var(--sr) + 10px);gap:8px;align-items:flex-end}
+.grp{display:flex;flex-direction:column;background:var(--glass);border-radius:22px;box-shadow:var(--sh);overflow:hidden;backdrop-filter:blur(12px)}
+.g-b{width:44px;height:44px;border:0;background:transparent;color:var(--navy);font:400 24px/1 var(--sans);display:grid;place-items:center;cursor:pointer;padding:0;position:relative}
+.g-b+.g-b::before{content:"";position:absolute;left:10px;right:10px;top:0;height:1px;background:#E3E9EF}
+.g-b svg{width:20px;height:20px}
+.g-b.on{color:var(--merc)} body.rando .g-b.on{color:var(--sapin)}
+#scale{font:600 11px var(--sans);background:rgba(255,255,255,.85);box-shadow:none;padding:3px 7px}
+#colBL{left:calc(var(--sl) + 10px);bottom:calc(var(--sb) + 88px + var(--tl))}
+.mob{height:40px;padding:0 15px;border:0;border-radius:20px;background:var(--red);color:#fff;font:700 12px var(--sans);letter-spacing:.04em;box-shadow:0 6px 16px rgba(229,55,43,.35);cursor:pointer}
+#colBR{display:none}
+.bar{left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);transform:none;max-width:560px;margin:0 auto;bottom:calc(var(--sb) + 14px);
+  background:rgba(255,255,255,.96);border-radius:24px;box-shadow:0 6px 20px rgba(11,47,91,.18);padding:7px 4px 6px;justify-content:space-around;backdrop-filter:blur(12px)}
+.bar button.dk{flex:1 1 0;min-width:0;background:transparent;color:var(--slate);padding:2px 0;display:flex;flex-direction:column;align-items:center;gap:2px;font:600 10.5px var(--sans);border-radius:14px}
+.bar button.dk svg{width:23px;height:23px}
+.bar button.dk.on{color:#FF7A00;background:transparent}
+#bTrack.rec{background:transparent;color:#d81b60} #bTrack.rec::before{display:none} #bTrack.rec span::before{content:"● ";animation:blink 1s infinite}
+#bTrack.paused{background:transparent;color:#8d6e63}
+body.measuring #colBL{display:none!important}
+body.measuring #colTL, body.measuring #colTR{display:flex!important}
+body.measuring #chip{display:none!important}
+.sheet{bottom:0}
+#tbar,#measure{bottom:calc(var(--sb) + 84px)}
+#navcard{top:calc(var(--st) + 66px)}
+#runHud{top:calc(var(--st) + 66px);right:calc(var(--sr) + 64px)}
+#toast{top:calc(var(--st) + 66px)}
+body.crowded #colTR .grp .g-b:nth-child(n+3), body.crowded #scale{display:none}
+body.crowded2 #colBL{display:none}
+body.night{--glass:rgba(42,18,16,.92)}
 </style>
 </head>
 <body>
@@ -360,43 +399,42 @@ body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measur
 </div>
 <div id="map"></div>
 
-<button id="chip" aria-label="Ma position GPS">
-  <div><b id="c1l">Vitesse</b><span id="sog">—</span> <i id="c1u">nd</i></div>
-  <div><b id="c2l">Cap</b><span id="cog">—</span><i id="c2u">°</i></div>
-  <div><b><em class="gps" id="gpsdot"></em>GPS</b><span id="acc" style="font-size:15px">—</span></div>
-</button>
-
-<div class="col" id="colTL" style="gap:22px">
-  <button class="fab" id="bSearch" aria-label="Aller à un lieu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></button>
+<div class="col" id="colTL">
+  <button class="cap-ic" id="bSearch" aria-label="Rechercher un lieu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/></svg></button>
+  <button id="chip" aria-label="Ma position GPS">
+    <div><b id="c1l">Vitesse</b><span id="sog">—</span><i id="c1u">nd</i></div>
+    <div><b id="c2l">Cap</b><span id="cog">—</span><i id="c2u">°</i></div>
+    <div><b><em class="gps" id="gpsdot"></em>GPS</b><span id="acc" class="gpsv">—</span></div>
+  </button>
   <div class="modesw" id="bMode" role="radiogroup" aria-label="Mode">
-    <button data-m="mer" role="radio" aria-label="Mode Mer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 9c2.5-2.5 5 2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5-1M2 15.5c2.5-2.5 5 2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5-1"/></svg><small>Mer</small></button>
-    <button data-m="rando" role="radio" aria-label="Mode Rando"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 21.5 20h-19z"/><path d="M12 3 15.2 8.8 13.4 8 12 9.6 10.6 8 8.8 8.8z" fill="#fff" opacity=".95"/></svg><small>Rando</small></button>
+    <button data-m="mer" role="radio">Mer</button>
+    <button data-m="rando" role="radio">Rando</button>
   </div>
 </div>
 <div class="col" id="colTR">
-  <button class="fab" id="bZin" aria-label="Zoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
-  <button class="fab" id="bZout" aria-label="Dézoomer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+  <div class="grp">
+    <button class="g-b" id="bZin" aria-label="Zoomer">+</button>
+    <button class="g-b" id="bZout" aria-label="Dézoomer">−</button>
+    <button class="g-b" id="bLayers" aria-label="Cartes et couches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg></button>
+    <button class="g-b on" id="bFollow" aria-label="Centrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small id="followLbl" hidden>Bateau</small></button>
+  </div>
   <div id="scale">—</div>
-  <button class="fab rando-only" id="bSlope" aria-label="Carte des pentes" style="margin-top:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3 20h18L3 6z"/><path d="M8 20a6 6 0 0 0-1.5-4" /></svg><small>Pentes</small></button>
-  <button class="fab" id="bSat" aria-label="Vue satellite" style="margin-top:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M3 4l5 5M16 15l5 5M4 3l2-1 4 4-2 2zM20 21l-2 1-4-4 2-2zM15 9l2-2M9 15l-2 2"/></svg><small>Satellite</small></button>
+  <button class="fab" id="bSlope" hidden aria-label="Carte des pentes"></button>
+  <button class="fab" id="bSat" hidden aria-label="Vue satellite"></button>
 </div>
 <div class="col" id="colBL">
-  <button class="fab" id="bPin" aria-label="Poser un repère"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a6 6 0 0 0-6 6c0 4.5 6 12 6 12s6-7.5 6-12a6 6 0 0 0-6-6zm0 8.2A2.2 2.2 0 1 1 12 5.8a2.2 2.2 0 0 1 0 4.4z"/></svg><small>Repère</small></button>
-  <button class="fab" id="bLayers" aria-label="Cartes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg><small>Cartes</small></button>
-  <button class="fab on" id="bFollow" aria-label="Suivre le bateau"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small id="followLbl">Bateau</small></button>
+  <button class="mob mer-only" id="bMob" aria-label="Homme à la mer">MOB</button>
+  <button class="fab" id="bPin" hidden aria-label="Poser un repère"></button>
 </div>
-<div class="col" id="colBR">
-  <button class="fab" id="bWind" aria-label="Vent sur la carte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><small>Météo</small></button>
-  <button class="fab mer-only" id="bCur" aria-label="Courants sur la carte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg><small>Courant</small></button>
-  <button class="fab mer-only" id="bAnchor" aria-label="Alarme de mouillage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v14M8 11h8M4.5 14a7.5 7.5 0 0 0 15 0"/></svg><small>Ancre</small></button>
-  <button class="fab mob mer-only" id="bMob" aria-label="Homme à la mer">MOB</button>
-</div>
+<div class="col" id="colBR"></div>
 
-<nav class="bar" aria-label="Actions">
-  <button id="bMeasure">Mesurer</button>
-  <button id="bTrack" class="rando-only">Trace</button>
-  <button id="bMeteo" class="go">Météo</button>
-  <button id="bMenu">Menu</button>
+<nav class="bar" aria-label="Navigation principale">
+  <button class="dk" id="bWind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><span>Météo</span></button>
+  <button class="dk mer-only" id="bCur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg><span>Courant</span></button>
+  <button class="dk" id="bMeasure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg><span>Mesurer</span></button>
+  <button class="dk mer-only" id="bAnchor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v14M8 11h8M4.5 14a7.5 7.5 0 0 0 15 0"/></svg><span>Ancre</span></button>
+  <button class="dk rando-only" id="bTrack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19c2-6 6-2 7-8s5-6 7-6"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/></svg><span>Trace</span></button>
+  <button class="dk" id="bMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Plus</span></button>
 </nav>
 
 <!-- Mesure -->
@@ -419,7 +457,7 @@ body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measur
 <div id="tbar" hidden>
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
-  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">✕ Fermer</button></div>
+  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">Prévisions</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">✕</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
   <div class="tbl" id="tTbl" hidden></div>
@@ -442,7 +480,7 @@ body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measur
     <button class="act" id="aMeteo"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 18z"/></svg></span>Météo ici</button>
     <button class="act" id="aMeasure"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 17 17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2"/></svg></span>Mesurer</button>
   </div>
-  <div class="btnrow"><button class="pill" id="aPin">Poser un repère ici</button></div>
+  <div class="btnrow"><button class="pill" id="aPin">Poser un repère ici</button><button class="pill danger" id="aDelWp" hidden>Supprimer ce repère</button></div>
 </section>
 
 <!-- Courbe courant + marée -->
@@ -598,6 +636,7 @@ body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measur
   <div class="wplist" id="qRes"></div>
   <label class="opt mer-only" for="spot"><div style="flex:1">Aller à<small>Côtes de France et îles Anglo-Normandes</small></div><select id="spot"></select></label>
   <h3>Prévisions</h3>
+  <div class="btnrow"><button class="pill primary" id="bMeteo">Prévisions détaillées (48 h, 7 jours)</button></div>
   <label class="opt" for="menuModel"><div style="flex:1">Modèle météo<small>Vent, température, pression, pluie</small></div><select id="menuModel"></select></label>
   <div class="rando-only">
     <h3>Montagne et ski de rando</h3>
@@ -791,15 +830,17 @@ function onErr(e){ $("gpsdot").className="gps bad"; $("acc").textContent = e.cod
 /* ================= Point / position ================= */
 let pointMode="gps", pointLL=null;
 function showGps(){
-  pointMode="gps"; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
+  pointMode="gps"; pointWp=null; $("aPin").hidden=false; $("aDelWp").hidden=true; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
   $("pDistRow").querySelector("b").textContent="Vitesse et cap"; $("aRoute").hidden=true;
   if(!last){ pointLL=null; $("pLL").textContent="En attente du GPS…"; $("pDistRow").hidden=true; }
   else { pointLL=last.ll; $("pLL").textContent=fmtLL(last.ll.lat,last.ll.lng); $("pDistRow").hidden=false;
     $("pDist").textContent=(sogNow!=null?sogNow.toFixed(1)+" nd":"—")+" · cap "+$("cog").textContent+"°"; }
   openSheet("sPoint");
 }
-function showPoint(ll){
-  pointMode="pt"; pointLL=ll; $("pTitle").textContent="Point sur la carte"; $("pLabel").textContent="Coordonnées";
+let pointWp=null;
+function showPoint(ll, wp){
+  pointMode="pt"; pointLL=ll; pointWp=wp||null; $("pTitle").textContent = wp ? wp.n : "Point sur la carte";
+  $("aPin").hidden=!!wp; $("aDelWp").hidden=!wp; $("pLabel").textContent="Coordonnées";
   $("pLL").textContent=fmtLL(ll.lat,ll.lng); $("pDistRow").querySelector("b").textContent="Depuis le bateau";
   $("pDistRow").hidden=false; $("pDist").textContent = last ? fmtNM(map.distance(last.ll,ll))+" · "+pad3(bearing(last.ll,ll))+"°" : "GPS en attente";
   $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint");
@@ -810,6 +851,7 @@ map.on("click", e => { if(RT.picking){ RT[RT.picking]=e.latlng; RT.picking=null;
   if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets();
   if(ov.data) return showPicker(e.latlng); showPoint(e.latlng); });
 $("aPin").onclick = () => { if(pointLL) addWp(pointLL); closeSheets(); };
+$("aDelWp").onclick = () => { if(!pointWp) return; wps=wps.filter(w=>w!==pointWp); store.set("wps",wps); drawWps(); toast(pointWp.n+" supprimé"); pointWp=null; closeSheets(); };
 $("aMeteo").onclick = () => { if(pointLL) openMeteo(pointLL); };
 $("aCurve").onclick = () => { const p = pointLL || map.getCenter(); showCurve(p); };
 $("aMeasure").onclick = () => { const p=pointLL; closeSheets(); startMeasure(); if(p) addMeasure(p); };
@@ -834,7 +876,7 @@ updateRoute();
 let wps = store.get("wps", []); const wpLayer = L.layerGroup().addTo(map);
 function drawWps(){ wpLayer.clearLayers(); wps.forEach(w => L.marker([w.lat,w.lng],{icon:L.divIcon({className:"",iconSize:[26,26],iconAnchor:[13,26],
   html:'<svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 1a7 7 0 0 0-7 7c0 5 7 15 7 15s7-10 7-15a7 7 0 0 0-7-7z" fill="#0b63b6" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="8" r="2.6" fill="#fff"/></svg>'})})
-  .bindTooltip(w.n,{direction:"top",offset:[0,-24]}).on("click",ev=>{ L.DomEvent.stop(ev); showPoint(L.latLng(w.lat,w.lng)); }).addTo(wpLayer)); }
+  .bindTooltip(w.n,{direction:"top",offset:[0,-24]}).on("click",ev=>{ L.DomEvent.stop(ev); showPoint(L.latLng(w.lat,w.lng), w); }).addTo(wpLayer)); }
 function addWp(ll){ const n="Repère "+(wps.length+1); wps.push({n,lat:+ll.lat.toFixed(6),lng:+ll.lng.toFixed(6)}); store.set("wps",wps); drawWps(); toast(n+" enregistré"); }
 function renderWps(){ const el=$("wplist"); el.innerHTML="";
   if(!wps.length){ el.innerHTML='<p class="note">Aucun repère. Touchez la carte puis « Poser un repère ici », ou le bouton Repère pour marquer la position du bateau.</p>'; return; }
@@ -1056,16 +1098,15 @@ function setModel(m){ model=m; store.set("model",m); $("tModel").value=m; $("men
 $("tModel").onchange=e=>setModel(e.target.value); $("menuModel").onchange=e=>setModel(e.target.value);
 $("tAnim").onclick=()=>{ ov.anim=!ov.anim; store.set("anim",ov.anim); $("tAnim").classList.toggle("on",ov.anim); drawOverlay(); if(!ov.anim) stopParticles(); };
 $("tClose").onclick=()=>setOverlay(null);
+$("tFcst").onclick=()=>openMeteo(null);
 /* ---- Tableau heure par heure, repliable ---- */
 const tbl={ll:null,f:null,m:null,model:null,open:store.get("tblOpen",false),loading:false};
-function crowdCheck(){ // panneau haut : on masque les colonnes de boutons du bas plutôt que de les empiler sur le zoom
-  document.body.classList.remove("crowded");
-  const tr=$("colTR").getBoundingClientRect(), br=$("colBR").getBoundingClientRect(), tl=$("colTL").getBoundingClientRect(), bl=$("colBL").getBoundingClientRect();
-  document.body.classList.remove("crowded2");
-  if((br.height && br.top < tr.bottom+8) || (bl.height && bl.top < tl.bottom+8)){ document.body.classList.add("crowded");
-    // très petit écran : si la ligne touche encore le haut, on masque sélecteur de mode, échelle et zoom (le pincement reste possible)
-    const row=Math.min($("colBR").getBoundingClientRect().top, $("colBL").getBoundingClientRect().top);
-    if(row < Math.max($("colTL").getBoundingClientRect().bottom, $("colTR").getBoundingClientRect().bottom)+6) document.body.classList.add("crowded2"); } }
+function crowdCheck(){ // un panneau haut ne doit pas recouvrir le groupe de commandes : on le réduit au zoom
+  document.body.classList.remove("crowded","crowded2");
+  const panel=[$("tbar"),$("measure")].find(e=>e && !e.hidden); if(!panel) return;
+  const top=panel.getBoundingClientRect().top, mob=$("colBL").getBoundingClientRect();
+  if(top < $("colTR").getBoundingClientRect().bottom+8) document.body.classList.add("crowded");
+  if(mob.height && mob.bottom > top-4) document.body.classList.add("crowded2"); }
 const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); };
 $("tTblBtn").onclick=()=>{ tbl.open=!tbl.open; store.set("tblOpen",tbl.open); if(tbl.open) loadTable(); renderTable(); if(!tbl.open) drawTimeline(); };
 async function loadTable(force){
@@ -2248,7 +2289,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-b"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
