@@ -29,7 +29,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-html,body{height:100%;margin:0;background:var(--navy);color:var(--ink);font-family:var(--sans);overscroll-behavior:none;font-feature-settings:"tnum" 1,"cv11" 1;-webkit-font-smoothing:antialiased}
+html,body{height:100%;width:100%;overflow:hidden;position:fixed;inset:0;margin:0;background:var(--navy);color:var(--ink);font-family:var(--sans);overscroll-behavior:none;font-feature-settings:"tnum" 1,"cv11" 1;-webkit-font-smoothing:antialiased}
 button{font-family:inherit}
 #map{position:fixed;inset:0;background:#cfe6f5}
 body.night #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.7) sepia(.7) saturate(2.5) hue-rotate(-30deg)}
@@ -67,7 +67,9 @@ body.night{--white:#2a1210;--ink:#ff8a7a;--blue:#ff6a55;--line:#4a2420;--soft:#3
 /* Barre du bas */
 .bar{position:fixed;z-index:1000;left:50%;transform:translateX(-50%);bottom:calc(var(--sb) + 18px);display:flex;
   background:var(--navy);border-radius:12px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.35)}
-.bar button{border:0;background:transparent;color:#fff;font:600 14px var(--sans);padding:12px 16px;cursor:pointer;min-width:80px}
+.bar{max-width:calc(100% - 16px)}
+.bar button{border:0;background:transparent;color:#fff;font:600 14px var(--sans);padding:12px clamp(8px,3.5vw,16px);cursor:pointer;min-width:0;flex:1 1 auto;white-space:nowrap}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .bar button.go{background:#FF7A00}
 body.rando .bar button.go{background:var(--sapin)}
 .bar button.on{background:var(--blue)}
@@ -289,6 +291,7 @@ body.crowded #colBR, body.crowded #colBL{flex-direction:row;gap:8px}
 body.crowded #colBR .fab, body.crowded #colBL .fab{width:44px;height:44px}
 body.crowded #colBR .fab small, body.crowded #colBL .fab small{display:none}
 body.crowded #bSat, body.crowded #bSlope{display:none!important}
+#nightOff{position:fixed;z-index:1200;left:50%;transform:translateX(-50%);top:calc(var(--st) + 66px);border:0;border-radius:16px;padding:6px 12px;background:#3a1814;color:#ff8a7a;font:600 12px var(--sans);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -540,6 +543,7 @@ body.crowded #bSat, body.crowded #bSlope{display:none!important}
 </section>
 
 <div id="toast" hidden></div>
+<button id="nightOff" hidden aria-label="Couper le mode nuit">☾ Mode nuit · couper</button>
 <div id="alarm" hidden role="alert"><b id="alarmMsg"></b><button id="alarmStop">Couper 3 min</button></div>
 <div id="navcard" hidden>
   <div class="nc1"><span>→ <b id="ncWp">—</b></span><span><b id="ncDist">—</b> · <b id="ncBrg">—</b></span></div>
@@ -1875,8 +1879,11 @@ $("bKey").onclick = () => { shomKey=$("shomkey").value.trim(); store.set("shomke
   bases.shom.setUrl(shomUrl("RASTER_MARINE_3857_WMTS")); bases.gebco.setUrl(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"));
   shomOk=0; shomErr=0; document.querySelector("input[name=base][value=shom]").click(); closeSheets();
   toast(shomKey ? "Clé enregistrée : chargement des cartes SHOM…" : "Clé effacée"); };
-$("night").checked=store.get("night",false); document.body.classList.toggle("night",$("night").checked);
-$("night").onchange=e=>{ document.body.classList.toggle("night",e.target.checked); store.set("night",e.target.checked); };
+{ const n=store.get("night",false), t=store.get("nightAt",0); // le mode nuit s'efface seul après 12 h
+  $("night").checked = !!n && Date.now()-t < 12*3600e3; if(n && !$("night").checked) store.set("night",false); }
+document.body.classList.toggle("night",$("night").checked); $("nightOff").hidden=!$("night").checked;
+$("nightOff").onclick=()=>{ $("night").checked=false; $("night").onchange({target:$("night")}); };
+$("night").onchange=e=>{ document.body.classList.toggle("night",e.target.checked); store.set("night",e.target.checked); store.set("nightAt",Date.now()); $("nightOff").hidden=!e.target.checked; toast(e.target.checked?"Mode nuit : écran rouge pour la vision nocturne":"Mode nuit coupé"); };
 let wakeLock=null;
 async function wake(){ if(!$("wake").checked||!("wakeLock" in navigator)) return; try{ wakeLock=await navigator.wakeLock.request("screen"); }catch(e){} }
 $("wake").checked=store.get("wake",true);
@@ -1905,7 +1912,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-f"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-g"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
