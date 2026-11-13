@@ -324,6 +324,10 @@ body:has(#runHud:not([hidden])) #chip{display:none}
 .modesw button[data-m="rando"].on{background:var(--sapin);color:#fff}
 .modesw button[data-m="rando"]:not(.on) path:last-child{fill:#fff}
 .modesw button:focus-visible{outline:3px solid #FF7A00;outline-offset:1px}
+.rtpt{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.rtbtn{display:flex;gap:6px} .rtbtn button{border:1px solid var(--line);background:var(--white);color:var(--blue);border-radius:8px;padding:6px 9px;font:600 12px var(--sans);cursor:pointer}
+#pickBar{position:fixed;z-index:1300;left:50%;transform:translateX(-50%);top:calc(var(--st) + 70px);background:#FF7A00;color:#fff;border-radius:12px;padding:10px 14px;font:600 14px var(--sans);display:flex;gap:10px;align-items:center;box-shadow:0 3px 12px rgba(0,0,0,.35)}
+#pickBar button{border:0;border-radius:8px;background:rgba(255,255,255,.25);color:#fff;font:600 13px var(--sans);padding:5px 9px}
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -487,8 +491,10 @@ body:has(#runHud:not([hidden])) #chip{display:none}
   <div class="grab"></div>
   <h2><span>Routage <small style="font:500 12px var(--sans);color:var(--muted)">route la plus rapide</small></span><button class="x" data-close aria-label="Fermer">×</button></h2>
   <div class="info">
-    <div><b>Départ</b><span id="rtFrom" style="font-size:14px">—</span></div>
-    <div><b>Arrivée</b><span id="rtTo" style="font-size:14px">—</span></div>
+    <div class="rtpt"><div><b>Départ</b><span id="rtFrom" style="font-size:14px">—</span></div>
+      <div class="rtbtn"><button id="rtPickS">Choisir sur la carte</button><button id="rtGps">Ma position</button></div></div>
+    <div class="rtpt"><div><b>Arrivée</b><span id="rtTo" style="font-size:14px">—</span></div>
+      <div class="rtbtn"><button id="rtPickE">Choisir sur la carte</button><button id="rtSwap" aria-label="Inverser départ et arrivée">⇅ Inverser</button></div></div>
   </div>
   <label class="opt" for="rtDep"><div style="flex:1">Heure de départ</div><select id="rtDep"></select></label>
   <h3>Bateau</h3>
@@ -611,6 +617,7 @@ body:has(#runHud:not([hidden])) #chip{display:none}
 </section>
 
 <div id="toast" hidden></div>
+<div id="pickBar" hidden><span id="pickTxt"></span><button id="pickCancel">Annuler</button></div>
 <div id="runHud" hidden>
   <div class="rh-main"><div><b>Distance</b><span id="rhDist">0,00</span><i>km</i></div><div class="rh-pace"><b>Allure</b><span id="rhPace">–:––</span><i>min/km</i></div></div>
   <div class="rh-sub"><div><b>Durée</b><span id="rhDur">0:00</span></div><div><b>Vitesse</b><span id="rhSpd">–</span></div><div><b>Moy.</b><span id="rhAvg">–:––</span></div><div><b>Dernier km</b><span id="rhLast">–</span></div></div>
@@ -790,7 +797,8 @@ function showPoint(ll){
   if(R()) slopeAt(ll).then(t=>{ if(pointLL===ll && t){ $("pDistRow").querySelector("b").textContent="Relief (IGN)"; $("pDist").textContent=t; } });
 }
 $("chip").onclick = showGps;
-map.on("click", e => { if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets();
+map.on("click", e => { if(RT.picking){ RT[RT.picking]=e.latlng; RT.picking=null; $("pickBar").hidden=true; RT.layer.clearLayers(); RT.result=null; drawRtMarks(); openSheet("sRouting"); renderRouteParams(); $("rtRes").hidden=true; return; }
+  if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets();
   if(ov.data) return showPicker(e.latlng); showPoint(e.latlng); });
 $("aPin").onclick = () => { if(pointLL) addWp(pointLL); closeSheets(); };
 $("aMeteo").onclick = () => { if(pointLL) openMeteo(pointLL); };
@@ -2037,7 +2045,7 @@ function drawPolar(){
   let vmax=1; TW.forEach(t=>{ for(let a=0;a<=180;a+=5) vmax=Math.max(vmax,boatSpeed(a,t)); });
   const cx=18, cy=H/2, R=Math.min(W-40,H/2-12), sc=R/vmax;
   g.strokeStyle="rgba(13,27,42,.12)"; g.fillStyle="#5d6e80"; g.font="500 10px Inter,system-ui"; g.textAlign="left";
-  for(let v=2; v<=vmax; v+=2){ g.beginPath(); g.arc(cx,cy,v*sc,-Math.PI/2,Math.PI/2); g.stroke(); g.fillText(v+" nd", cx+v*sc+2, cy-3); }
+  const vs=vmax>12?4:2; for(let v=vs; v<=vmax; v+=vs){ g.beginPath(); g.arc(cx,cy,v*sc,-Math.PI/2,Math.PI/2); g.stroke(); g.fillText(v+" nd", cx+3, cy+v*sc-2); }
   [45,90,135].forEach(a=>{ const r=a*Math.PI/180; g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+R*Math.sin(r), cy-R*Math.cos(r)); g.stroke(); g.fillText(a+"°", cx+(R+4)*Math.sin(r), cy-(R+4)*Math.cos(r)); });
   TW.forEach((t,i)=>{ g.beginPath(); for(let a=0;a<=180;a+=3){ const v=boatSpeed(a,t)*sc, r=a*Math.PI/180, x=cx+v*Math.sin(r), y=cy-v*Math.cos(r); a?g.lineTo(x,y):g.moveTo(x,y); }
     g.strokeStyle=cols[i]; g.lineWidth=2; g.stroke(); g.fillStyle=cols[i]; g.fillText(t+" nd", W-48, 14+i*13); });
@@ -2049,7 +2057,7 @@ function renderRouteParams(){
   $("rtHull").textContent = "Vitesse de carène ≈ "+hullSpeed(RT.L).toFixed(1)+" nd"+(b.type==="racer"?" (peut surfer au-delà)":"");
   $("rtPolName").textContent = RT.polFile ? "Polaire importée ("+RT.polFile.twa.length+" angles × "+RT.polFile.tws.length+" vents)" : "Polaire type « "+(b.type==="cat"?"catamaran":b.type==="racer"?"course":"croisière")+" » ajustée à la longueur";
   $("rtPolClear").hidden=!RT.polFile; $("rtCur").checked=RT.cur;
-  $("rtFrom").textContent = RT.start ? fmtLL(RT.start.lat,RT.start.lng) : (last ? "Position du bateau" : "Centre de la carte");
+  $("rtFrom").textContent = RT.start ? fmtLL(RT.start.lat,RT.start.lng) : (last ? "Position du bateau (GPS)" : "Centre de la carte");
   $("rtTo").textContent = RT.dest ? fmtLL(RT.dest.lat,RT.dest.lng) : "Touchez la carte puis « Routage »";
   requestAnimationFrame(drawPolar);
 }
@@ -2061,8 +2069,17 @@ $("rtPolIn").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; i
   try{ RT.polFile=parsePolar(await f.text()); store.set("rtPolar",RT.polFile); toast("Polaire importée"); }catch(err){ toast("Polaire illisible : 1re ligne = vents (nd), puis une ligne par angle"); } renderRouteParams(); };
 $("rtPolClear").onclick=()=>{ RT.polFile=null; store.set("rtPolar",null); renderRouteParams(); };
 for(let h=0;h<=48;h+=h<6?1:h<24?3:6){ const o=document.createElement("option"); o.value=h; o.textContent = h===0?"Maintenant":"Dans "+h+" h"; $("rtDep").appendChild(o); }
+const rtMarks=L.layerGroup().addTo(map);
+function drawRtMarks(){ rtMarks.clearLayers();
+  if(RT.start) L.circleMarker(RT.start,{radius:8,color:"#fff",weight:3,fillColor:"#0b63b6",fillOpacity:1}).bindTooltip("Départ",{permanent:true,direction:"right",className:"mlabel"}).addTo(rtMarks);
+  if(RT.dest && !RT.result) L.circleMarker(RT.dest,{radius:8,color:"#fff",weight:3,fillColor:"#1c9e47",fillOpacity:1}).bindTooltip("Arrivée",{permanent:true,direction:"right",className:"mlabel"}).addTo(rtMarks); }
+function rtPick(which){ RT.picking=which; closeSheets(); $("pickTxt").textContent = which==="start" ? "Touchez la carte : point de DÉPART" : "Touchez la carte : point d'ARRIVÉE"; $("pickBar").hidden=false; }
+$("rtPickS").onclick=()=>rtPick("start"); $("rtPickE").onclick=()=>rtPick("dest");
+$("rtGps").onclick=()=>{ RT.start=null; drawRtMarks(); renderRouteParams(); };
+$("rtSwap").onclick=()=>{ const s0=RT.start || (last?last.ll:map.getCenter()); if(!RT.dest) return toast("Choisissez d'abord l'arrivée"); RT.start=RT.dest; RT.dest=L.latLng(s0); RT.result=null; RT.layer.clearLayers(); $("rtRes").hidden=true; drawRtMarks(); renderRouteParams(); };
+$("pickCancel").onclick=()=>{ RT.picking=null; $("pickBar").hidden=true; openSheet("sRouting"); };
 function openRouting(dest){
-  if(dest) RT.dest=L.latLng(dest); RT.start=null; renderRouteParams(); openSheet("sRouting");
+  if(dest) RT.dest=L.latLng(dest); drawRtMarks(); renderRouteParams(); openSheet("sRouting");
   $("rtRes").hidden=!RT.result;
 }
 $("aRouting").onclick=()=>{ if(pointLL) openRouting(pointLL); };
@@ -2140,7 +2157,7 @@ $("rtGo").onclick=async()=>{
     const iso=[]; const hrs=Math.ceil((T[eIdx]-dep)/3600e3);
     for(let h=1;h<hrs;h++){ const tt=dep+h*3600e3, segs=[]; for(let i=0;i<NY;i++){ let cur=[]; for(let j=0;j<NX;j++){ const v=i*NX+j; if(isFinite(T[v]) && Math.abs(T[v]-tt)<cellNm/Math.max(2,hullSpeed(RT.L)*.6)*1800e3){ cur.push([cLat(i),cLng(j)]); } } if(cur.length) segs.push(...cur.map(p=>[p,p])); } iso.push(segs); }
     const dtH=1;
-    RT.result={path, iso, dep, S, E, dtH, D};
+    RT.result={path, iso, dep, S, E, dtH, D}; rtMarks.clearLayers();
     showRouting();
   }catch(e){ toast("Routage impossible : prévisions indisponibles (réseau ?)", 5000); }
   finally{ RT.busy=false; $("rtGo").disabled=false; $("rtGo").textContent="Calculer la route optimale"; }
@@ -2164,7 +2181,7 @@ function showRouting(){
   $("rtNote").textContent = "Route directe : "+r.D.toFixed(1).replace(".",",")+" M. Isochrones toutes les heures en bleu. Touchez les points orange pour le détail heure par heure.";
   $("rtRes").hidden=false; setFollow(false); map.fitBounds(L.latLngBounds(ll).pad(.25));
 }
-$("rtClear").onclick=()=>{ RT.result=null; RT.layer.clearLayers(); $("rtRes").hidden=true; };
+$("rtClear").onclick=()=>{ RT.result=null; RT.layer.clearLayers(); $("rtRes").hidden=true; drawRtMarks(); };
 $("rtNav").onclick=()=>{ const r=RT.result; if(!r) return; const P=r.path, wp=[];
   P.forEach((p,i)=>{ if(i===0) return; const nx=P[i+1]; if(!nx || (nx.twa!=null && p.twa!=null && Math.sign(nx.twa)!==Math.sign(p.twa))) wp.push(p); });
   const rt={id:Date.now(), name:"Routage "+fmtT(r.dep), pts:wp.map((p,i)=>[+p.lat.toFixed(6),+p.lng.toFixed(6), i===wp.length-1?"Arrivée":"Manœuvre "+(i+1)])};
@@ -2222,7 +2239,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-o"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-p"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
