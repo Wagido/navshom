@@ -263,6 +263,15 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
 .sp-data{margin-top:22px} .sp-warn{color:#ffcf7a}
 @keyframes sp-pop{from{transform:scale(.6) rotate(-30deg);opacity:0}}
 @keyframes sp-up{from{transform:translateY(12px);opacity:0}}
+.mapgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:6px 0 4px}
+.mapc{position:relative;border:2px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;background:var(--soft);display:block}
+.mapc input{position:absolute;opacity:0;pointer-events:none}
+.mapc img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;background:#dfe7ef}
+.mapc span{display:block;padding:6px 9px 8px;font:600 13px var(--sans);color:var(--ink)}
+.mapc small{display:block;font:400 11px var(--sans);color:var(--muted);margin-top:1px}
+.mapc.sel{border-color:#FF7A00;box-shadow:0 0 0 2px #FF7A00}
+.mapc.sel span::after{content:" ✓";color:#FF7A00}
+.adv{margin-top:14px;border-top:1px solid var(--line);padding-top:8px} .adv summary{cursor:pointer;font:600 13px var(--sans);color:var(--muted);padding:6px 0}
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -449,6 +458,39 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
   <p class="note">Gardez l'écran allumé pendant l'enregistrement : téléphone en veille, l'app ne reçoit plus le GPS.</p>
 </section>
 
+<!-- Cartes -->
+<section class="sheet" id="sMaps" hidden>
+  <div class="grab"></div>
+  <h2><span>Cartes <small id="mapsMode" style="font:500 12px var(--sans);color:var(--muted)"></small></span><button class="x" data-close aria-label="Fermer">×</button></h2>
+  <h3>Fond de carte</h3>
+  <div class="mapgrid">
+    <label class="mapc mer-only"><input type="radio" name="base" value="litto"><img alt="" loading="lazy"><span>Carte marine<small>SHOM + IGN · recommandé</small></span></label>
+    <label class="mapc rando-only"><input type="radio" name="base" value="scan25"><img alt="" loading="lazy"><span>IGN 1:25 000<small>Sentiers, relief · recommandé</small></span></label>
+    <label class="mapc rando-only"><input type="radio" name="base" value="ign"><img alt="" loading="lazy"><span>Plan IGN<small>Routes, lieux</small></span></label>
+    <label class="mapc "><input type="radio" name="base" value="ortho"><img alt="" loading="lazy"><span>Satellite<small>Photos aériennes IGN</small></span></label>
+    <label class="mapc mer-only"><input type="radio" name="base" value="emod"><img alt="" loading="lazy"><span>Profondeurs<small>Bathymétrie EMODnet</small></span></label>
+    <label class="mapc "><input type="radio" name="base" value="osm"><img alt="" loading="lazy"><span>OpenStreetMap<small>Carte collaborative</small></span></label>
+    <label class="mapc mer-only"><input type="radio" name="base" value="shom"><img alt="" loading="lazy"><span>Cartes SHOM<small>Avec votre clé SHOM</small></span></label>
+  </div>
+  <h3>Surimpression</h3>
+  <label class="opt mer-only"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers : utile sur Profondeurs ou Satellite</small></div></label>
+  <div class="rando-only">
+    <label class="opt"><input type="checkbox" id="slopeChk"><div>Pentes de plus de 30° (IGN)<small>Ski de rando : relief IGN au pas de 5 m</small></div></label>
+    <div class="slopeleg"><span style="background:#f2e600"></span>30–35°<span style="background:#f39200"></span>35–40°<span style="background:#e3000f"></span>40–45°<span style="background:#a3007d"></span>&gt; 45°</div>
+  </div>
+  <h3>Hors ligne</h3>
+  <div class="btnrow" style="margin-top:4px"><button class="pill primary" id="bCache">Télécharger la zone affichée</button></div>
+  <p class="note" id="cacheinfo">Enregistre le fond choisi sur la zone affichée (zoom actuel à +3) pour l'utiliser sans réseau.</p>
+  <details class="adv"><summary>Avancé</summary>
+    <div class="btnrow"><button class="pill" id="bTestSrc">Tester les fonds de carte</button></div>
+    <div class="wplist" id="srcTest"></div>
+  <div class="opt" style="flex-wrap:wrap"><label for="shomkey" style="flex:1 1 100%">Ma clé SHOM<small>Si le SHOM vous en délivre une (site autorisé : wagido.github.io)</small></label>
+    <input id="shomkey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="collez votre clé ici"
+      style="flex:1;min-width:0;font:14px var(--mono);padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink)">
+    <button class="pill primary" id="bKey" style="flex:0 0 auto;min-width:0">Enregistrer</button></div>
+  </details>
+</section>
+
 <!-- Menu -->
 <section class="sheet" id="sMenu" hidden>
   <div class="grab"></div>
@@ -457,37 +499,18 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
     style="flex:1;min-width:0;font:15px var(--sans);padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--white);color:var(--ink)"></div>
   <div class="wplist" id="qRes"></div>
   <label class="opt mer-only" for="spot"><div style="flex:1">Aller à<small>Côtes de France et îles Anglo-Normandes</small></div><select id="spot"></select></label>
-  <h3>Carte</h3>
-  <label class="opt"><input type="radio" name="base" value="litto"><div>Carte littorale IGN-SHOM<small>Cartes marines SHOM + IGN à terre, libre (Géoportail)</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="emod"><div>Bathymétrie EMODnet<small>Profondeurs (données européennes libres). À combiner avec le balisage</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="shom"><div>Cartes marines SHOM<small>Nécessite une clé SHOM (abonnement ou convention)</small></div></label>
-  <div class="opt" style="flex-wrap:wrap"><label for="shomkey" style="flex:1 1 100%">Ma clé SHOM<small>Si le SHOM vous en délivre une (site autorisé : wagido.github.io)</small></label>
-    <input id="shomkey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="collez votre clé ici"
-      style="flex:1;min-width:0;font:14px var(--mono);padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink)">
-    <button class="pill primary" id="bKey" style="flex:0 0 auto;min-width:0">Enregistrer</button></div>
-  <label class="opt"><input type="radio" name="base" value="gebco"><div>Fond GEBCO (SHOM)<small>Bathymétrie</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="scan25"><div>Carte IGN 1:25 000 (rando)<small>Le « Top 25 » au 1:25 000</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="ign"><div>Plan IGN<small>Carte de l'État, libre</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="ortho"><div>Satellite (photos aériennes IGN)<small>Aussi via le bouton Satellite, à droite</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="osm"><div>OpenStreetMap</div></label>
-  <div class="btnrow"><button class="pill" id="bTestSrc">Tester les fonds de carte</button></div>
-  <div class="wplist" id="srcTest"></div>
-  <label class="opt"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers</small></div></label>
   <h3>Prévisions</h3>
   <label class="opt" for="menuModel"><div style="flex:1">Modèle météo<small>Vent, température, pression, pluie</small></div><select id="menuModel"></select></label>
   <div class="rando-only">
     <h3>Montagne et ski de rando</h3>
-    <label class="opt"><input type="checkbox" id="slopeChk"><div>Carte des pentes (IGN)<small>Zones à plus de 30°, 35°, 40° et 45°, d'après le relief IGN au pas de 5 m</small></div></label>
-    <div class="slopeleg"><span style="background:#f2e600"></span>30–35°<span style="background:#f39200"></span>35–40°<span style="background:#e3000f"></span>40–45°<span style="background:#a3007d"></span>&gt; 45°</div>
-    <p class="note">Calques « Neige au sol », « Chute de neige » et « Iso 0 °C » dans le bouton Météo. Touchez la carte pour l'altitude, la pente et l'exposition d'un point.</p>
+    <p class="note">Carte des pentes : panneau Cartes ou bouton Pentes. Calques « Neige au sol », « Chute de neige » et « Iso 0 °C » dans le bouton Météo. Touchez la carte pour l'altitude, la pente et l'exposition d'un point.</p>
     <div class="btnrow"><a class="pill" href="https://meteofrance.com/meteo-montagne" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">Bulletin avalanche (Météo-France)</a></div>
   </div>
   <h3>Navigation</h3>
-  <label class="opt"><input type="checkbox" id="track" checked><div>Trace du bateau</div></label>
+  <label class="opt mer-only"><input type="checkbox" id="track" checked><div>Trace du bateau</div></label>
   <label class="opt"><input type="checkbox" id="night"><div>Mode nuit<small>Rouge, préserve la vision nocturne</small></div></label>
   <label class="opt"><input type="checkbox" id="wake" checked><div>Garder l'écran allumé</div></label>
-  <div class="btnrow"><button class="pill" id="bClearTrack">Effacer la trace</button><button class="pill primary" id="bCache">Cartes hors ligne</button></div>
-  <p class="note" id="cacheinfo">« Cartes hors ligne » enregistre la zone affichée (zoom actuel +3) pour naviguer sans réseau.</p>
+  <div class="btnrow mer-only"><button class="pill" id="bClearTrack">Effacer la trace du bateau</button></div>
   <h3>Routes</h3>
   <div class="wplist" id="rtList"></div>
   <h3>Suivi en arrière-plan</h3>
@@ -577,6 +600,7 @@ if(!store.get("v_litto",false)){ store.set("v_litto",true); store.set("base","li
 if(store.get("base_mer",null)===null) store.set("base_mer", store.get("base","litto"));
 let curBase = store.get(baseKey(), R()?"scan25":"litto"); if(!bases[curBase]) curBase = R()?"ign":"litto";
 if(curBase==="shom" && !shomKey) curBase="litto";
+if(!document.querySelector(`input[name=base][value=${curBase}]`)) curBase = R()?"scan25":"litto";
 if(store.get("seamarks", null)===null) store.set("seamarks", true);
 let shomOk=0, shomErr=0;
 bases.shom.on("tileload", ()=>shomOk++);
@@ -599,7 +623,7 @@ function updScale(){ const z=map.getZoom(), den=156543.034*Math.cos(map.getCente
 map.on("zoomend", updScale); updScale();
 
 /* ================= Panneaux ================= */
-const sheets = ["sPoint","sMeteo","sMenu","sCurve","sTrack","sAnchor"];
+const sheets = ["sPoint","sMeteo","sMenu","sCurve","sTrack","sAnchor","sMaps"];
 let tmpMarker=null;
 function openSheet(id){ sheets.forEach(s => $(s).hidden = s!==id); }
 function closeSheets(){ sheets.forEach(s => $(s).hidden = true); if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; } }
@@ -1792,11 +1816,25 @@ async function slopeAt(ll){ // pente et exposition sur 3 points distants de 15 m
     const aspect=(Math.atan2(-gx,-gy)*180/Math.PI+360)%360; // direction vers laquelle la pente descend
     return Math.round(z[0])+" m · pente "+Math.round(slope)+"°"+(slope>=2?" · exposition "+compass(aspect):"")+(slope>=30?" ⚠":"");
   }catch(e){ return null; } }
+/* ---- Panneau Cartes : fonds selon le mode, avec aperçu du lieu ---- */
+function markSelMaps(){ document.querySelectorAll(".mapc").forEach(el=>el.classList.toggle("sel", el.querySelector("input").value===curBase)); }
+function openMaps(){
+  if(!$("sMaps").hidden) return closeSheets();
+  $("mapsMode").textContent = R() ? "· mode Rando" : "· mode Mer";
+  document.querySelector('.mapc input[value="shom"]').closest(".mapc").hidden = !shomKey;
+  const c=map.getCenter();
+  document.querySelectorAll(".mapc").forEach(el=>{ const k=el.querySelector("input").value, ly=bases[k]; if(!ly || el.offsetParent===null && el.hidden) return;
+    const z=Math.max(6, Math.min(Math.round(map.getZoom()), ly.options.maxNativeZoom||18)), t=tileXY(c.lat,c.lng,z), img=el.querySelector("img");
+    const u=L.Util.template(ly._url,{z,x:t.x,y:t.y,s:"a",r:""}); if(img.dataset.u!==u){ img.dataset.u=u; img.src=u; } });
+  markSelMaps(); openSheet("sMaps");
+}
+$("bLayers").onclick = openMaps;
+document.querySelectorAll("input[name=base]").forEach(r=>r.addEventListener("change", markSelMaps));
 /* ---- Test des fonds de carte depuis le téléphone ---- */
 function tileXY(lat,lng,z){ const n=2**z, r=lat*Math.PI/180; return {x:Math.floor((lng+180)/360*n), y:Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n), z}; }
 const SRC_TEST = [
   ["litto","Carte littorale IGN-SHOM"],["scan25","Carte IGN 1:25 000"],["ign","Plan IGN"],["ortho","Photos aériennes IGN"],
-  ["shom","Cartes marines SHOM"],["emod","Bathymétrie EMODnet"],["osm","OpenStreetMap"]];
+  ["shom","Cartes marines SHOM (clé)"],["emod","Bathymétrie EMODnet"],["osm","OpenStreetMap"]];
 $("bTestSrc").onclick = () => {
   const el=$("srcTest"); el.innerHTML=""; const t=tileXY(48.36,-4.55,12);
   SRC_TEST.forEach(([k,name])=>{ const row=document.createElement("div"); row.innerHTML=`<span>${name}</span><b style="color:var(--muted)">test…</b>`; el.appendChild(row);
@@ -1841,7 +1879,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Nav SHOM", APP_AUTHOR="Bertrand BONNIN";
-const APP_VERSION="2026.11.13-l"; $("spName").textContent=APP_NAME; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.13-m"; $("spName").textContent=APP_NAME; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
