@@ -354,14 +354,14 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
   <h2>Menu<button class="x" data-close aria-label="Fermer">×</button></h2>
   <label class="opt" for="spot"><div style="flex:1">Aller à<small>Bretagne et îles Anglo-Normandes</small></div><select id="spot"></select></label>
   <h3>Carte</h3>
-  <label class="opt"><input type="radio" name="base" value="emod" checked><div>Bathymétrie EMODnet<small>Profondeurs (données européennes libres). À combiner avec le balisage</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="litto"><div>Carte littorale IGN-SHOM<small>Cartes marines SHOM + IGN à terre, libre (Géoportail)</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="emod"><div>Bathymétrie EMODnet<small>Profondeurs (données européennes libres). À combiner avec le balisage</small></div></label>
   <label class="opt"><input type="radio" name="base" value="shom"><div>Cartes marines SHOM<small>Nécessite une clé SHOM (abonnement ou convention)</small></div></label>
   <div class="opt" style="flex-wrap:wrap"><label for="shomkey" style="flex:1 1 100%">Ma clé SHOM<small>Si le SHOM vous en délivre une (site autorisé : wagido.github.io)</small></label>
     <input id="shomkey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="collez votre clé ici"
       style="flex:1;min-width:0;font:14px var(--mono);padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink)">
     <button class="pill primary" id="bKey" style="flex:0 0 auto;min-width:0">Enregistrer</button></div>
   <label class="opt"><input type="radio" name="base" value="gebco"><div>Fond GEBCO (SHOM)<small>Bathymétrie</small></div></label>
-  <label class="opt"><input type="radio" name="base" value="litto"><div>Carte littorale IGN-SHOM<small>Cartes marines SHOM + cartes IGN (Géoportail)</small></div></label>
   <label class="opt"><input type="radio" name="base" value="scan25"><div>Carte IGN 1:25 000 (rando)<small>Le « Top 25 » au 1:25 000</small></div></label>
   <label class="opt"><input type="radio" name="base" value="ign"><div>Plan IGN<small>Carte de l'État, libre</small></div></label>
   <label class="opt"><input type="radio" name="base" value="ortho"><div>Photos aériennes IGN</div></label>
@@ -429,20 +429,21 @@ const bases = {
   osm:   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, bounds:ZONE, attribution:"© OpenStreetMap"}),
   ign:   L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2","image/png"), {maxZoom:19, maxNativeZoom:18, bounds:ZONE, attribution:"© IGN"}),
   ortho: L.tileLayer(geopf("ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg"), {maxZoom:19, maxNativeZoom:19, bounds:ZONE, attribution:"© IGN"}),
-  litto: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS","image/png"), {maxZoom:18, maxNativeZoom:16, bounds:ZONE, attribution:"© IGN / SHOM"}),
+  litto: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS","image/png"), {maxZoom:18, minNativeZoom:6, maxNativeZoom:16, bounds:ZONE, attribution:"© IGN / SHOM · non destiné à la navigation"}),
   scan25:L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS","image/jpeg",true), {maxZoom:18, maxNativeZoom:16, bounds:ZONE, attribution:"© IGN"}),
   emod:  L.tileLayer("https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:12, bounds:ZONE, attribution:"© EMODnet Bathymetry"})
 };
 const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:ZONE, attribution:"© OpenSeaMap"});
-let curBase = store.get("base", shomKey ? "shom" : "emod"); if(!bases[curBase]) curBase="emod";
-if(curBase==="shom" && !shomKey) curBase="emod";
+if(!store.get("v_litto",false)){ store.set("v_litto",true); store.set("base","litto"); store.set("seamarks",false); }
+let curBase = store.get("base", "litto"); if(!bases[curBase]) curBase="litto";
+if(curBase==="shom" && !shomKey) curBase="litto";
 if(store.get("seamarks", null)===null) store.set("seamarks", true);
 let shomOk=0, shomErr=0;
 bases.shom.on("tileload", ()=>shomOk++);
 bases.shom.on("tileerror", ()=>{ shomErr++;
   if(shomErr===6 && shomOk===0 && curBase==="shom" && navigator.onLine){
     toast(shomKey ? "Clé SHOM refusée. Passage sur la bathymétrie EMODnet + balisage." : "Cartes SHOM : clé SHOM nécessaire (Menu). Passage sur la bathymétrie EMODnet + balisage.", 7000);
-    document.querySelector("input[name=base][value=emod]").click(); if(!$("seamarks").checked) $("seamarks").click(); }});
+    document.querySelector("input[name=base][value=litto]").click(); if(!$("seamarks").checked) $("seamarks").click(); }});
 bases[curBase].addTo(map);
 document.querySelector(`input[name=base][value=${curBase}]`).checked = true;
 document.querySelectorAll("input[name=base]").forEach(r => r.addEventListener("change", e => {
@@ -657,7 +658,12 @@ function arrowIcon(dirTo, v, t){
 }
 const valIcon = (v,t) => L.divIcon({className:"arr tap val", iconSize:[56,24], iconAnchor:[28,12], html:`<div>${v.toFixed(t.dec)}<small> ${t.unit}</small></div>`});
 
-async function getJSON(url){ const r=await fetch(url); if(!r.ok) throw new Error(r.status); return r.json(); }
+// cache mémoire 30 min : limite le nombre d'appels (Open-Meteo gratuit ≈ 10 000 points/jour/appareil)
+const _jc=new Map();
+async function getJSON(url){
+  const c=_jc.get(url); if(c && Date.now()-c.t<30*60e3) return c.v;
+  const r=await fetch(url); if(!r.ok){ if(r.status===429) toast("Limite quotidienne Open-Meteo atteinte sur cet appareil",5000); throw new Error(r.status); }
+  const v=await r.json(); _jc.set(url,{t:Date.now(),v}); if(_jc.size>60) _jc.delete(_jc.keys().next().value); return v; }
 function apiUrl(t, la, lo, days, mdl){
   return t.api==="mar"
     ? `https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=${t.vars.join(",")}&timezone=auto&forecast_days=${days}&cell_selection=sea`
@@ -680,8 +686,8 @@ async function fetchSeries(type, pts, days){
       per: t.vars[2] && type!=="wind" ? hv(h,t.vars[2],used) : null}; })};
 }
 function gridPts(){
-  const sz=map.getSize(), cols=Math.max(5,Math.min(13,Math.round(sz.x/60))), rows=Math.max(5,Math.min(15,Math.round(sz.y/62))), pts=[];
-  for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){ const p=map.containerPointToLatLng([(j+.5)*sz.x/cols,(i+.5)*sz.y/rows]); pts.push([+p.lat.toFixed(3),+p.lng.toFixed(3)]); }
+  const dec=map.getZoom()>=11?3:2, sz=map.getSize(), cols=Math.max(5,Math.min(8,Math.round(sz.x/85))), rows=Math.max(5,Math.min(10,Math.round(sz.y/85))), pts=[];
+  for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){ const p=map.containerPointToLatLng([(j+.5)*sz.x/cols,(i+.5)*sz.y/rows]); pts.push([+p.lat.toFixed(dec),+p.lng.toFixed(dec)]); }
   return {pts, rows, cols};
 }
 async function loadOverlay(keepIdx){
@@ -1201,7 +1207,7 @@ $("bCache").onclick = async () => {
   await Promise.all([worker(),worker(),worker(),worker()]);
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
-const APP_VERSION="2026.11.13-h"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
+const APP_VERSION="2026.11.13-i"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
