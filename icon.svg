@@ -1,1 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" fill="#0B2F5B"/><path d="M60 14 84 52H36z" fill="#FF7A00"/><path d="M60 46 90 92H30z" fill="#FF7A00"/><path d="M60 46 69 60 60 56 51 60z" fill="#F7FAFC"/><path d="M16 100c8-6 15 6 22 0s15 6 22 0 15 6 22 0 15 6 22 0" stroke="#5AB4FF" stroke-width="6" fill="none" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14467F"/><stop offset="1" stop-color="#081F3D"/></linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CC6FF"/><stop offset="1" stop-color="#3A8EE0"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="232" r="168" fill="#FFFFFF" opacity=".05"/>
+  <!-- cône haut : face éclairée / face ombrée -->
+  <path d="M256 92 L326 200 L256 200 Z" fill="#E86400"/>
+  <path d="M256 92 L186 200 L256 200 Z" fill="#FF8A1F"/>
+  <!-- cône bas -->
+  <path d="M256 196 L354 352 L256 352 Z" fill="#E86400"/>
+  <path d="M256 196 L158 352 L256 352 Z" fill="#FF8A1F"/>
+  <!-- neige au sommet du cône bas -->
+  <path d="M256 196 L285 242 L268 234 L256 246 L244 234 L227 242 Z" fill="#F7FAFC"/>
+  <!-- liseré clair sur l'arête -->
+  <path d="M256 92 L256 200 M256 196 L256 352" stroke="#FFFFFF" stroke-opacity=".18" stroke-width="2"/>
+  <!-- mer : deux vagues fines -->
+  <path d="M96 392 q20 -16 40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0" fill="none" stroke="url(#sea)" stroke-width="14" stroke-linecap="round"/>
+  <path d="M136 428 q20 -12 40 0 t40 0 t40 0 t40 0 t40 0 t40 0" fill="none" stroke="#3A8EE0" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+</svg>
