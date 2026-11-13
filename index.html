@@ -284,7 +284,11 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
 .mapc span{padding:5px 8px 6px;font-size:12px}
 .mapc small{font-size:10.5px}
 @media (min-width:900px){ .sheet{left:calc(var(--sl) + 16px);right:auto;margin:0;bottom:16px;border-radius:18px;max-height:calc(100vh - 32px)} #sMeteo{left:calc(var(--sl) + 16px)} }
-body.crowded #colBR, body.crowded #colBL{display:none}
+/* panneau haut : les colonnes de boutons passent en ligne au-dessus du panneau */
+body.crowded #colBR, body.crowded #colBL{flex-direction:row;gap:8px}
+body.crowded #colBR .fab, body.crowded #colBL .fab{width:44px;height:44px}
+body.crowded #colBR .fab small, body.crowded #colBL .fab small{display:none}
+body.crowded #bSat, body.crowded #bSlope{display:none!important}
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -364,7 +368,7 @@ body.crowded #colBR, body.crowded #colBL{display:none}
 <div id="tbar" hidden>
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
-  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tClose" class="tog" aria-label="Fermer les calques">×</button></div>
+  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">Fermer ✕</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
   <div class="tbl" id="tTbl" hidden></div>
@@ -933,7 +937,7 @@ function drawTimeline(){
   g.strokeStyle="#3fd18b"; g.lineWidth=2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(ov.now),top-2); g.lineTo(X(ov.now),bot); g.stroke(); g.setLineDash([]);
   g.fillStyle="#9fc0e6"; g.textAlign="right"; g.fillText((t.zero?"max ":"")+hi.toFixed(t.dec)+" "+t.unit,W-2,22);
   if(!t.zero){ g.fillText(lo.toFixed(t.dec), W-2, bot-2); }
-  $("tHere").textContent = (last?"Au bateau : ":"Centre carte : ") + hereText(s, ov.idx);
+  $("tHere").textContent = (last?(R()?"Ma position : ":"Au bateau : "):"Centre carte : ") + hereText(s, ov.idx);
 }
 function setOverlay(type){
   if(ov.type===type) type=null;
@@ -1901,7 +1905,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-e"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-f"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
