@@ -31,6 +31,17 @@ jobs:
           npm init -y >/dev/null
           npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0
           npx cap init "Nav SHOM" fr.navshom.app --web-dir www
+          # L'app charge le site en ligne (mises à jour automatiques) ; copie locale si pas de réseau
+          cat > capacitor.config.json <<'JSON'
+          {
+            "appId": "fr.navshom.app",
+            "appName": "Nav SHOM",
+            "webDir": "www",
+            "server": { "url": "https://wagido.github.io/navshom/", "errorPath": "index.html" }
+          }
+          JSON
+          sed -i 's/^          //' capacitor.config.json
+          cat capacitor.config.json
           npx cap add android
           # Autorisations GPS
           M=android/app/src/main/AndroidManifest.xml
