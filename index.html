@@ -191,7 +191,14 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 .trow select:disabled{opacity:.45}
 .tog{border:0;border-radius:8px;padding:6px 10px;background:rgba(255,255,255,.12);color:#fff;font:700 13px var(--sans);cursor:pointer}
 .tog.on{background:#3fd18b;color:#05220f}
-#particles{position:absolute;inset:0;z-index:450;pointer-events:none}
+#particles,#field{position:absolute;left:0;top:0;pointer-events:none}
+#tLegend{display:block;width:100%;height:24px;margin:0 0 6px}
+.pick .leaflet-popup-content-wrapper{background:var(--navy);color:#fff;border-radius:12px;box-shadow:0 3px 12px rgba(0,0,0,.4)}
+.pick .leaflet-popup-tip{background:var(--navy)}
+.pick .leaflet-popup-content{margin:8px 12px}
+.pickc b{display:block;font:800 22px var(--mono)} .pickc b span{font-size:13px;color:#9fc0e6}
+.pickc small{display:block;font:600 12px var(--mono);color:#cfe3ff;min-height:14px}
+.pickc button{margin-top:6px;border:0;border-radius:8px;background:var(--amber);color:#1b1200;font:700 12px var(--sans);padding:6px 10px;cursor:pointer}
 .arr.val div{background:rgba(11,47,91,.78);border-radius:6px;padding:1px 4px;font-size:11px;text-shadow:none}
 .arr.val small{font-size:9px;opacity:.8}
 /* Carte : bateau, flèches */
@@ -253,6 +260,7 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 <!-- Frise temps vent / courant -->
 <div id="tbar" hidden>
   <div class="chips" id="tChips"></div>
+  <canvas id="tLegend"></canvas>
   <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tAnim" class="tog">Animation</button><button id="tClose" class="tog" aria-label="Fermer les calques">×</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
@@ -488,7 +496,8 @@ function showPoint(ll){
   $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint");
 }
 $("chip").onclick = showGps;
-map.on("click", e => { if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets(); showPoint(e.latlng); });
+map.on("click", e => { if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets();
+  if(ov.data) return showPicker(e.latlng); showPoint(e.latlng); });
 $("aPin").onclick = () => { if(pointLL) addWp(pointLL); closeSheets(); };
 $("aMeteo").onclick = () => { if(pointLL) openMeteo(pointLL); };
 $("aCurve").onclick = () => { const p = pointLL || map.getCenter(); showCurve(p); };
@@ -636,7 +645,7 @@ async function fetchSeries(type, pts, days){
       per: t.vars[2] && type!=="wind" ? hv(h,t.vars[2],used) : null}; })};
 }
 function gridPts(){
-  const sz=map.getSize(), cols=Math.max(4,Math.min(9,Math.round(sz.x/70))), rows=Math.max(4,Math.min(12,Math.round(sz.y/80))), pts=[];
+  const sz=map.getSize(), cols=Math.max(5,Math.min(13,Math.round(sz.x/60))), rows=Math.max(5,Math.min(15,Math.round(sz.y/62))), pts=[];
   for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){ const p=map.containerPointToLatLng([(j+.5)*sz.x/cols,(i+.5)*sz.y/rows]); pts.push([+p.lat.toFixed(3),+p.lng.toFixed(3)]); }
   return {pts, rows, cols};
 }
@@ -655,24 +664,17 @@ async function loadOverlay(keepIdx){
   }catch(e){ $("tSrc").textContent="indisponible"; toast(OVT[type].name+" indisponible (réseau ?)"); }
 }
 function drawOverlay(){
-  ov.layer.clearLayers(); ov.cells.clearLayers(); if(!ov.data) return;
+  ov.layer.clearLayers(); if(!ov.data) return;
   const i=ov.idx, t=OVT[ov.type];
-  // fond coloré par case (aide à lire la carte d'un coup d'œil)
-  if(ov.rows>1 && ov.cols>1){
-    const p0=ov.pts[0], pR=ov.pts[ov.cols], pC=ov.pts[1], dLat=(p0[0]-pR[0])/2, dLng=(pC[1]-p0[1])/2;
-    ov.data.forEach((d,k)=>{ if(k>=ov.grid||d.v[i]==null) return; const col=colorOf(t,d.v[i]); if(!col) return; const p=ov.pts[k];
-      L.rectangle([[p[0]-dLat,p[1]-dLng],[p[0]+dLat,p[1]+dLng]],{stroke:false,fillColor:col,fillOpacity:t.vec?.22:.42,interactive:false}).addTo(ov.cells); });
+  // flèches clairsemées seulement quand l'animation est coupée
+  if(t.vec && !(ov.anim && t.anim && !reduceMotion)){
+    ov.data.forEach((d,k)=>{ if(k>=ov.grid||d.v[i]==null||d.dir[i]==null) return; const r=Math.floor(k/ov.cols), c=k%ov.cols; if(r%2||c%2) return;
+      L.marker(ov.pts[k],{icon:arrowIcon(d.dir[i],d.v[i],t),keyboard:false,interactive:false}).addTo(ov.layer); });
   }
-  const showArrows = t.vec && !(ov.anim && t.anim && !reduceMotion);
-  ov.data.forEach((d,k)=>{ if(k>=ov.grid||d.v[i]==null) return; const p=ov.pts[k];
-    const icon = t.vec && d.dir[i]!=null ? (showArrows ? arrowIcon(d.dir[i],d.v[i],t) : valIcon(d.v[i],t)) : valIcon(d.v[i],t);
-    if(!showArrows && t.vec && (k%2)) return; // en mode animé, moins d'étiquettes
-    L.marker(p,{icon,keyboard:false}).on("click",ev=>{ L.DomEvent.stop(ev);
-      ov.type==="cur" ? showCurve(L.latLng(p)) : openMeteo(L.latLng(p)); }).addTo(ov.layer); });
   $("tTime").textContent = t.name+" · "+fmtT(ov.data[0].time[i]);
   document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px");
   drawTimeline(); if(!$("sCurve").hidden && cv.data) drawCurve();
-  startParticles();
+  drawField(); drawLegend(); updatePicker(); startParticles();
 }
 function refIdx(){ if(!ov.data) return -1; const ref=last?last.ll:map.getCenter(); let bi=-1,bd=1e12;
   ov.pts.forEach((p,k)=>{ if(ov.data[k].v.every(v=>v==null)) return; const d=map.distance(ref,p); if(d<bd){bd=d;bi=k;} }); return bi; }
@@ -712,7 +714,7 @@ function drawTimeline(){
 }
 function setOverlay(type){
   if(ov.type===type) type=null;
-  ov.type=type; ov.data=null; ov.layer.clearLayers(); ov.cells.clearLayers(); stopParticles();
+  ov.type=type; ov.data=null; ov.layer.clearLayers(); stopParticles(); drawField(); map.closePopup();
   if(type && type!=="cur"){ lastWx=type; store.set("lastWx",type); }
   $("bCur").classList.toggle("on",type==="cur"); $("bWind").classList.toggle("on",!!type && type!=="cur");
   $("mapCur").classList.toggle("on",type==="cur"); $("mapWind").classList.toggle("on",type==="wind");
@@ -720,9 +722,9 @@ function setOverlay(type){
   $("tAnim").hidden = !(type && OVT[type].anim); $("tAnim").classList.toggle("on", ov.anim);
   $("tModel").disabled = !type || OVT[type].api!=="fc";
   $("tbar").hidden=!type; document.documentElement.style.setProperty("--tl", type ? ($("tbar").offsetHeight+8)+"px" : "0px");
-  if(type){ if(measuring) stopMeasure(); ov.cells.addTo(map); ov.layer.addTo(map); loadOverlay();
+  if(type){ if(measuring) stopMeasure(); ov.layer.addTo(map); loadOverlay();
     const ch=document.querySelector(`#tChips button[data-t="${type}"]`); if(ch) ch.scrollIntoView({inline:"center",block:"nearest"}); }
-  else { map.removeLayer(ov.layer); map.removeLayer(ov.cells); }
+  else { map.removeLayer(ov.layer); }
 }
 // barre de choix des calques + modèle
 Object.entries(OVT).forEach(([k,t])=>{ const b=document.createElement("button"); b.dataset.t=k; b.textContent=t.name; b.onclick=()=>{ if(ov.type!==k) setOverlay(k); }; $("tChips").appendChild(b); });
@@ -748,42 +750,90 @@ window.addEventListener("resize", () => { if(ov.type){ document.documentElement.
 
 /* ---- Particules animées (vent, courant) ---- */
 const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-const pc = document.createElement("canvas"); pc.id="particles"; map.getContainer().appendChild(pc);
+const pc = document.createElement("canvas"); pc.id="particles";
 let pRaf=null, parts=[], field=null;
 function stopParticles(){ if(pRaf) cancelAnimationFrame(pRaf); pRaf=null; const g=pc.getContext("2d"); g.clearRect(0,0,pc.width,pc.height); }
-function buildField(){
-  const t=OVT[ov.type], i=ov.idx, R=ov.rows, C=ov.cols;
+function buildGrid(){
+  const i=ov.idx, R=ov.rows, C=ov.cols;
   const a=map.latLngToContainerPoint(ov.pts[0]), b=map.latLngToContainerPoint(ov.pts[R*C-1]);
   const cw=(b.x-a.x)/(C-1), ch=(b.y-a.y)/(R-1), U=[], V=[], S=[];
-  for(let k=0;k<R*C;k++){ const d=ov.data[k], s=d.v[i], dir=d.dir[i];
-    if(s==null||dir==null){ U.push(0); V.push(0); S.push(null); continue; }
-    const r=dir*Math.PI/180; U.push(s*Math.sin(r)); V.push(-s*Math.cos(r)); S.push(s); }
-  return {x0:a.x, y0:a.y, cw, ch, R, C, U, V, S, t};
+  for(let k=0;k<R*C;k++){ const d=ov.data[k], v=d.v[i], dir=d.dir?d.dir[i]:null;
+    S.push(v==null?null:v);
+    if(v==null||dir==null){ U.push(0); V.push(0); continue; }
+    const r=dir*Math.PI/180; U.push(v*Math.sin(r)); V.push(-v*Math.cos(r)); }
+  return {x0:a.x, y0:a.y, cw, ch, R, C, U, V, S, t:OVT[ov.type]};
 }
-function sample(f,x,y){
-  let fx=(x-f.x0)/f.cw, fy=(y-f.y0)/f.ch; fx=Math.max(0,Math.min(f.C-1.001,fx)); fy=Math.max(0,Math.min(f.R-1.001,fy));
-  const c0=Math.floor(fx), r0=Math.floor(fy), dx=fx-c0, dy=fy-r0, id=(r,c)=>r*f.C+c;
-  const k00=id(r0,c0),k01=id(r0,c0+1),k10=id(r0+1,c0),k11=id(r0+1,c0+1);
-  if(f.S[k00]==null&&f.S[k01]==null&&f.S[k10]==null&&f.S[k11]==null) return null;
-  const L2=(A)=>A[k00]*(1-dx)*(1-dy)+A[k01]*dx*(1-dy)+A[k10]*(1-dx)*dy+A[k11]*dx*dy;
-  const u=L2(f.U), v=L2(f.V); return [u,v,Math.hypot(u,v)];
+function cellAt(f,x,y){
+  let fx=(x-f.x0)/f.cw, fy=(y-f.y0)/f.ch; fx=Math.max(0,Math.min(f.C-1.0001,fx)); fy=Math.max(0,Math.min(f.R-1.0001,fy));
+  const c0=Math.floor(fx), r0=Math.floor(fy), dx=fx-c0, dy=fy-r0;
+  return [[r0*f.C+c0,(1-dx)*(1-dy)],[r0*f.C+c0+1,dx*(1-dy)],[(r0+1)*f.C+c0,(1-dx)*dy],[(r0+1)*f.C+c0+1,dx*dy]];
 }
+function sampleS(f,x,y){ let sw=0, sv=0; for(const [k,w] of cellAt(f,x,y)){ if(f.S[k]==null) continue; sw+=w; sv+=f.S[k]*w; } return sw<0.45 ? null : sv/sw; }
+function sample(f,x,y){ let sw=0,u=0,v=0; for(const [k,w] of cellAt(f,x,y)){ if(f.S[k]==null) continue; sw+=w; u+=f.U[k]*w; v+=f.V[k]*w; }
+  if(sw<0.45) return null; u/=sw; v/=sw; return [u,v,Math.hypot(u,v)]; }
+// palette continue
+function rgbaOf(c){ if(!c) return null; if(c[0]==="#"){ const n=parseInt(c.slice(1),16); return [n>>16&255,n>>8&255,n&255,255]; } const m=c.match(/[\d.]+/g).map(Number); return [m[0],m[1],m[2],(m[3]??1)*255]; }
+function ramp(t){ if(t._ramp) return t._ramp; const r=t.scale.map(([v,c])=>[v,rgbaOf(c)]);
+  r.forEach((e,j)=>{ if(!e[1]){ const nb=(r[j+1]&&r[j+1][1])||(r[j-1]&&r[j-1][1])||[255,255,255,0]; e[1]=[nb[0],nb[1],nb[2],0]; } }); return t._ramp=r; }
+function colorAt(t,v){ const r=ramp(t); if(v<=r[0][0]) return r[0][1];
+  for(let j=1;j<r.length;j++){ if(v<=r[j][0]){ const [s0,c0]=r[j-1],[s1,c1]=r[j], f=(v-s0)/(s1-s0); return c0.map((x,q)=>x+(c1[q]-x)*f); } } return r[r.length-1][1]; }
+const fieldPane=map.createPane("fieldPane"); fieldPane.style.zIndex=350; fieldPane.style.pointerEvents="none";
+const fcv=document.createElement("canvas"); fcv.id="field"; fieldPane.appendChild(fcv); const off=document.createElement("canvas");
+function drawField(){
+  const sz=map.getSize(); if(fcv.width!==sz.x||fcv.height!==sz.y){ fcv.width=sz.x; fcv.height=sz.y; fcv.style.width=sz.x+"px"; fcv.style.height=sz.y+"px"; }
+  L.DomUtil.setPosition(fcv, map.containerPointToLayerPoint([0,0]));
+  const g=fcv.getContext("2d"); g.clearRect(0,0,sz.x,sz.y);
+  if(!ov.type||!ov.data||ov.rows<2) return;
+  const f=buildGrid(), t=f.t, step=5, w=Math.ceil(sz.x/step)+1, h=Math.ceil(sz.y/step)+1;
+  off.width=w; off.height=h; const og=off.getContext("2d"), img=og.createImageData(w,h), D=img.data, alpha=t.vec?0.5:0.55;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const v=sampleS(f,x*step,y*step), o=(y*w+x)*4; if(v==null) continue;
+    const c=colorAt(t,v); D[o]=c[0]; D[o+1]=c[1]; D[o+2]=c[2]; D[o+3]=c[3]*alpha; }
+  og.putImageData(img,0,0); g.imageSmoothingEnabled=true; g.imageSmoothingQuality="high"; g.drawImage(off,0,0,w*step,h*step);
+}
+let fieldRaf=null; map.on("move zoom", ()=>{ if(!ov.data||fieldRaf) return; fieldRaf=requestAnimationFrame(()=>{ fieldRaf=null; drawField(); }); });
+function drawLegend(){
+  const c=$("tLegend"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W||!ov.type) return;
+  c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
+  const t=OVT[ov.type], r=ramp(t), lo=r[0][0], hi=r[r.length-1][0], X=v=>8+(v-lo)/(hi-lo)*(W-16);
+  for(let x=8;x<=W-8;x++){ const v=lo+(x-8)/(W-16)*(hi-lo), col=colorAt(t,v); g.fillStyle=`rgba(${col[0]|0},${col[1]|0},${col[2]|0},${Math.max(col[3]/255,.15)})`; g.fillRect(x,2,1.5,8); }
+  g.font="600 10px ui-monospace,Menlo,monospace"; g.fillStyle="#cfe3ff"; g.textAlign="center";
+  r.forEach(([v])=>g.fillText(String(v), Math.min(Math.max(X(v),10),W-10), H-1));
+  g.textAlign="right"; g.fillStyle="#9fc0e6";
+}
+// valeur au toucher (façon Windy)
+let pick=null;
+function showPicker(ll){ pick=ll; updatePicker(); }
+function updatePicker(){
+  if(!pick||!ov.data){ map.closePopup(); return; }
+  const f=buildGrid(), pt=map.latLngToContainerPoint(pick), t=f.t, v=sampleS(f,pt.x,pt.y);
+  const el=document.createElement("div"); el.className="pickc";
+  if(v==null){ el.innerHTML="<b>—</b><small>terre ou hors données</small>"; }
+  else { let extra=""; if(t.vec){ const s=sample(f,pt.x,pt.y); if(s){ const to=(Math.atan2(s[0],-s[1])*180/Math.PI+360)%360, from=(to+180)%360;
+      extra = ov.type==="cur" ? "porte au "+pad3(to)+"°" : "du "+pad3(from)+"° "+compass(from); } }
+    el.innerHTML=`<b>${v.toFixed(t.dec)} <span>${t.unit}</span></b><small>${extra}</small>`; }
+  const btn=document.createElement("button"); btn.textContent = ov.type==="cur" ? "Courbe et marée ›" : "Prévisions ici ›";
+  btn.onclick=()=>{ map.closePopup(); pick=null; ov.type==="cur" ? showCurve(L.latLng(pick0)) : openMeteo(L.latLng(pick0)); };
+  const pick0=pick; el.appendChild(btn);
+  L.popup({className:"pick",closeButton:false,autoPan:false,offset:[0,-4]}).setLatLng(pick).setContent(el).openOn(map);
+}
+map.on("popupclose", e=>{ if(e.popup.options.className==="pick") pick=null; });
 function startParticles(){
   stopParticles();
   if(!ov.type || !ov.data || !ov.anim || reduceMotion || !OVT[ov.type].anim || ov.rows<2) return;
+  if(!pc.parentNode) fieldPane.appendChild(pc); L.DomUtil.setPosition(pc, map.containerPointToLayerPoint([0,0]));
   const sz=map.getSize(), dpr=window.devicePixelRatio||1; pc.width=sz.x*dpr; pc.height=sz.y*dpr; pc.style.width=sz.x+"px"; pc.style.height=sz.y+"px";
   const g=pc.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0);
-  field=buildField(); const k=OVT[ov.type].anim, N=Math.round(Math.min(1400, sz.x*sz.y/450));
+  field=buildGrid(); const k=OVT[ov.type].anim, N=Math.round(Math.min(1400, sz.x*sz.y/450));
   const spawn=()=>({x:Math.random()*sz.x, y:Math.random()*sz.y, age:Math.floor(Math.random()*90)});
   parts=Array.from({length:N}, spawn);
   const frame=()=>{
     g.globalCompositeOperation="destination-in"; g.fillStyle="rgba(0,0,0,0.9)"; g.fillRect(0,0,sz.x,sz.y);
-    g.globalCompositeOperation="source-over"; g.lineWidth=1.6; g.lineCap="round";
+    g.globalCompositeOperation="source-over"; g.lineWidth=1.3; g.lineCap="round";
     for(const p of parts){
       const s=sample(field,p.x,p.y);
       if(!s || p.age>110 || p.x<0||p.y<0||p.x>sz.x||p.y>sz.y){ Object.assign(p, spawn(), {age:0}); continue; }
       const nx=p.x+s[0]*k, ny=p.y+s[1]*k;
-      g.strokeStyle=colorOf(field.t,s[2])||"#fff"; g.globalAlpha=.85;
+      g.strokeStyle="#fff"; g.globalAlpha=Math.min(.95,.35+s[2]*(ov.type==="cur"?.35:.03));
       g.beginPath(); g.moveTo(p.x,p.y); g.lineTo(nx,ny); g.stroke(); p.x=nx; p.y=ny; p.age++;
     }
     g.globalAlpha=1; pRaf=requestAnimationFrame(frame);
@@ -1000,7 +1050,7 @@ $("bCache").onclick = async () => {
   await Promise.all([worker(),worker(),worker(),worker()]);
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
-const APP_VERSION="2026.11.13-b"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
+const APP_VERSION="2026.11.13-c"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
