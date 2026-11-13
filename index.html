@@ -383,6 +383,23 @@ body.measuring #chip{display:none!important}
 body.crowded #colTR .grp .g-b:nth-child(n+3), body.crowded #scale{display:none}
 body.crowded2 #colBL{display:none}
 body.night{--glass:rgba(42,18,16,.92)}
+
+/* Panneau météo « Clarté » : blanc, compact */
+#tbar{background:rgba(255,255,255,.97);color:var(--navy);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.22);padding:10px 12px 10px;backdrop-filter:blur(12px)}
+#tbar .big{color:var(--navy);font:700 15px var(--sans)} #tbar .lbl{color:var(--slate)} #tbar .here{color:var(--navy);font:500 13px var(--sans)}
+.chips button{background:#EEF2F6;color:var(--navy)} .chips button.on{background:#FF7A00;color:#fff}
+.trow select{background:#EEF2F6;color:var(--navy)} .trow select option{color:#000}
+.tog{background:#EEF2F6;color:var(--navy)} .tog.on{background:var(--navy);color:#fff}
+.tlbtns button{background:#EEF2F6;color:var(--navy)}
+.tl input[type=range]::-webkit-slider-thumb{background:rgba(255,122,0,.18);border-color:#FF7A00}
+.tl input[type=range]::-moz-range-thumb{background:rgba(255,122,0,.18);border-color:#FF7A00}
+.tbl table{color:var(--navy)} .tbl th{background:#fff;color:var(--slate)}
+.tbl tr.dayr td span{color:var(--navy)} .tbl tr.hh td{color:var(--slate)}
+.tbl td{border-left-color:rgba(11,47,91,.05)} .tbl td.d0,.tbl tr.dayr td.d0{border-left-color:rgba(11,47,91,.25)}
+.tbl td.night{background:rgba(11,47,91,.04)} .tbl td.sel{box-shadow:inset 0 0 0 9999px rgba(255,122,0,.16)}
+.tbl svg.wx{filter:drop-shadow(0 0 1px rgba(11,47,91,.55))}
+.tbl .ar svg path{fill:var(--navy)}
+body.night #tbar{background:#2a1210;color:#ff8a7a}
 </style>
 </head>
 <body>
@@ -1058,19 +1075,19 @@ function drawTimeline(){
   const pad=14, top=14, bot=H-15, X=i=>pad+i*(W-2*pad)/(n-1), Y=v=>bot-(v-lo)/(hi-lo)*(bot-top);
   g.font="500 10px Inter,system-ui,sans-serif"; g.textAlign="center";
   s.time.forEach((tt,i)=>{ const d=new Date(tt), hr=d.getHours();
-    if(hr>=21||hr<7){ g.fillStyle="rgba(0,0,0,.28)"; g.fillRect(X(i)-(W-2*pad)/(n-1)/2,0,(W-2*pad)/(n-1)+.5,bot); }
-    if(hr===0){ g.strokeStyle="rgba(255,255,255,.45)"; g.lineWidth=1; g.beginPath(); g.moveTo(X(i),0); g.lineTo(X(i),bot); g.stroke();
-      g.fillStyle="#fff"; g.textAlign="left"; g.fillText(d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}),X(i)+3,10); g.textAlign="center"; }
-    if(hr%6===0 && n<=48 || hr%12===0){ g.fillStyle="#9fc0e6"; g.fillText(String(hr).padStart(2,"0")+"h",X(i),H-3); } });
-  if(s.g){ g.beginPath(); s.g.forEach((v,i)=>i?g.lineTo(X(i),Y(v||0)):g.moveTo(X(i),Y(v||0))); g.strokeStyle="rgba(255,255,255,.45)"; g.setLineDash([3,3]); g.lineWidth=1.5; g.stroke(); g.setLineDash([]); }
+    if(hr>=21||hr<7){ g.fillStyle="rgba(11,47,91,.05)"; g.fillRect(X(i)-(W-2*pad)/(n-1)/2,0,(W-2*pad)/(n-1)+.5,bot); }
+    if(hr===0){ g.strokeStyle="rgba(11,47,91,.22)"; g.lineWidth=1; g.beginPath(); g.moveTo(X(i),0); g.lineTo(X(i),bot); g.stroke();
+      g.fillStyle="#0B2F5B"; g.textAlign="left"; g.fillText(d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}),X(i)+3,10); g.textAlign="center"; }
+    if(hr%6===0 && n<=48 || hr%12===0){ g.fillStyle="#4A5D73"; g.fillText(String(hr).padStart(2,"0")+"h",X(i),H-3); } });
+  if(s.g){ g.beginPath(); s.g.forEach((v,i)=>i?g.lineTo(X(i),Y(v||0)):g.moveTo(X(i),Y(v||0))); g.strokeStyle="rgba(11,47,91,.22)"; g.setLineDash([3,3]); g.lineWidth=1.5; g.stroke(); g.setLineDash([]); }
   const vv=s.v.map(v=>v==null?lo:v);
   g.beginPath(); g.moveTo(X(0),bot); vv.forEach((v,i)=>g.lineTo(X(i),Y(v))); g.lineTo(X(n-1),bot); g.closePath();
-  const gr=g.createLinearGradient(0,top,0,bot); gr.addColorStop(0,"rgba(255,152,0,.6)"); gr.addColorStop(1,"rgba(79,195,247,.15)"); g.fillStyle=gr; g.fill();
-  g.beginPath(); vv.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v))); g.strokeStyle="#ffb74d"; g.lineWidth=2; g.stroke();
+  const gr=g.createLinearGradient(0,top,0,bot); gr.addColorStop(0,"rgba(255,122,0,.35)"); gr.addColorStop(1,"rgba(255,122,0,.03)"); g.fillStyle=gr; g.fill();
+  g.beginPath(); vv.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v))); g.strokeStyle="#FF7A00"; g.lineWidth=2; g.stroke();
   if(s.dir) for(let i=0;i<n;i+=3){ if(s.dir[i]==null) continue; g.save(); g.translate(X(i),Y(vv[i])-9); g.rotate(s.dir[i]*Math.PI/180);
-    g.fillStyle="#fff"; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
-  g.strokeStyle="#3fd18b"; g.lineWidth=2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(ov.now),top-2); g.lineTo(X(ov.now),bot); g.stroke(); g.setLineDash([]);
-  g.fillStyle="#9fc0e6"; g.textAlign="right"; g.fillText((t.zero?"max ":"")+hi.toFixed(t.dec)+" "+t.unit,W-2,22);
+    g.fillStyle="#0B2F5B"; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
+  g.strokeStyle="#1C9E47"; g.lineWidth=2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(ov.now),top-2); g.lineTo(X(ov.now),bot); g.stroke(); g.setLineDash([]);
+  g.fillStyle="#4A5D73"; g.textAlign="right"; g.fillText((t.zero?"max ":"")+hi.toFixed(t.dec)+" "+t.unit,W-2,22);
   if(!t.zero){ g.fillText(lo.toFixed(t.dec), W-2, bot-2); }
   $("tHere").textContent = (last?(R()?"Ma position : ":"Au bateau : "):"Centre carte : ") + hereText(s, ov.idx);
 }
@@ -1143,7 +1160,7 @@ function renderTable(){
     +row("Pluie mm",i=>{ const r=h.precipitation[i]; return cell(i, r>=0.1?`<div class="wc" style="${bg(OVT.rain,r,.9)};color:#fff">${r<1?r.toFixed(1):Math.round(r)}</div>`:""); })
     +row("Vent nd",i=>cell(i,`<div class="wc" style="${bg(OVT.wind,h.wind_speed_10m[i],1)}">${Math.round(h.wind_speed_10m[i])}</div>`))
     +row("Rafales",i=>cell(i,`<div class="wc" style="${bg(OVT.wind,h.wind_gusts_10m[i],.6)}">${Math.round(h.wind_gusts_10m[i])}</div>`))
-    +row("Direction",i=>cell(i,`<span class="ar" title="${compass(h.wind_direction_10m[i])}">${arrowSvg((h.wind_direction_10m[i]+180)%360,"#e6efff")}</span>`));
+    +row("Direction",i=>cell(i,`<span class="ar" title="${compass(h.wind_direction_10m[i])}">${arrowSvg((h.wind_direction_10m[i]+180)%360,"#0B2F5B")}</span>`));
   if(R()){
     html+=row("Neige cm",i=>{ const v=h.snowfall?h.snowfall[i]:null; return cell(i, v>=0.1?`<div class="wc" style="${bg(OVT.snowf,v,.95)}">${v<1?v.toFixed(1):Math.round(v)}</div>`:""); })
         +row("Iso 0 °C",i=>{ const v=h.freezing_level_height?h.freezing_level_height[i]:null; return cell(i, v==null?"":`<span style="font-size:10px">${Math.round(v/50)*50}</span>`); });
@@ -1260,7 +1277,7 @@ function drawLegend(){
   c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
   const t=OVT[ov.type], r=ramp(t), lo=r[0][0], hi=r[r.length-1][0], X=v=>8+(v-lo)/(hi-lo)*(W-16);
   for(let x=8;x<=W-8;x++){ const v=lo+(x-8)/(W-16)*(hi-lo), col=colorAt(t,v); g.fillStyle=`rgba(${col[0]|0},${col[1]|0},${col[2]|0},${Math.max(col[3]/255,.15)})`; g.fillRect(x,2,1.5,8); }
-  g.font="500 10px Inter,system-ui,sans-serif"; g.fillStyle="#cfe3ff"; g.textAlign="center";
+  g.font="500 10px Inter,system-ui,sans-serif"; g.fillStyle="#4A5D73"; g.textAlign="center";
   r.forEach(([v])=>g.fillText(String(v), Math.min(Math.max(X(v),10),W-10), H-1));
   g.textAlign="right"; g.fillStyle="#9fc0e6";
 }
@@ -2289,7 +2306,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-b"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-c"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
