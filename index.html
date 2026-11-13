@@ -527,6 +527,8 @@ body:has(#runHud:not([hidden])) #chip{display:none}
   <div class="opt" id="calRow" hidden style="border:0;padding-top:0"><input type="range" id="calOp" min="0" max="100" value="50" style="width:100%;accent-color:#FF7A00" aria-label="Transparence de la photo"></div>
   <label class="opt mer-only"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers : utile sur Profondeurs ou Satellite</small></div></label>
   <div class="rando-only">
+    <label class="opt"><input type="checkbox" id="shadeChk"><div>Ombrage du relief (IGN)<small>Crêtes et vallées en relief sur la carte</small></div></label>
+    <label class="opt"><input type="checkbox" id="autoSat"><div>Photos aériennes au zoom maximal<small>Au-delà du détail du 1:25 000, bascule sur les photos, puis revient</small></div></label>
     <label class="opt"><input type="checkbox" id="slopeChk"><div>Pentes de plus de 30° (IGN)<small>Ski de rando : relief IGN au pas de 5 m</small></div></label>
     <div class="slopeleg"><span style="background:#f2e600"></span>30–35°<span style="background:#f39200"></span>35–40°<span style="background:#e3000f"></span>40–45°<span style="background:#a3007d"></span>&gt; 45°</div>
   </div>
@@ -1424,7 +1426,7 @@ function setMode(m, quiet){
   const rb=document.querySelector(`input[name=base][value=${curBase}]`); if(rb) rb.checked=true;
   if(ov.type && ((OVT[ov.type].api==="mar" && R()) || (OVT[ov.type].rando && !R()))) setOverlay(null);
   $("mSpeed").value = store.get("mspeed_"+MODE, R()?4:5);
-  chipLabels(); if(measuring) drawMeasure(); if(typeof setSlopes==="function") setSlopes(store.get("slopes",false));
+  chipLabels(); if(measuring) drawMeasure(); if(typeof setSlopes==="function") setSlopes(store.get("slopes",false)); try{ autoSatCheck(); setShade(store.get("shade",true)); }catch(e){ /* pas encore initialisé au démarrage */ }
   if(!AREA().contains(map.getCenter())) map.setView(R()?[46.6,2.4]:[48.4,-3.4], R()?6:8);
   if(!quiet) toast(R()?"Mode Rando : cartes IGN, traces, dénivelé":"Mode Mer : cartes marines, courants, marée");
 }
@@ -1936,6 +1938,25 @@ function scaleWarn(){ const ly=bases[curBase], nz=ly&&ly.options.maxNativeZoom, 
   $("scale").classList.toggle("warn", !!over); $("scale").title = over ? "Zoom au-delà de l'échelle de la carte : détails agrandis, précision non améliorée" : ""; }
 map.on("zoomend", scaleWarn); document.querySelectorAll("input[name=base]").forEach(r=>r.addEventListener("change", scaleWarn)); scaleWarn();
 $("scale").onclick=()=>{ if($("scale").classList.contains("warn")) toast("Carte agrandie au-delà de son échelle d'origine : les détails grossissent, la précision ne s'améliore pas. Gardez une marge de sécurité.", 6000); };
+/* ---- Ombrage du relief (estompage IGN), en mode multiplication pour garder la carte lisible ---- */
+const shadePane=map.createPane("shadePane"); shadePane.style.zIndex=250; shadePane.style.mixBlendMode="multiply"; shadePane.style.pointerEvents="none";
+const shade=L.tileLayer("https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW&STYLE=estompage_grayscale&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png",
+  {pane:"shadePane", maxZoom:19, maxNativeZoom:15, opacity:.9, bounds:FRANCE, attribution:"Relief © IGN"});
+function setShade(on){ store.set("shade",on); $("shadeChk").checked=on; if(on && R() && curBase!=="ortho") shade.addTo(map); else map.removeLayer(shade); }
+$("shadeChk").onchange=e=>setShade(e.target.checked);
+/* ---- Bascule automatique sur les photos aériennes au-delà du détail du 1:25 000 ---- */
+let autoSatOn=false;
+function swapBase(k){ if(k===curBase) return; map.removeLayer(bases[curBase]); curBase=k; bases[k].addTo(map); bases[k].bringToBack();
+  const rb=document.querySelector(`input[name=base][value=${k}]`); if(rb) rb.checked=true; if(typeof markSelMaps==="function") markSelMaps(); setShade(store.get("shade",true)); scaleWarn(); }
+function autoSatCheck(){
+  const lim=(bases.scan25.options.maxNativeZoom||16);
+  if(R() && store.get("autoSat",true) && !autoSatOn && curBase==="scan25" && map.getZoom()>lim){ autoSatOn=true; swapBase("ortho"); toast("Zoom maximal : photos aériennes (le 1:25 000 n'a pas plus de détail)",4000); }
+  else if(autoSatOn && (map.getZoom()<=lim || !R() || !store.get("autoSat",true))){ autoSatOn=false; if(curBase==="ortho") swapBase("scan25"); }
+}
+map.on("zoomend", autoSatCheck);
+document.querySelectorAll("input[name=base]").forEach(r=>r.addEventListener("change", ()=>{ autoSatOn=false; setShade(store.get("shade",true)); }));
+$("autoSat").checked=store.get("autoSat",true); $("autoSat").onchange=e=>{ store.set("autoSat",e.target.checked); autoSatCheck(); };
+setShade(store.get("shade",true));
 /* ---- Test des fonds de carte depuis le téléphone ---- */
 function tileXY(lat,lng,z){ const n=2**z, r=lat*Math.PI/180; return {x:Math.floor((lng+180)/360*n), y:Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n), z}; }
 const SRC_TEST = [
@@ -1988,7 +2009,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-l"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-m"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
