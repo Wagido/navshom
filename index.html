@@ -199,8 +199,8 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 .chips button{flex:none;border:0;border-radius:14px;padding:5px 10px;background:rgba(255,255,255,.1);color:#fff;font:500 12px var(--sans);cursor:pointer}
 .chips button.on{background:var(--amber);color:#1b1200;font-weight:600}
 .trow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
-.trow select{flex:1 1 110px!important;min-width:110px!important}
-.trow .tog{flex:0 0 auto}
+.trow select{flex:1 1 80px!important;min-width:80px!important}
+.trow .tog{flex:0 0 auto;padding:5px 7px}
 .trow select{flex:1;min-width:0;font:500 12px var(--sans);padding:5px 6px;border-radius:8px;border:0;background:rgba(255,255,255,.12);color:#fff}
 .trow select option{color:#000}
 .trow select:disabled{opacity:.45}
@@ -405,7 +405,7 @@ body:has(#runHud:not([hidden])) #chip{display:none}
 <div id="tbar" hidden>
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
-  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">Fermer ✕</button></div>
+  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">✕ Fermer</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
   <div class="tbl" id="tTbl" hidden></div>
@@ -1983,7 +1983,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-j"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-k"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
