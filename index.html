@@ -384,6 +384,9 @@ body.crowded #colTR .grp .g-b:nth-child(n+3), body.crowded #scale{display:none}
 body.crowded2 #colBL{display:none}
 body.night{--glass:rgba(42,18,16,.92)}
 
+#rtPill{position:fixed;z-index:1001;left:50%;transform:translateX(-50%);top:calc(var(--st) + 66px);display:flex;align-items:center;background:var(--glass);border-radius:20px;box-shadow:var(--sh);backdrop-filter:blur(12px);overflow:hidden}
+#rtPill button{border:0;background:transparent;color:var(--navy);font:500 13px var(--sans);height:38px;padding:0 12px;cursor:pointer;white-space:nowrap}
+#rtPill b{color:#FF7A00} #rtPillX{border-left:1px solid #E3E9EF!important;font-size:15px!important}
 /* Panneau météo « Clarté » : blanc, compact */
 #tbar{background:rgba(255,255,255,.97);color:var(--navy);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.22);padding:10px 12px 10px;backdrop-filter:blur(12px)}
 #tbar .big{color:var(--navy);font:700 15px var(--sans)} #tbar .lbl{color:var(--slate)} #tbar .here{color:var(--navy);font:500 13px var(--sans)}
@@ -682,6 +685,7 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
 </section>
 
 <div id="toast" hidden></div>
+<div id="rtPill" hidden><button id="rtPillOpen">Routage · arrivée <b id="rtPillT"></b></button><button id="rtPillX" aria-label="Effacer le routage">✕</button></div>
 <div id="pickBar" hidden><span id="pickTxt"></span><button id="pickCancel">Annuler</button></div>
 <div id="runHud" hidden>
   <div class="rh-main"><div><b>Distance</b><span id="rhDist">0,00</span><i>km</i></div><div class="rh-pace"><b>Allure</b><span id="rhPace">–:––</span><i>min/km</i></div></div>
@@ -2246,9 +2250,12 @@ function showRouting(){
     <div><b>Distance</b><span>${dist.toFixed(1).replace(".",",")} M</span></div><div><b>Moyenne</b><span>${(dist/dur).toFixed(1)} nd</span></div>
     <div><b>Vent max</b><span>${Math.round(maxW)} nd</span></div><div><b>Virements / emp.</b><span>${tacks}</span></div>`;
   $("rtNote").textContent = "Route directe : "+r.D.toFixed(1).replace(".",",")+" M. Isochrones toutes les heures en bleu. Touchez les points orange pour le détail heure par heure.";
-  $("rtRes").hidden=false; setFollow(false); map.fitBounds(L.latLngBounds(ll).pad(.25));
+  $("rtRes").hidden=false; $("rtPillT").textContent=hhmm(P[P.length-1].t); $("rtPill").hidden=false; setFollow(false); map.fitBounds(L.latLngBounds(ll).pad(.25));
 }
-$("rtClear").onclick=()=>{ RT.result=null; RT.layer.clearLayers(); $("rtRes").hidden=true; drawRtMarks(); };
+function clearRouting(){ RT.result=null; RT.layer.clearLayers(); $("rtRes").hidden=true; $("rtPill").hidden=true; drawRtMarks(); }
+$("rtClear").onclick=clearRouting;
+$("rtPillX").onclick=()=>{ clearRouting(); toast("Routage effacé"); };
+$("rtPillOpen").onclick=()=>{ openSheet("sRouting"); renderRouteParams(); $("rtRes").hidden=!RT.result; };
 $("rtNav").onclick=()=>{ const r=RT.result; if(!r) return; const P=r.path, wp=[];
   P.forEach((p,i)=>{ if(i===0) return; const nx=P[i+1]; if(!nx || (nx.twa!=null && p.twa!=null && Math.sign(nx.twa)!==Math.sign(p.twa))) wp.push(p); });
   const rt={id:Date.now(), name:"Routage "+fmtT(r.dep), pts:wp.map((p,i)=>[+p.lat.toFixed(6),+p.lng.toFixed(6), i===wp.length-1?"Arrivée":"Manœuvre "+(i+1)])};
@@ -2306,7 +2313,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-c"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-d"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
