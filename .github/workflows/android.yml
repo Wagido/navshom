@@ -51,6 +51,23 @@ jobs:
           R=android/app/src/main/res
           rm -rf $R/mipmap-anydpi-v26
           for d in $R/mipmap-*; do cp ../icon-192.png $d/ic_launcher.png; cp ../icon-192.png $d/ic_launcher_round.png; rm -f $d/ic_launcher_foreground.png; done
+          # Taille du texte fixe : ignore le réglage "taille de police" d'Android (sinon tout grossit)
+          cat > android/app/src/main/java/fr/navshom/app/MainActivity.java <<'JAVA'
+          package fr.navshom.app;
+
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  if (getBridge() != null && getBridge().getWebView() != null) {
+                      getBridge().getWebView().getSettings().setTextZoom(100);
+                  }
+              }
+          }
+          JAVA
+          cat android/app/src/main/java/fr/navshom/app/MainActivity.java
           npx cap sync android
 
       - name: Compiler l'APK
