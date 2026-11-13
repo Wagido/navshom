@@ -275,6 +275,15 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
 .mapc.sel{border-color:#FF7A00;box-shadow:0 0 0 2px #FF7A00}
 .mapc.sel span::after{content:" ✓";color:#FF7A00}
 .adv{margin-top:14px;border-top:1px solid var(--line);padding-top:8px} .adv summary{cursor:pointer;font:600 13px var(--sans);color:var(--muted);padding:6px 0}
+/* Grand écran : panneaux à largeur de téléphone, centrés */
+.sheet{max-width:520px;margin:0 auto}
+#sMeteo{max-width:760px}
+.mapgrid{grid-template-columns:repeat(2,1fr);gap:8px}
+@media (min-width:600px){ .mapgrid{grid-template-columns:repeat(4,1fr)} }
+.mapc img{aspect-ratio:16/10;height:auto}
+.mapc span{padding:5px 8px 6px;font-size:12px}
+.mapc small{font-size:10.5px}
+@media (min-width:900px){ .sheet{left:calc(var(--sl) + 16px);right:auto;margin:0;bottom:16px;border-radius:18px;max-height:calc(100vh - 32px)} #sMeteo{left:calc(var(--sl) + 16px)} }
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -1887,7 +1896,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-b"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-c"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
