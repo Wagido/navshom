@@ -1,9 +1,9 @@
 // Nav SHOM - cache de l'app et des tuiles pour usage hors ligne
-const APP = "navshom-app-v5", TILES = "navshom-tiles";
+const APP = "navshom-app-v6", TILES = "navshom-tiles";
 const SHELL = ["./", "index.html", "lib/leaflet.js", "lib/leaflet.css", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(APP).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("navshom-app-") && k !== APP).map(k => caches.delete(k))))); self.clients.claim(); });
-const isTile = u => /services\.data\.shom\.fr|tile\.openstreetmap\.org|tiles\.openseamap\.org/.test(u);
+const isTile = u => /services\.data\.shom\.fr|tile\.openstreetmap\.org|tiles\.openseamap\.org|tiles\.emodnet-bathymetry\.eu/.test(u);
 self.addEventListener("fetch", e => {
   const u = e.request.url;
   if (e.request.method !== "GET") return;

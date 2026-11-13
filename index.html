@@ -300,8 +300,9 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
   <h2>Menu<button class="x" data-close aria-label="Fermer">×</button></h2>
   <label class="opt" for="spot"><div style="flex:1">Aller à<small>Bretagne et îles Anglo-Normandes</small></div><select id="spot"></select></label>
   <h3>Carte</h3>
-  <label class="opt"><input type="radio" name="base" value="shom" checked><div>Cartes marines SHOM<small>Assemblage RasterMarine (clé SHOM nécessaire)</small></div></label>
-  <div class="opt" style="flex-wrap:wrap"><label for="shomkey" style="flex:1 1 100%">Ma clé SHOM<small>Gratuite sur data.shom.fr (espace client). Site autorisé : wagido.github.io</small></label>
+  <label class="opt"><input type="radio" name="base" value="emod" checked><div>Bathymétrie EMODnet<small>Profondeurs (données européennes libres). À combiner avec le balisage</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="shom"><div>Cartes marines SHOM<small>Nécessite une clé SHOM (abonnement ou convention)</small></div></label>
+  <div class="opt" style="flex-wrap:wrap"><label for="shomkey" style="flex:1 1 100%">Ma clé SHOM<small>Si le SHOM vous en délivre une (site autorisé : wagido.github.io)</small></label>
     <input id="shomkey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="collez votre clé ici"
       style="flex:1;min-width:0;font:14px var(--mono);padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink)">
     <button class="pill primary" id="bKey" style="flex:0 0 auto;min-width:0">Enregistrer</button></div>
@@ -360,21 +361,24 @@ const shomUrl = layer => "https://services.data.shom.fr/"+encodeURIComponent(sho
 const bases = {
   shom:  L.tileLayer(shomUrl("RASTER_MARINE_3857_WMTS"), {maxZoom:18, bounds:ZONE, attribution:"© SHOM"}),
   gebco: L.tileLayer(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"), {maxZoom:18, maxNativeZoom:12, bounds:ZONE, attribution:"© SHOM / GEBCO"}),
-  osm:   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, bounds:ZONE, attribution:"© OpenStreetMap"})
+  osm:   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, bounds:ZONE, attribution:"© OpenStreetMap"}),
+  emod:  L.tileLayer("https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:12, bounds:ZONE, attribution:"© EMODnet Bathymetry"})
 };
 const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:ZONE, attribution:"© OpenSeaMap"});
-let curBase = store.get("base","shom"); if(!bases[curBase]) curBase="shom";
+let curBase = store.get("base", shomKey ? "shom" : "emod"); if(!bases[curBase]) curBase="emod";
+if(curBase==="shom" && !shomKey) curBase="emod";
+if(store.get("seamarks", null)===null) store.set("seamarks", true);
 let shomOk=0, shomErr=0;
 bases.shom.on("tileload", ()=>shomOk++);
 bases.shom.on("tileerror", ()=>{ shomErr++;
   if(shomErr===6 && shomOk===0 && curBase==="shom" && navigator.onLine){
-    toast(shomKey ? "Clé SHOM refusée (vérifiez la clé et le site autorisé). Passage sur OpenStreetMap." : "Cartes SHOM : entrez votre clé SHOM dans Menu. En attendant : OpenStreetMap + balisage.", 7000);
-    document.querySelector("input[name=base][value=osm]").click(); if(!$("seamarks").checked) $("seamarks").click(); }});
+    toast(shomKey ? "Clé SHOM refusée. Passage sur la bathymétrie EMODnet + balisage." : "Cartes SHOM : clé SHOM nécessaire (Menu). Passage sur la bathymétrie EMODnet + balisage.", 7000);
+    document.querySelector("input[name=base][value=emod]").click(); if(!$("seamarks").checked) $("seamarks").click(); }});
 bases[curBase].addTo(map);
 document.querySelector(`input[name=base][value=${curBase}]`).checked = true;
 document.querySelectorAll("input[name=base]").forEach(r => r.addEventListener("change", e => {
   map.removeLayer(bases[curBase]); curBase=e.target.value; bases[curBase].addTo(map); bases[curBase].bringToBack(); store.set("base",curBase); }));
-$("seamarks").checked = store.get("seamarks", false); if($("seamarks").checked) seamarks.addTo(map);
+$("seamarks").checked = store.get("seamarks", true); if($("seamarks").checked) seamarks.addTo(map);
 $("seamarks").addEventListener("change", e => { e.target.checked ? seamarks.addTo(map) : map.removeLayer(seamarks); store.set("seamarks", e.target.checked); });
 map.on("moveend", () => store.set("view", {c:[map.getCenter().lat, map.getCenter().lng], z:map.getZoom()}));
 L.control.scale({imperial:false, position:"bottomleft"}).addTo(map);
