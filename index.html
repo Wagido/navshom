@@ -284,6 +284,7 @@ body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"
 .mapc span{padding:5px 8px 6px;font-size:12px}
 .mapc small{font-size:10.5px}
 @media (min-width:900px){ .sheet{left:calc(var(--sl) + 16px);right:auto;margin:0;bottom:16px;border-radius:18px;max-height:calc(100vh - 32px)} #sMeteo{left:calc(var(--sl) + 16px)} }
+body.crowded #colBR, body.crowded #colBL{display:none}
 /* Carte : bateau, flèches */
 .boat svg{width:34px;height:34px;transition:transform .4s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .arr div{font:600 10px var(--mono);color:#fff;text-shadow:0 0 3px #000,0 0 2px #000;text-align:center;white-space:nowrap}
@@ -603,7 +604,7 @@ const bases = {
   scan25:L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS","image/jpeg",true), {maxZoom:18, maxNativeZoom:16, bounds:FRANCE, attribution:"© IGN"}),
   emod:  L.tileLayer("https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:12, bounds:FRANCE, attribution:"© EMODnet Bathymetry"})
 };
-const slopes = L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN","image/png"), {maxZoom:19, maxNativeZoom:17, opacity:.65, bounds:FRANCE, attribution:"Pentes © IGN"});
+const slopes = L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN","image/png"), {maxZoom:19, maxNativeZoom:17, opacity:.45, bounds:FRANCE, attribution:"Pentes © IGN"});
 const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:FRANCE, attribution:"© OpenSeaMap"});
 if(!store.get("v_litto",false)){ store.set("v_litto",true); store.set("base","litto"); store.set("seamarks",false); }
 if(store.get("base_mer",null)===null) store.set("base_mer", store.get("base","litto"));
@@ -943,7 +944,7 @@ function setOverlay(type){
   document.querySelectorAll("#tChips button[data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t===type));
   $("tAnim").hidden = !(type && OVT[type].anim); $("tAnim").classList.toggle("on", ov.anim);
   $("tModel").disabled = !type || OVT[type].api!=="fc";
-  $("tbar").hidden=!type; document.documentElement.style.setProperty("--tl", type ? ($("tbar").offsetHeight+8)+"px" : "0px");
+  $("tbar").hidden=!type; document.documentElement.style.setProperty("--tl", type ? ($("tbar").offsetHeight+8)+"px" : "0px"); requestAnimationFrame(crowdCheck);
   if(type) renderTable();
   if(type){ if(measuring) stopMeasure(); ov.layer.addTo(map); loadOverlay();
     const ch=document.querySelector(`#tChips button[data-t="${type}"]`); if(ch) ch.scrollIntoView({inline:"center",block:"nearest"}); }
@@ -960,7 +961,11 @@ $("tAnim").onclick=()=>{ ov.anim=!ov.anim; store.set("anim",ov.anim); $("tAnim")
 $("tClose").onclick=()=>setOverlay(null);
 /* ---- Tableau heure par heure, repliable ---- */
 const tbl={ll:null,f:null,m:null,model:null,open:store.get("tblOpen",false),loading:false};
-const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); };
+function crowdCheck(){ // panneau haut : on masque les colonnes de boutons du bas plutôt que de les empiler sur le zoom
+  document.body.classList.remove("crowded");
+  const tr=$("colTR").getBoundingClientRect(), br=$("colBR").getBoundingClientRect(), tl=$("colTL").getBoundingClientRect(), bl=$("colBL").getBoundingClientRect();
+  if((br.height && br.top < tr.bottom+8) || (bl.height && bl.top < tl.bottom+8)) document.body.classList.add("crowded"); }
+const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); requestAnimationFrame(crowdCheck); };
 $("tTblBtn").onclick=()=>{ tbl.open=!tbl.open; store.set("tblOpen",tbl.open); if(tbl.open) loadTable(); renderTable(); if(!tbl.open) drawTimeline(); };
 async function loadTable(force){
   const ll=last?last.ll:map.getCenter();
@@ -1027,7 +1032,7 @@ $("tSlider").oninput = e => { ov.idx=+e.target.value; drawOverlay(); };
 $("tm3").onclick=()=>setHour(ov.idx-3); $("tm1").onclick=()=>setHour(ov.idx-1); $("tp1").onclick=()=>setHour(ov.idx+1); $("tp3").onclick=()=>setHour(ov.idx+3); $("tnow").onclick=()=>setHour(ov.now);
 let ovTimer; map.on("movestart", stopParticles);
 map.on("moveend", () => { if(!ov.type) return; clearTimeout(ovTimer); ovTimer=setTimeout(()=>{ loadOverlay(ov.idx); if(tbl.open && !last) loadTable(); },600); });
-window.addEventListener("resize", () => { if(ov.type){ document.documentElement.style.setProperty("--tl",($("tbar").offsetHeight+8)+"px"); drawTimeline(); } if(!$("sCurve").hidden) drawCurve(); });
+window.addEventListener("resize", () => { requestAnimationFrame(crowdCheck); if(ov.type){ document.documentElement.style.setProperty("--tl",($("tbar").offsetHeight+8)+"px"); drawTimeline(); } if(!$("sCurve").hidden) drawCurve(); });
 
 /* ---- Particules animées (vent, courant) ---- */
 const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1896,7 +1901,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.14-c"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.14-d"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
