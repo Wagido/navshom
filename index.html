@@ -361,7 +361,13 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
       style="flex:1;min-width:0;font:14px var(--mono);padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink)">
     <button class="pill primary" id="bKey" style="flex:0 0 auto;min-width:0">Enregistrer</button></div>
   <label class="opt"><input type="radio" name="base" value="gebco"><div>Fond GEBCO (SHOM)<small>Bathymétrie</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="litto"><div>Carte littorale IGN-SHOM<small>Cartes marines SHOM + cartes IGN (Géoportail)</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="scan25"><div>Carte IGN 1:25 000 (rando)<small>Le « Top 25 » au 1:25 000</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="ign"><div>Plan IGN<small>Carte de l'État, libre</small></div></label>
+  <label class="opt"><input type="radio" name="base" value="ortho"><div>Photos aériennes IGN</div></label>
   <label class="opt"><input type="radio" name="base" value="osm"><div>OpenStreetMap</div></label>
+  <div class="btnrow"><button class="pill" id="bTestSrc">Tester les fonds de carte</button></div>
+  <div class="wplist" id="srcTest"></div>
   <label class="opt"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers</small></div></label>
   <h3>Prévisions</h3>
   <label class="opt" for="menuModel"><div style="flex:1">Modèle météo<small>Vent, température, pression, pluie</small></div><select id="menuModel"></select></label>
@@ -413,12 +419,18 @@ if(!ZONE.contains(view.c)) view = {c:[48.4,-3.4], z:8};
 const map = L.map("map", {zoomControl:false, minZoom:7, maxBounds:ZONE.pad(0.15), maxBoundsViscosity:1}).setView(view.c, view.z);
 map.attributionControl.setPrefix(false);
 let shomKey = (store.get("shomkey","")||"").trim();
+// Géoplateforme IGN (data.geopf.fr) ; "private" = couches SCAN avec la clé transitoire publiée par l'IGN
+const geopf = (layer, fmt, priv) => `https://data.geopf.fr/${priv?"private/wmts?apikey=ign_scan_ws&":"wmts?"}SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=${encodeURIComponent(fmt)}`;
 const shomUrl = layer => "https://services.data.shom.fr/"+encodeURIComponent(shomKey||"clevisu")+"/wmts?layer="+layer+
   "&style=normal&tilematrixset=3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}";
 const bases = {
   shom:  L.tileLayer(shomUrl("RASTER_MARINE_3857_WMTS"), {maxZoom:18, bounds:ZONE, attribution:"© SHOM"}),
   gebco: L.tileLayer(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"), {maxZoom:18, maxNativeZoom:12, bounds:ZONE, attribution:"© SHOM / GEBCO"}),
   osm:   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, bounds:ZONE, attribution:"© OpenStreetMap"}),
+  ign:   L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2","image/png"), {maxZoom:19, maxNativeZoom:18, bounds:ZONE, attribution:"© IGN"}),
+  ortho: L.tileLayer(geopf("ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg"), {maxZoom:19, maxNativeZoom:19, bounds:ZONE, attribution:"© IGN"}),
+  litto: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS","image/png"), {maxZoom:18, maxNativeZoom:16, bounds:ZONE, attribution:"© IGN / SHOM"}),
+  scan25:L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS","image/jpeg",true), {maxZoom:18, maxNativeZoom:16, bounds:ZONE, attribution:"© IGN"}),
   emod:  L.tileLayer("https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:12, bounds:ZONE, attribution:"© EMODnet Bathymetry"})
 };
 const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:ZONE, attribution:"© OpenSeaMap"});
@@ -1141,6 +1153,19 @@ function drawCompare(){
   g.fillStyle="#9fc0e6"; g.textAlign="left"; g.fillText("nd",2,top+8);
 }
 
+/* ---- Test des fonds de carte depuis le téléphone ---- */
+function tileXY(lat,lng,z){ const n=2**z, r=lat*Math.PI/180; return {x:Math.floor((lng+180)/360*n), y:Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n), z}; }
+const SRC_TEST = [
+  ["litto","Carte littorale IGN-SHOM"],["scan25","Carte IGN 1:25 000"],["ign","Plan IGN"],["ortho","Photos aériennes IGN"],
+  ["shom","Cartes marines SHOM"],["emod","Bathymétrie EMODnet"],["osm","OpenStreetMap"]];
+$("bTestSrc").onclick = () => {
+  const el=$("srcTest"); el.innerHTML=""; const t=tileXY(48.36,-4.55,12);
+  SRC_TEST.forEach(([k,name])=>{ const row=document.createElement("div"); row.innerHTML=`<span>${name}</span><b style="color:var(--muted)">test…</b>`; el.appendChild(row);
+    const url=L.Util.template(bases[k]._url,{z:t.z,x:t.x,y:t.y,s:"a",r:""}), img=new Image(); let done=false;
+    const set=(ok,msg)=>{ if(done) return; done=true; const b=row.querySelector("b"); b.textContent=msg; b.style.color=ok?"var(--green)":"var(--red)"; };
+    img.onload=()=>set(img.naturalWidth>1,"✓ disponible"); img.onerror=()=>set(false,"✗ refusé"); setTimeout(()=>set(false,"✗ pas de réponse"),12000);
+    img.src=url+(url.includes("?")?"&":"?")+"_t="+Date.now(); });
+};
 /* ================= Réglages ================= */
 $("shomkey").value = shomKey;
 $("bKey").onclick = () => { shomKey=$("shomkey").value.trim(); store.set("shomkey", shomKey);
@@ -1176,7 +1201,7 @@ $("bCache").onclick = async () => {
   await Promise.all([worker(),worker(),worker(),worker()]);
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
-const APP_VERSION="2026.11.13-g"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
+const APP_VERSION="2026.11.13-h"; $("appver").textContent="Version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
