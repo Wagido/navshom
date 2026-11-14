@@ -447,7 +447,7 @@ body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measur
 .grp{display:flex;flex-direction:column;background:var(--glass);border-radius:22px;box-shadow:var(--sh);overflow:hidden;backdrop-filter:blur(12px)}
 .g-b{width:44px;height:44px;border:0;background:transparent;color:var(--navy);font:400 24px/1 var(--sans);display:grid;place-items:center;cursor:pointer;padding:0;position:relative}
 .g-b+.g-b::before{content:"";position:absolute;left:10px;right:10px;top:0;height:1px;background:#E3E9EF}
-.g-b svg{width:20px;height:20px}
+.g-b svg{width:20px;height:20px} #compassNeedle{transition:transform .25s ease-out} #bCompass.on{background:#E8F0FB}
 .g-b.on{color:var(--merc)} body.rando .g-b.on{color:var(--sapin)}
 #bSlope.on{background:#FFF3E0;color:#E65100!important}
 #chip .gpsv{white-space:nowrap} #chip div{white-space:nowrap}
@@ -609,6 +609,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <button class="g-b" id="bZout" aria-label="Dézoomer">−</button>
     <button class="g-b" id="bLayers" aria-label="Cartes et couches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg></button>
     <button class="g-b rando-only" id="bSlope" aria-label="Pentes de plus de 30°" title="Pentes > 30°"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20h18L3 6z"/><path d="M8 20a6 6 0 0 0-1.5-4"/></svg></button>
+    <button class="g-b" id="bCompass" aria-label="Orienter la carte" title="Nord en haut / carte orientée"><svg viewBox="0 0 24 24" id="compassNeedle"><path d="M12 2 15.5 12h-7z" fill="#E5372B"/><path d="M12 22 8.5 12h7z" fill="#9AA8B8"/><circle cx="12" cy="12" r="1.6" fill="#fff"/></svg></button>
     <button class="g-b on" id="bFollow" aria-label="Centrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small id="followLbl" hidden>Bateau</small></button>
   </div>
   <div id="scale">—</div>
@@ -1117,6 +1118,7 @@ function onPos(p){
   updateMob(); updateRoute(); if(ov.data) drawTimeline();
   if(!$("sPoint").hidden && pointMode==="gps") showGps();
   if(typeof instTick==="function" && instOn) instTick();
+  if(typeof headTick==="function" && (ROT.on || headCone)) headTick();
 }
 function onErr(e){ $("gpsdot").className="gps bad"; $("acc").textContent = e.code===1 ? "refusé" : "—"; if(e.code===1) toast("Autorisez la localisation pour ce site", 5000); }
 // le suivi GPS est démarré par geoStart() (navigateur, ou natif en arrière-plan dans l'APK)
@@ -3004,8 +3006,47 @@ function geoAt(ll){ const grp=RANDO_OVL.geol; if(!map.hasLayer(grp)) return null
   return out; }
 RANDO_OVL.geol.eachLayer(l=>l.on("load", ()=>{ clearTimeout(geoT); geoT=setTimeout(geoScan,300); }));
 RANDO_OVL.forest.on("load", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,300); });
+/* ================= Boussole et rotation de la carte (maison, sans dépendance) ================= */
+const ROT={on:false, bearing:0, heading:null, src:null};
+const mapEl=map.getContainer(), ctlEl=mapEl.querySelector(".leaflet-control-container");
+function rotLayout(){ const w=innerWidth, h=innerHeight;
+  if(!ROT.on){ mapEl.style.cssText=""; ctlEl.style.cssText=""; map.invalidateSize(); return; }
+  const d=Math.ceil(Math.hypot(w,h));
+  Object.assign(mapEl.style,{inset:"auto", width:d+"px", height:d+"px", left:((w-d)/2)+"px", top:((h-d)/2)+"px"});
+  Object.assign(ctlEl.style,{position:"absolute", left:((d-w)/2)+"px", top:((d-h)/2)+"px", width:w+"px", height:h+"px"});
+  map.invalidateSize(); applyBearing(); }
+function applyBearing(){ const b=ROT.on?ROT.bearing:0;
+  mapEl.style.transform = ROT.on ? `rotate(${-b}deg)` : ""; ctlEl.style.transform = ROT.on ? `rotate(${b}deg)` : "";
+  $("compassNeedle").style.transform=`rotate(${-b}deg)`; }
+// les gestes : on ramène les coordonnées écran dans le repère de la carte tournée
+const _m2c=map.mouseEventToContainerPoint.bind(map);
+map.mouseEventToContainerPoint=function(e){ if(!ROT.on) return _m2c(e);
+  const r=mapEl.getBoundingClientRect(), x=e.clientX-(r.left+r.width/2), y=e.clientY-(r.top+r.height/2), a=ROT.bearing*Math.PI/180, c=Math.cos(a), sn=Math.sin(a);
+  return L.point(x*c-y*sn+mapEl.offsetWidth/2, x*sn+y*c+mapEl.offsetHeight/2); };
+map.dragging._draggable.on("predrag", function(){ if(!ROT.on) return; const d=this, o=d._newPos.subtract(d._startPos), a=ROT.bearing*Math.PI/180, c=Math.cos(a), sn=Math.sin(a);
+  d._newPos=d._startPos.add(L.point(o.x*c-o.y*sn, o.x*sn+o.y*c)); });
+addEventListener("resize", ()=>{ if(ROT.on) rotLayout(); });
+// cap : boussole du téléphone (rando, ou bateau à l'arrêt), sinon route GPS
+function onOrient(e){ let h=null; if(e.webkitCompassHeading!=null) h=e.webkitCompassHeading; else if(e.absolute && e.alpha!=null) h=360-e.alpha; if(h==null || isNaN(h)) return;
+  h=(h+((screen.orientation&&screen.orientation.angle)||0)+360)%360;
+  ROT.heading = ROT.heading==null ? h : (ROT.heading + (((h-ROT.heading+540)%360)-180)*0.25 + 360)%360; ROT.src="compass"; headTick(); }
+let orientOn=false; async function orientStart(){ if(orientOn) return; orientOn=true;
+  try{ if(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission==="function"){ const r=await DeviceOrientationEvent.requestPermission(); if(r!=="granted"){ toast("Boussole refusée"); } } }catch(e){}
+  if("ondeviceorientationabsolute" in window) addEventListener("deviceorientationabsolute", onOrient); else addEventListener("deviceorientation", onOrient); }
+let headCone=null, headT=0;
+function headTick(){ if(Date.now()-headT<120) return; headT=Date.now();
+  const moving = sogNow!=null && sogNow>(R()?1.2:1.5), cog=parseFloat($("cog").textContent);
+  const hd = (!R() && moving && isFinite(cog)) ? cog : ROT.heading;
+  if(last && ROT.heading!=null && R()){ const html=`<svg viewBox="-60 -60 120 120" width="120" height="120" style="transform:rotate(${ROT.heading}deg)"><path d="M0 0 L-26 -54 A60 60 0 0 1 26 -54 Z" fill="rgba(29,111,184,.22)"/></svg>`;
+    if(!headCone) headCone=L.marker(last.ll,{icon:L.divIcon({className:"",iconSize:[120,120],iconAnchor:[60,60],html}),interactive:false,zIndexOffset:900}).addTo(map);
+    else { headCone.setLatLng(last.ll); const el=headCone.getElement(); if(el) el.innerHTML=html; } }
+  if(ROT.on && hd!=null){ ROT.bearing=hd; applyBearing(); } }
+$("bCompass").onclick=async()=>{ if(ROT.on){ ROT.on=false; ROT.bearing=0; rotLayout(); applyBearing(); $("bCompass").classList.remove("on"); toast("Nord en haut"); return; }
+  await orientStart(); ROT.on=true; $("bCompass").classList.add("on"); rotLayout(); setFollow(true); if(last) map.panTo(last.ll);
+  toast(R()?"Carte orientée dans le sens de la marche (boussole)":"Carte orientée selon la route du bateau",3000); headTick(); };
+if(R()) setTimeout(()=>{ if(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission!=="function") orientStart(); }, 2000);
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-r"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-s"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
