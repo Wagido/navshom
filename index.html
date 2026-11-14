@@ -924,6 +924,9 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
       <div class="btnrow"><button class="pill primary" id="bCache2">Télécharger une zone</button></div>
       <div class="wplist" id="zoneList"></div>
       <p class="note" id="zoneNote">Sans réseau, les cartes des zones téléchargées s'affichent normalement.</p>
+      <div class="rando-only"><h3>Relief 3D par massif</h3>
+      <p class="note" style="margin:0 0 4px">Vue 3D sans réseau dans tout le massif, en couleurs d'altitude (relief IGN au pas de 25 m environ). La photo et la carte restent à télécharger par zone.</p>
+      <div class="wplist" id="massifList"></div></div>
     </div></details>
   <details class="card mer-only" id="cAis"><summary><span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 18 20 12 16 6 20Z"/></svg></span><span class="ct">AIS · navires autour<small>Clé gratuite aisstream.io</small></span><span class="chev">›</span></summary>
     <div class="cb">
@@ -1029,9 +1032,10 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div id="v3Status" hidden></div>
   <div class="v3-card">
     <div class="v3-seg" role="group" aria-label="Fond de la vue 3D">
-      <button data-t="ortho" aria-pressed="true">Photo</button>
-      <button data-t="scan" aria-pressed="false">Carte IGN</button>
-      <button id="v3Slope" aria-pressed="false">Pentes &gt; 30°</button>
+      <button data-t="relief" aria-pressed="false" title="Couleurs d'altitude, sans données à télécharger">Relief</button>
+      <button data-t="ortho" aria-pressed="true" title="Photo aérienne IGN">Photo</button>
+      <button data-t="scan" aria-pressed="false" title="Carte IGN 1:25 000">Carte</button>
+      <button id="v3Slope" aria-pressed="false" title="Pentes de plus de 30°">Pentes</button>
     </div>
     <div class="v3-ctl">
       <label for="v3Exag">Relief</label><input type="range" id="v3Exag" min="1" max="3" step="0.1" value="1.3"><output id="v3ExagO">1,3×</output>
@@ -2831,13 +2835,64 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
       try{ await wxDownload(zn); toast("Météo enregistrée pour 3 jours"); }catch(e){ toast("Météo indisponible (réseau ou limite Open-Meteo)"); } renderZones(); };
     row.querySelector('[data-a=del]').onclick=async()=>{ if(!confirm("Supprimer « "+zn.name+" » du téléphone ?")) return;
       zones=zones.filter(z=>z.id!==zn.id); store.set("zones",zones); renderZones(); delete WXOFF[zn.id]; try{ (await caches.open("navshom-wx")).delete(wxKey(zn.id)); }catch(e){}
-      const keep=new Set(); zones.forEach(z=>zoneUrls(z).forEach(u=>keep.add(u)));
+      const keep=new Set(); zones.forEach(z=>zoneUrls(z).forEach(u=>keep.add(u))); Object.keys(mInst).forEach(id=>massifUrls(id).forEach(u=>keep.add(u)));
       try{ const c=await caches.open("navshom-tiles"); await Promise.all(zoneUrls(zn).filter(u=>!keep.has(u)).map(u=>c.delete(u))); }catch(e){}
       toast("Zone supprimée"); usageNote(); };
     el.appendChild(row); });
   usageNote(); }
 async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
 renderZones();
+/* ---- Paquets de relief par massif (relief/<id>.bin.gz, préparés par tools-relief.js) ---- */
+// Le paquet est décompressé sur le téléphone et chaque tuile est rangée dans navshom-tiles sous son adresse WMS :
+// la vue 3D la trouve comme si elle venait du réseau.
+let massifs = null, mInst = store.get("massifs", {});
+async function massifLoad(){ if(massifs && massifs.length) return massifs; try{ massifs = await (await fetch("relief/massifs.json", {cache:"no-cache"})).json(); }catch(e){ massifs = []; } return massifs; }
+function massifUrls(id){ const m = mInst[id], out = []; if(!m) return out; for(let y=0;y<m.ny;y++) for(let x=0;x<m.nx;x++) out.push(v3DemUrl(m.x0+x, m.y0+y)); return out; }
+async function massifInstall(m, btn){
+  if(!("DecompressionStream" in window) || !("caches" in window)) return toast("Ce navigateur ne permet pas les paquets de relief");
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+  btn.disabled = true; btn.textContent = "0 %";
+  try{
+    const r = await fetch("relief/"+m.id+".bin.gz", {cache:"no-cache"}); if(!r.ok) throw new Error(r.status);
+    const total = m.kb*1024, rd = r.body.getReader(), chunks = []; let got = 0;
+    for(;;){ const {done, value} = await rd.read(); if(done) break; chunks.push(value); got += value.length; btn.textContent = Math.min(99, Math.round(90*got/total))+" %"; }
+    let blob = new Blob(chunks); const head = new Uint8Array(await blob.slice(0, 2).arrayBuffer());
+    if(head[0]===0x1f && head[1]===0x8b) blob = await new Response(blob.stream().pipeThrough(new DecompressionStream("gzip"))).blob();
+    const buf = await blob.arrayBuffer(), u8 = new Uint8Array(buf), dv = new DataView(buf);
+    if(String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) !== "BRL1") throw new Error("format");
+    const x0 = dv.getUint16(4, true), y0 = dv.getUint16(6, true), nx = dv.getUint16(8, true), ny = dv.getUint16(10, true), P = V3DP;
+    const c = await caches.open("navshom-tiles"); let o = 12, n = 0;
+    for(let ty=0; ty<ny; ty++) for(let tx=0; tx<nx; tx++){
+      if(!u8[o++]) continue;
+      const t = new Int16Array(buf.slice(o, o+P*P*2)), f = new Float32Array(P*P); o += P*P*2;
+      for(let j=0;j<P;j++){ let prev = null; for(let i=0;i<P;i++){ const k = j*P+i, v = t[k];
+        if(v === -32768){ f[k] = -99999; prev = null; } else { prev = prev===null ? v : prev+v; f[k] = prev; } } }
+      await c.put(v3DemUrl(x0+tx, y0+ty), new Response(f.buffer, {headers:{"Content-Type":"image/x-bil;bits=32"}}));
+      if(++n % 20 === 0) btn.textContent = (90+Math.round(10*n/m.tiles))+" %"; }
+    mInst[m.id] = {x0, y0, nx, ny, n, d:new Date().toISOString()}; store.set("massifs", mInst);
+    toast("Relief « "+m.name+" » enregistré : vue 3D sans réseau dans le massif", 4000);
+  }catch(e){ toast("Téléchargement du relief impossible ("+e.message+")"); }
+  renderMassifs(); usageNote();
+}
+async function massifDelete(m){
+  const keep = new Set(); zones.forEach(z => zoneUrls(z).forEach(u => keep.add(u)));
+  Object.keys(mInst).filter(id => id !== m.id).forEach(id => massifUrls(id).forEach(u => keep.add(u)));
+  try{ const c = await caches.open("navshom-tiles"); await Promise.all(massifUrls(m.id).filter(u => !keep.has(u)).map(u => c.delete(u))); }catch(e){}
+  delete mInst[m.id]; store.set("massifs", mInst); renderMassifs(); usageNote(); toast("Relief « "+m.name+" » supprimé");
+}
+async function renderMassifs(){ const el = $("massifList"), list = await massifLoad(); el.innerHTML = "";
+  if(!list.length){ el.innerHTML = '<p class="note" style="margin:4px 0">Liste des massifs indisponible (réseau ?).</p>'; return; }
+  list.forEach(m => { const row = document.createElement("div"), inst = mInst[m.id];
+    row.innerHTML = '<span style="flex:1;min-width:0"><b></b><small style="display:block;color:var(--muted);font-size:12px"></small></span><button data-a="see">Voir</button><button data-a="go"></button>';
+    row.querySelector("b").textContent = m.name;
+    row.querySelector("small").textContent = inst ? "Enregistré le "+new Date(inst.d).toLocaleDateString("fr-FR")+" · "+Math.round(inst.n*64/1024)+" Mo sur le téléphone"
+      : (m.kb/1024).toFixed(1).replace(".", ",")+" Mo à télécharger · "+Math.round(m.tiles*64/1024)+" Mo sur le téléphone";
+    const go = row.querySelector('[data-a=go]'); go.textContent = inst ? "Supprimer" : "Télécharger"; if(inst) go.style.color = "#C62828";
+    go.onclick = () => inst ? (confirm("Supprimer le relief « "+m.name+" » du téléphone ?") && massifDelete(m)) : massifInstall(m, go);
+    row.querySelector('[data-a=see]').onclick = () => { closeSheets(); const b = L.latLngBounds([m.b[0], m.b[1]], [m.b[2], m.b[3]]); setFollow(false); map.fitBounds(b);
+      const r = L.rectangle(b, {color:"#2E7D32", weight:2, dashArray:"6 6", fill:false, interactive:false}).addTo(map); setTimeout(() => map.removeLayer(r), 4000); };
+    el.appendChild(row); }); }
+$("cOff").addEventListener("toggle", () => { if($("cOff").open && R()) renderMassifs(); });
 /* ================= Instruments (gros chiffres à la barre) ================= */
 var instOn=false, xteWarnT=0;
 function instOpen(){ instOn=true; $("inst").hidden=false; instTick(); if(!tbl.f) loadTable().then(instTick).catch(()=>{}); }
@@ -3221,6 +3276,7 @@ function v3ZoneUrls(b){ const out = [], lat = b.getCenter().lat, dy = .045, dx =
   const dem = out.length; r = v3Tiles(v3Proj(b), 14); for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) out.push(v3TileUrl(bases.ortho, 14, x, y));
   out.dem = dem; return out; }
 async function v3Pool(items, n, fn){ let i = 0; await Promise.all(Array.from({length:n}, async () => { while(i < items.length){ const k = i++; await fn(items[k]); } })); }
+async function v3Cached(u){ try{ return await (await caches.open("navshom-tiles")).match(u); }catch(e){ return null; } }
 async function v3Fetch(url, sig){ const r = await fetch(url, {signal:sig}); if(!r.ok) throw new Error("IGN "+r.status); return r; }
 async function v3Bitmap(url, sig){ const b = await (await v3Fetch(url, sig)).blob(); if(!/^image\//.test(b.type)) throw new Error("image"); return createImageBitmap(b); }
 function v3Prog(what, done, n){ const t = what+" "+Math.round(100*done/n)+" %"; if(V3.mesh) v3Tip(t); else if(V3.open) $("v3Status").textContent = "Chargement · "+t; }
@@ -3230,7 +3286,7 @@ async function v3Dem(sig){
   for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) list.push([x, y]);
   let done = 0, got = 0;
   await v3Pool(list, 4, async ([x, y]) => {
-    try{ const a = new Float32Array(await (await v3Fetch(v3DemUrl(x, y), sig)).arrayBuffer());
+    try{ const u = v3DemUrl(x, y), hit = await v3Cached(u), a = new Float32Array(await (hit || await v3Fetch(u, sig)).arrayBuffer());
       if(a.length >= P*P){ got++; const ox = (x-r.x0)*P, oy = (y-r.y0)*P; for(let j=0;j<P;j++) M.set(a.subarray(j*P, j*P+P), (oy+j)*W+ox); }
     }catch(e){ if(e.name==="AbortError") throw e; }
     v3Prog("relief", ++done, list.length); });
@@ -3286,12 +3342,15 @@ async function open3D(){
   v3Status("Chargement du relief IGN…");
   try{
     const sig = V3.abort.signal;
-    const alt = V3.pref.tex==="scan" ? "ortho" : "scan";  // fond indisponible (ex. hors ligne) : on essaie l'autre
     const [h] = await Promise.all([v3Dem(sig), v3Lib()]);
-    await v3Img(V3.pref.tex, sig).catch(e => { if(e.name==="AbortError") throw e; return v3Img(alt, sig).then(() => { V3.pref.tex = alt; }); }).catch(e => { if(e.name==="AbortError") throw e; });
+    // fond indisponible (ex. hors ligne hors zone téléchargée) : on essaie l'autre, sinon couleurs d'altitude
+    V3.tex = V3.pref.tex;
+    if(V3.tex !== "relief"){ const alt = V3.tex==="scan" ? "ortho" : "scan";
+      await v3Img(V3.tex, sig).catch(e => { if(e.name==="AbortError") throw e; return v3Img(alt, sig).then(() => { V3.tex = alt; }); })
+        .catch(e => { if(e.name==="AbortError") throw e; V3.tex = "relief"; if(V3.pref.tex !== "relief") V3.noTex = true; }); }
     if(V3.pref.slope) await v3Img("slope", sig).catch(() => null);
     if(!V3.open) return;
-    v3Heights(h); v3Build(); v3Prefs(); v3Status(null);
+    v3Heights(h); v3Build(); v3Prefs(); v3Status(null); if(V3.noTex){ V3.noTex = false; v3Tip("Pas de photo ici hors ligne : couleurs d'altitude"); }
   }catch(e){
     if(!V3.open || e.name==="AbortError") return;
     v3Status(/relief|Zone/i.test(e.message) ? e.message : "Relief IGN indisponible ("+e.message+").", true);
@@ -3357,7 +3416,7 @@ function v3Lines(){
   return out;
 }
 function v3Paint(){
-  const g = V3.cv.getContext("2d"), T = V3T, base = V3.img[V3.pref.tex] || V3.img.ortho || V3.img.scan;
+  const g = V3.cv.getContext("2d"), T = V3T, base = V3.tex==="relief" ? (V3.img.relief || (V3.img.relief = v3Hypso())) : V3.img[V3.tex];
   g.fillStyle = "#e9edf1"; g.fillRect(0, 0, T, T);
   if(base) g.drawImage(base, 0, 0, T, T);
   if(V3.pref.slope && V3.img.slope){ g.globalAlpha = .6; g.drawImage(V3.img.slope, 0, 0, T, T); g.globalAlpha = 1; }
@@ -3372,6 +3431,17 @@ function v3Paint(){
     if(ln.dash) xy.forEach(p => { g.beginPath(); g.arc(p[0], p[1], 5*k, 0, 7); g.fillStyle = "#0b2f5b"; g.fill(); g.lineWidth = 2.5*k; g.strokeStyle = "#fff"; g.stroke(); });
   }
   V3.tex.needsUpdate = true; V3.dirty = true;
+}
+// Couleurs d'altitude (fond « Relief ») : calculées sur le téléphone à partir du relief, aucune donnée à télécharger
+const V3HY = [[0,[150,190,120]],[600,[178,206,132]],[1200,[222,220,160]],[1700,[214,190,140]],[2200,[186,158,124]],[2700,[160,148,140]],[3100,[205,205,208]],[3600,[245,246,250]]];
+function v3Hypso(){
+  const N = V3N, cv = document.createElement("canvas"), sm = document.createElement("canvas"); sm.width = sm.height = N;
+  const g = sm.getContext("2d"), im = g.createImageData(N, N), H = V3.h;
+  for(let i=0;i<N*N;i++){ const h = H[i]; let k = 1; while(k < V3HY.length-1 && h > V3HY[k][0]) k++;
+    const [h0, c0] = V3HY[k-1], [h1, c1] = V3HY[k], f = Math.max(0, Math.min(1, (h-h0)/(h1-h0)));
+    for(let c=0;c<3;c++) im.data[i*4+c] = c0[c] + (c1[c]-c0[c])*f; im.data[i*4+3] = 255; }
+  g.putImageData(im, 0, 0); cv.width = cv.height = V3T; const cg = cv.getContext("2d"); cg.imageSmoothingQuality = "high"; cg.drawImage(sm, 0, 0, V3T, V3T); sm.width = 0;
+  return cv;
 }
 // Repères et position GPS : étiquettes HTML posées sur le relief, estompées quand une crête les cache
 const V3PIN = '<svg viewBox="0 0 24 24"><path d="M12 1a7 7 0 0 0-7 7c0 5 7 15 7 15s7-10 7-15a7 7 0 0 0-7-7z" fill="#0b63b6" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="8" r="2.6" fill="#fff"/></svg>';
@@ -3416,13 +3486,13 @@ function close3D(){
   $("v3d").hidden = true; $("b3d").classList.remove("on"); $("v3Labels").innerHTML = ""; $("v3Status").hidden = true; removeEventListener("resize", v3Resize);
   if(V3.renderer){ V3.ctl.dispose(); V3.mesh.geometry.dispose(); V3.mesh.material.dispose(); V3.tex.dispose(); V3.renderer.dispose(); V3.renderer.forceContextLoss(); V3.renderer.domElement.remove(); }
   for(const k in (V3.img||{})) V3.img[k].width = 0;  // libère la mémoire des canvas
-  Object.assign(V3, {renderer:null, sun:null, ctl:null, scene:null, mesh:null, tex:null, cv:null, h:null, img:{}, labels:[]});
+  Object.assign(V3, {tex:null, renderer:null, sun:null, ctl:null, scene:null, mesh:null, tex:null, cv:null, h:null, img:{}, labels:[]});
 }
 // Réglages : fond, pentes, exagération, soleil (mémorisés)
 function v3Sun(){ if(!V3.sun) return; const a = V3.pref.sun*Math.PI/180, S = V3.S; V3.sun.position.set(Math.sin(a)*S, S*.8, -Math.cos(a)*S); V3.dirty = true; }
 function v3Prefs(){
   const P = V3.pref; store.set("v3", P);
-  document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t===P.tex));
+  document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t===(V3.tex || P.tex)));
   $("v3Slope").setAttribute("aria-pressed", P.slope);
   $("v3Exag").value = P.exag; $("v3ExagO").textContent = v3Fmt(P.exag)+"×";
   $("v3Sun").value = P.sun; $("v3SunO").textContent = v3Dir(P.sun);
@@ -3430,10 +3500,10 @@ function v3Prefs(){
     : "Glisser : tourner · pincer : zoomer · deux doigts : déplacer · toucher : altitude";
   v3Sun();
 }
-async function v3Need(key){ if(V3.img[key] || !V3.mesh) return true;
+async function v3Need(key){ if(key==="relief" || V3.img[key] || !V3.mesh) return true;
   v3Tip("Chargement…"); try{ await v3Img(key, V3.abort.signal); return true; }catch(e){ if(V3.open) v3Tip(key==="scan" ? "Carte IGN indisponible" : "Image IGN indisponible"); return false; } }
 document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.onclick = async () => {
-  const t = b.dataset.t; if(!(await v3Need(t)) || !V3.open) return; V3.pref.tex = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
+  const t = b.dataset.t; if(!(await v3Need(t)) || !V3.open) return; V3.pref.tex = V3.tex = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
 $("v3Slope").onclick = async () => { const on = !V3.pref.slope; if(on && !(await v3Need("slope"))) return; if(!V3.open) return; V3.pref.slope = on; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; };
 $("v3Exag").oninput = e => { V3.pref.exag = +e.target.value; $("v3ExagO").textContent = v3Fmt(V3.pref.exag)+"×";
   if(V3.mesh && !V3.exT) V3.exT = requestAnimationFrame(() => { V3.exT = 0; const t = V3.ctl.target, y0 = t.y; v3ApplyH(); const ny = v3Y(v3H(t.x/V3.S+.5, t.z/V3.S+.5)); V3.cam.position.y += ny-y0; t.y = ny; }); };
@@ -3447,7 +3517,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.16-z"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-a"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
