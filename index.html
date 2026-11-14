@@ -461,6 +461,8 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
 body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 /* Panneau météo : tableau façon « Prévisions détaillées », choix de la couche en touchant une ligne */
 #tChips,#tTblBtn{display:none!important}
+#tbar .sunl{position:sticky;left:0;display:flex;gap:20px;padding:2px 10px 8px;font:500 13px var(--sans);color:#4A5D73}
+#tbar .sunl span{display:flex;align-items:center;gap:6px} #tbar .sunl b{color:#0B2F5B;font-weight:700} #tbar .sunl svg{width:18px;height:18px}
 #tbar .tbl table{font:600 14px var(--sans);font-variant-numeric:tabular-nums;color:#0B2F5B}
 #tbar .tbl th{min-width:84px;max-width:84px;padding:4px 6px 4px 10px;background:#F7F9FB;border-right:1px solid #E8EDF2;font:600 12.5px var(--sans);color:#0B2F5B;line-height:1.15;white-space:normal}
 #tbar .tbl th small{display:block;font:500 10.5px var(--sans);color:#6B7C90}
@@ -554,7 +556,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <button id="tFold" aria-expanded="false"><span class="fold-bar"></span><span id="tFoldTxt">Détails ︿</span></button>
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
-  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">Prévisions</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">✕</button></div>
+  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">✕</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
   <div class="tbl" id="tTbl" hidden></div>
@@ -611,8 +613,8 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div id="meteoMsg">Chargement de la météo…</div>
   <div id="meteoBody" hidden>
     <div class="sun" id="mtSun"></div>
-    <div class="hwrap"><div class="legend"><span style="height:12px"></span><span style="height:16px"></span><span style="height:34px">Ciel</span><span style="height:18px">Temp.</span><span style="height:42px">Vent<small>nœuds</small></span><span style="height:42px">Pluie<small>mm</small></span><span style="height:42px">Pression<small>hPa</small></span><span class="mer-only" style="height:42px">Vagues<small>m</small></span><span class="mer-only" style="height:42px">Houle<small>m</small></span><span class="mer-only" style="height:42px">Courant<small>nœuds</small></span><span class="mer-only" style="height:42px">Marée<small>m</small></span><span class="rando-only" style="height:42px">Neige<small>cm</small></span><span class="rando-only" style="height:42px">Iso 0 °C<small>m</small></span></div><div class="hours" id="mtHours"></div></div>
     <div class="days" id="mtDays"></div>
+    <div class="hwrap"><div class="legend"><span style="height:12px"></span><span style="height:16px"></span><span style="height:34px">Ciel</span><span style="height:18px">Temp.</span><span style="height:42px">Vent<small>nœuds</small></span><span style="height:42px">Pluie<small>mm</small></span><span style="height:42px">Pression<small>hPa</small></span><span class="mer-only" style="height:42px">Vagues<small>m</small></span><span class="mer-only" style="height:42px">Houle<small>m</small></span><span class="mer-only" style="height:42px">Courant<small>nœuds</small></span><span class="mer-only" style="height:42px">Marée<small>m</small></span><span class="rando-only" style="height:42px">Neige<small>cm</small></span><span class="rando-only" style="height:42px">Iso 0 °C<small>m</small></span></div><div class="hours" id="mtHours"></div></div>
     <div class="cmp"><h3>Vent : comparer les modèles</h3><p class="mdl" id="mtModel"></p>
       <div id="cmpWrap"><canvas id="cmpGraph"></canvas></div><div class="cvleg" id="cmpLeg"></div>
       <p class="note" style="padding:0">Quand les modèles sont d'accord, la prévision est fiable. S'ils divergent, prudence.</p></div>
@@ -736,9 +738,8 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     style="flex:1;min-width:0;font:15px var(--sans);padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--white);color:var(--ink)"></div>
   <div class="wplist" id="qRes"></div>
   <label class="opt mer-only" for="spot"><div style="flex:1">Aller à<small>Côtes de France et îles Anglo-Normandes</small></div><select id="spot"></select></label>
-  <h3>Prévisions</h3>
-  <div class="btnrow"><button class="pill primary" id="bMeteo">Prévisions détaillées (48 h, 7 jours)</button></div>
-  <label class="opt" for="menuModel"><div style="flex:1">Modèle météo<small>Vent, température, pression, pluie</small></div><select id="menuModel"></select></label>
+  <div hidden><button id="bMeteo"></button></div>
+  <label class="opt" hidden for="menuModel"><div style="flex:1">Modèle météo<small>Vent, température, pression, pluie</small></div><select id="menuModel"></select></label>
   <div class="rando-only">
     <h3>Montagne et ski de rando</h3>
     <p class="note">Carte des pentes : panneau Cartes ou bouton Pentes. Calques « Neige au sol », « Chute de neige » et « Iso 0 °C » dans le bouton Météo. Touchez la carte pour l'altitude, la pente et l'exposition d'un point.</p>
@@ -1251,7 +1252,7 @@ async function loadTable(force){
   if(!force && tbl.f && tbl.ll && map.distance(tbl.ll,ll)<8000 && tbl.model===model) return renderTable();
   if(tbl.loading) return; tbl.loading=true; tbl.ll=ll; tbl.model=model;
   const la=ll.lat.toFixed(3), lo=ll.lng.toFixed(3);
-  const fu=`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=temperature_2m,weather_code,is_day,precipitation,cloud_cover,visibility,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,snowfall,freezing_level_height&wind_speed_unit=kn&timezone=auto&forecast_days=3`;
+  const fu=`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=temperature_2m,weather_code,is_day,precipitation,cloud_cover,visibility,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,snowfall,freezing_level_height&daily=sunrise,sunset&wind_speed_unit=kn&timezone=auto&forecast_days=3`;
   try{
     const [f,m]=await Promise.all([
       getJSON(fu+(model!=="best_match"?`&models=${model}`:"")).catch(()=>getJSON(fu)),
@@ -1299,6 +1300,7 @@ function renderTable(){
           return cell(i, v==null?"":`<div class="wc" style="${bg(OVT.cur,v,.45)}">${dc(v)}</div>`); },"","cur");
   }
   html+='</table>';
+  const dd=tbl.f.daily; if(dd && dd.sunrise) html='<div class="sunl"><span><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#ffc83d"/></svg>Lever <b>'+dd.sunrise[0].slice(11,16)+'</b></span><span><svg viewBox="0 0 48 48"><path d="M28 8a14 14 0 1 0 12 20 11 11 0 0 1-12-20z" fill="#9AA8B8"/></svg>Coucher <b>'+dd.sunset[0].slice(11,16)+'</b></span></div>'+html;
   const el=$("tTbl"), keep=el.scrollLeft, first=!el.dataset.ready; el.innerHTML=html; el.dataset.ready=1;
   el.scrollLeft = first ? 0 : keep;
   fixTl();
@@ -2533,7 +2535,7 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
 async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
 renderZones();
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-o"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-p"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
