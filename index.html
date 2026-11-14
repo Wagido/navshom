@@ -390,6 +390,12 @@ body.night #sMenu .card{background:#1a0000;border-color:#3a1010} body.night .hb{
 .forleg span{display:flex;align-items:center;gap:6px;line-height:1.2}
 .forleg i{flex:none;width:12px;height:12px;border-radius:3px;border:1px solid rgba(11,47,91,.15)}
 .forleg small{display:block;margin-top:8px;color:var(--muted)}
+#forFloat{position:fixed;z-index:950;left:calc(var(--sl) + 12px);bottom:calc(var(--sb) + 96px);max-width:min(70vw,300px);background:rgba(255,255,255,.95);border-radius:14px;box-shadow:0 6px 18px rgba(11,47,91,.18);padding:8px 10px;display:flex;flex-direction:column;gap:4px;font:500 12.5px var(--sans);color:#0B2F5B;pointer-events:none}
+#forFloat[hidden]{display:none}
+#forFloat b{font:600 10.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:#6B7C90}
+#forFloat span{display:flex;align-items:center;gap:7px} #forFloat i{flex:none;width:12px;height:12px;border-radius:3px;border:1px solid rgba(11,47,91,.15)}
+#forFloat em{margin-left:auto;padding-left:8px;font-style:normal;color:#6B7C90;font-variant-numeric:tabular-nums}
+body:has(#tbar:not([hidden])) #forFloat, body.dlmode #forFloat, body.measuring #forFloat{display:none}
 #dlFrame{position:fixed;z-index:900;pointer-events:none;border:2.5px dashed #FF7A00;border-radius:14px;box-shadow:0 0 0 9999px rgba(11,47,91,.28)}
 #dlBar{position:fixed;z-index:1300;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 16px);
   background:rgba(255,255,255,.97);color:var(--navy,#0B2F5B);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.25);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-family:var(--sans)}
@@ -795,8 +801,6 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <label class="mapc mer-only"><input type="radio" name="base" value="emod"><img alt="" loading="lazy"><span>Profondeurs<small>Bathymétrie EMODnet</small></span></label>
     <label class="mapc rando-only"><input type="radio" name="base" value="topo"><img alt="" loading="lazy"><span>OpenTopoMap<small>Topo, ombrage, toute l'Europe</small></span></label>
     <label class="mapc rando-only"><input type="radio" name="base" value="ign1950"><img alt="" loading="lazy"><span>Carte IGN 1950<small>Le terrain il y a 75 ans</small></span></label>
-    <label class="mapc rando-only"><input type="radio" name="base" value="ortho50"><img alt="" loading="lazy"><span>Photos 1950-1965<small>Glaciers, forêts d'avant</small></span></label>
-    <label class="mapc rando-only"><input type="radio" name="base" value="etatmaj"><img alt="" loading="lazy"><span>État-major<small>Carte 1820-1866</small></span></label>
     <label class="mapc "><input type="radio" name="base" value="osm"><img alt="" loading="lazy"><span>OpenStreetMap<small>Carte collaborative</small></span></label>
     <label class="mapc mer-only"><input type="radio" name="base" value="shom"><img alt="" loading="lazy"><span>Cartes SHOM<small>Avec votre clé SHOM</small></span></label>
   </div>
@@ -808,6 +812,8 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <label class="opt"><input type="checkbox" id="shadeChk"><div>Ombrage du relief (IGN)<small>Crêtes et vallées en relief sur la carte</small></div></label>
     <label class="opt"><input type="checkbox" id="autoSat"><div>Photos aériennes au zoom maximal<small>Au-delà du détail du 1:25 000, bascule sur les photos, puis revient</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="trails"><div>Sentiers balisés GR, PR<small>Itinéraires de randonnée officiels (Waymarked Trails)</small></div></label>
+    <label class="opt"><input type="checkbox" class="ovl" data-k="geol"><div>Géologie (BRGM)<small>Nature des roches : 1:1 000 000 à 1:50 000 selon le zoom</small></div></label>
+    <p class="note" id="geolNote" hidden style="margin:-4px 0 8px">Chaque couleur est une formation géologique. La légende détaillée de chaque feuille est sur <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">infoterre.brgm.fr</a> (toucher la carte à l'endroit voulu).</p>
     <label class="opt"><input type="checkbox" class="ovl" data-k="contour"><div>Courbes de niveau (IGN)<small>Utile sur les photos aériennes</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="cadastre"><div>Cadastre (parcelles)<small>Limites de propriété, à partir du zoom 14</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="forest"><div>Forêts (IGN)<small>Types de peuplements</small></div></label>
@@ -928,6 +934,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   </div>
 </div>
 <div id="updBar" hidden role="status"><span>Nouvelle version <b id="updVer"></b> disponible</span><button id="updGo">Mettre à jour</button></div>
+<div id="forFloat" hidden></div>
 <div id="dlFrame" hidden></div>
 <div id="dlBar" hidden>
   <div class="dl-t" id="dlTitle">Cadrez la zone à emporter</div>
@@ -1012,8 +1019,6 @@ const bases = {
   scan25:L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS","image/jpeg",true), {maxZoom:18, maxNativeZoom:16, bounds:FRANCE, attribution:"© IGN"}),
   topo:  L.tileLayer("https://tile.opentopomap.org/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:17, bounds:FRANCE, attribution:"© OpenTopoMap (CC-BY-SA), © OpenStreetMap"}),
   ign1950: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN50.1950","image/jpeg"), {maxZoom:18, minNativeZoom:3, maxNativeZoom:15, bounds:FRANCE, attribution:"© IGN · carte 1950"}),
-  etatmaj: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.ETATMAJOR40","image/jpeg"), {maxZoom:18, minNativeZoom:6, maxNativeZoom:15, bounds:FRANCE, attribution:"© IGN · carte d'État-major (1820-1866)"}),
-  ortho50: L.tileLayer(geopf("ORTHOIMAGERY.ORTHOPHOTOS.1950-1965","image/png"), {maxZoom:19, maxNativeZoom:18, bounds:FRANCE, attribution:"© IGN · photos 1950-1965"}),
   emod:  L.tileLayer("https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:12, bounds:FRANCE, attribution:"© EMODnet Bathymetry"})
 };
 const slopes = L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN","image/png"), {maxZoom:19, maxNativeZoom:17, opacity:.45, bounds:FRANCE, attribution:"Pentes © IGN"});
@@ -2653,7 +2658,7 @@ function tileRange(b,z){ const n=2**z, x=lng=>Math.floor((lng+180)/360*n),
   y=lat=>{ const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n); };
   return {x0:x(b.getWest()),x1:x(b.getEast()),y0:y(b.getNorth()),y1:y(b.getSouth())}; }
 /* Zones téléchargées : on enregistre toutes les tuiles des couches affichées, du zoom 6 au détail maximal du fond */
-const TILE_KB={ign1950:30,etatmaj:25,ortho50:45,litto:30,scan25:38,ign:22,ortho:30,emod:12,shom:30,gebco:10,shade:14,slopes:6,seamarks:2}, DL_MAX=9000;
+const TILE_KB={ign1950:30,litto:30,scan25:38,ign:22,ortho:30,emod:12,shom:30,gebco:10,shade:14,slopes:6,seamarks:2}, DL_MAX=9000;
 const OVL={shade, slopes, seamarks};
 let zones=store.get("zones",[]), dl=null, dlQ=0;
 const lyOf=k=>bases[k]||OVL[k];
@@ -2674,7 +2679,7 @@ function dlBounds(){ const f=$("dlFrame").getBoundingClientRect(), m=map.getCont
 function dlLayout(){ const top=$("colTL").getBoundingClientRect().bottom+14, bot=$("dlBar").getBoundingClientRect().top-14, f=$("dlFrame").style;
   const side=Math.max(18, innerWidth>700 ? innerWidth*0.12 : 18), rt=innerWidth>700?side:Math.max(side,$("colTR").getBoundingClientRect().width+26);
   f.top=top+"px"; f.left=side+"px"; f.right=rt+"px"; f.height=Math.max(80,bot-top)+"px"; }
-const NAMES={ign1950:"carte IGN 1950",etatmaj:"État-major",ortho50:"photos 1950",litto:"carte marine",scan25:"IGN 1:25 000",ign:"plan IGN",ortho:"photos aériennes",emod:"profondeurs",shom:"cartes SHOM",gebco:"GEBCO",shade:"relief",slopes:"pentes",seamarks:"balisage"};
+const NAMES={ign1950:"carte IGN 1950",litto:"carte marine",scan25:"IGN 1:25 000",ign:"plan IGN",ortho:"photos aériennes",emod:"profondeurs",shom:"cartes SHOM",gebco:"GEBCO",shade:"relief",slopes:"pentes",seamarks:"balisage"};
 function dlEstimate(){ if(!dl || dl.running) return; const b=dlBounds(), ks=dlKeys(), e=$("dlEst"), go=$("dlGo");
   if(curBase==="osm"||curBase==="topo"){ e.className="dl-s warn"; e.textContent=(curBase==="osm"?"OpenStreetMap":"OpenTopoMap")+" interdit le téléchargement en masse : choisissez un autre fond (bouton Cartes)."; go.disabled=true; return; }
   let n=0, kb=0; ks.forEach(k=>{ const c=tilesIn(b,k,dlQ); n+=c; kb+=c*(TILE_KB[k]||20); });
@@ -2931,13 +2936,35 @@ const RANDO_OVL={
   trails:  L.tileLayer("https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png", {maxZoom:19, maxNativeZoom:17, zIndex:420, opacity:.85, attribution:'Sentiers © <a href="https://hiking.waymarkedtrails.org" target="_blank" rel="noopener">Waymarked Trails</a>, OSM'}),
   contour: L.tileLayer(geopf("ELEVATION.CONTOUR.LINE","image/png"), {maxZoom:19, maxNativeZoom:18, zIndex:410, bounds:FRANCE, attribution:"Courbes © IGN"}),
   cadastre:L.tileLayer(geopf("CADASTRALPARCELS.PARCELLAIRE_EXPRESS","image/png"), {minZoom:14, maxZoom:19, maxNativeZoom:19, zIndex:415, bounds:FRANCE, attribution:"Cadastre © IGN/DGFiP"}),
-  forest:  L.tileLayer(geopf("LANDCOVER.FORESTINVENTORY.V2","image/png"), {maxZoom:19, maxNativeZoom:16, zIndex:405, opacity:.55, bounds:FRANCE, attribution:"Forêts © IGN"})};
+  geol: L.layerGroup([
+    L.tileLayer(geopf("BRGM_SCAN_F_GEOL1M","image/jpeg"), {maxZoom:10, maxNativeZoom:11, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"}),
+    L.tileLayer(geopf("BRGM_SCAN_F_GEOL250","image/jpeg"), {minZoom:11, maxZoom:12, maxNativeZoom:14, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"}),
+    L.tileLayer(geopf("BRGM_SCAN_D_GEOL50","image/jpeg"), {minZoom:13, maxZoom:19, maxNativeZoom:15, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"})]),
+  forest:  L.tileLayer(geopf("LANDCOVER.FORESTINVENTORY.V2","image/png"), {crossOrigin:true, maxZoom:19, maxNativeZoom:16, zIndex:405, opacity:.55, bounds:FRANCE, attribution:"Forêts © IGN"})};
 function randoOvlApply(){ document.querySelectorAll("input.ovl").forEach(cb=>{ const ly=RANDO_OVL[cb.dataset.k]; cb.checked=store.get("ovl_"+cb.dataset.k,false);
-  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); if(cb.dataset.k==="forest") $("forLeg").hidden=!cb.checked; }); }
+  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); if(cb.dataset.k==="forest"){ $("forLeg").hidden=!cb.checked; if(!(cb.checked&&R())) $("forFloat").hidden=true; } if(cb.dataset.k==="geol") $("geolNote").hidden=!cb.checked; }); }
 document.querySelectorAll("input.ovl").forEach(cb=>cb.onchange=()=>{ store.set("ovl_"+cb.dataset.k,cb.checked); randoOvlApply(); });
 randoOvlApply();
+/* Légende dynamique des forêts : seulement les essences visibles à l'écran, avec leur part */
+const FOR_COL=["#E5C45D", "#008C4D", "#004D2E", "#668040", "#00FF80", "#40FF1C", "#915633", "#AFCA59", "#00D92F", "#8080FF", "#BF26FF", "#9926FF", "#4D33FF", "#FF1AFF", "#734DE6", "#A666FF", "#D999FF", "#1AE6E6", "#4D80FF", "#3399FF", "#00929F", "#59FFFF", "#404DFF", "#FF6633", "#FF4033", "#B3B3B3", "#CCFFBF", "#99B3CC", "#FFD138", "#FFFF00", "#FFE6BF", "#FFF9A5"], FOR_LAB=["Fermée, sans arbres (coupe)", "Feuillus en îlots", "Chênes à feuilles caduques", "Chênes verts", "Hêtre", "Châtaignier", "Robinier", "Autre feuillu", "Mélange de feuillus", "Conifères en îlots", "Pin maritime", "Pin sylvestre", "Pin laricio ou noir", "Pin d'Alep", "Pin à crochets ou cembro", "Autre pin", "Mélange de pins", "Sapin ou épicéa", "Mélèze", "Douglas", "Mélange d'autres conifères", "Autre conifère", "Mélange de conifères", "Mixte, feuillus dominants", "Mixte, conifères dominants", "Ouverte sans arbres", "Ouverte, feuillus", "Ouverte, conifères", "Ouverte, mixte", "Peupleraie", "Lande", "Formation herbacée"];
+const FOR_RGB=FOR_COL.map(h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)));
+let forT=null; const forCv=document.createElement("canvas"); forCv.width=forCv.height=64;
+function forScan(){ const box=$("forFloat"), ly=RANDO_OVL.forest; if(!R() || !map.hasLayer(ly)){ box.hidden=true; return; }
+  const cnt=new Array(FOR_COL.length).fill(0), g=forCv.getContext("2d",{willReadFrequently:true}), vb=map.getBounds(); let tot=0;
+  Object.values(ly._tiles||{}).forEach(t=>{ const im=t.el; if(!im || !im.complete || !im.naturalWidth) return;
+    const b=ly._tileCoordsToBounds(t.coords); if(!vb.intersects(b)) return;
+    try{ g.clearRect(0,0,64,64); g.drawImage(im,0,0,64,64); const d=g.getImageData(0,0,64,64).data;
+      for(let i=0;i<d.length;i+=4){ if(d[i+3]<128) continue; let best=-1, bd=60;
+        for(let k=0;k<FOR_RGB.length;k++){ const c=FOR_RGB[k], e=Math.abs(c[0]-d[i])+Math.abs(c[1]-d[i+1])+Math.abs(c[2]-d[i+2]); if(e<bd){ bd=e; best=k; } }
+        if(best>=0){ cnt[best]++; tot++; } } }catch(e){} });
+  if(!tot){ box.hidden=true; return; }
+  const top=cnt.map((n,k)=>[n,k]).filter(x=>x[0]/tot>=0.02).sort((a,b)=>b[0]-a[0]).slice(0,6);
+  box.innerHTML='<b>Forêts à l\'écran</b>'+top.map(([n,k])=>`<span><i style="background:${FOR_COL[k]}"></i>${FOR_LAB[k]}<em>${Math.round(n/tot*100)} %</em></span>`).join("");
+  box.hidden=false; }
+map.on("moveend zoomend", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,900); });
+RANDO_OVL.forest.on("load", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,300); });
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-l"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-n"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
