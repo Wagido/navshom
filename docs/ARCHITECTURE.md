@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.17-g · Dernière mise à jour : 16 novembre 2026
+> Statut : version 2026.11.17-h · Dernière mise à jour : 16 novembre 2026
 
 ## 1. Résumé
 
@@ -184,7 +184,7 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 - **Relief** : WMS Géoplateforme `ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES`, `image/x-bil;bits=32` (flottants 32 bits), demandé directement depuis le navigateur (CORS ouvert), **en tuiles fixes** : grille Web Mercator au zoom 13, 128 × 128 pixels (≈ 27 m à 45° N, 64 Ko par tuile). La vue assemble les tuiles qui couvrent la zone puis rééchantillonne sur sa grille. Valeurs aberrantes (hors −500…9 000 m) remplacées par la moyenne ; zone refusée si moins de 10 % de valeurs valides.
 - **Taille de la grille** : 256 × 256 sommets sur téléphone (écran tactile), 400 × 400 sur ordinateur, 192 si l'appareil annonce 2 Go de mémoire ou moins. Texture 2048 px (1024 sur petite mémoire). Rendu à la demande (seulement quand la vue bouge), densité de pixels limitée à 1,5 sur téléphone.
 - **Fond choisi tout seul à chaque ouverture** (`v3AutoBg`) : la carte IGN 1:25 000 (ou la photo) si le centre de la vue est dans une zone téléchargée, puisqu'elle est déjà sur le téléphone ; sinon « Relief », sans aucune donnée. Un toucher sur un autre fond vaut pour la vue en cours seulement. Un petit message indique le fond choisi.
-- **Fonds** : « Relief » (couleurs d'altitude calculées sur le téléphone à partir du relief : **aucune donnée** à télécharger), « Photo », « Carte » (1:25 000), et « Pentes » en superposition.
+- **Fonds** : « Relief » (calculé sur le téléphone à partir du relief : **aucune donnée** à télécharger ; image de 1024 px en ≈ 150 ms : couleurs d'altitude, absolues en haute montagne et étirées entre le point bas et le point haut ailleurs ; ombrage calculé dans l'image selon le soleil, renforcé si le terrain est doux ; courbes de niveau tous les 5, 10, 20, 50 ou 100 m selon le dénivelé, une sur cinq plus marquée). L'exagération se règle seule selon le dénivelé (3× sous 250 m, 1,3× au-delà de 1 200 m) tant que l'utilisateur n'a pas touché au curseur, « Photo », « Carte » (1:25 000), et « Pentes » en superposition.
 - **Texture** : un canvas 2D composé à partir des **mêmes tuiles WMTS que la carte** (photo, 1:25 000, pentes à 60 %), puis les lignes. Zoom 14 sur téléphone (≈ 10 m/pixel), 15 au plus sur ordinateur, un de moins en mode économe (réglage « Vue 3D économe en données », ou économiseur de données / réseau 2G-3G signalé par le navigateur). Tuile absente du cache : d'abord les tuiles plus détaillées déjà enregistrées (zoom +1 ou +2, assemblées si 75 % sont là), puis le réseau, puis la tuile parente (1 ou 2 niveaux) agrandie. Une vue de 30 km se compose ainsi de la photo z14 d'une zone téléchargée, sans réseau. Fond indisponible : on essaie l'autre, puis les couleurs d'altitude (message « Pas de photo ici hors ligne »). Hors ligne, les tuiles sont lues directement dans le cache, sans attendre le réseau ; en ligne, 20 s au plus par requête.
 - **Drapé** : la trace en cours (rose), la trace enregistrée affichée (violet, départ vert, arrivée rouge) et l'itinéraire mesuré sont **peints dans la texture** : ils épousent exactement le relief, sans calcul 3D. La trace en cours est repeinte toutes les 15 s. Les repères et la position GPS (« Vous », mise à jour en direct) sont des étiquettes HTML projetées ; elles s'estompent quand une crête les cache (test de la ligne de visée sur la grille d'altitudes).
 - **Gestes** : un doigt pour tourner, pincer pour zoomer, deux doigts pour déplacer (souris : clic gauche, molette, clic droit). Toucher le relief donne l'altitude. Le bouton boussole remet le nord en haut.
@@ -328,6 +328,7 @@ Autres points :
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.17-h** : fond Relief lisible en plaine (courbes de niveau, ombrage, couleurs étirées, exagération automatique) ; message d'aide de la 3D qui passe à la ligne.
 - **2026.11.17-g** : bouton Enregistrer entier (barre sans découpe) ; bulle Pause / Terminer / Détails pendant la sortie.
 - **2026.11.17-f** : refonte de l'écran principal et des panneaux (bandeau Rando, bouton Enregistrer, point touché, météo sans réseau, menu Plus, hors ligne, panneau 3D).
 - **2026.11.17-e** : vue 3D jusqu'à 30 km quand le relief est sur le téléphone, bouton « Recentrer la 3D ici », cadrage entre le titre et le panneau.

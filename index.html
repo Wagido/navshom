@@ -588,7 +588,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 
 /* Vue 3D (Rando) : plein écran, relief IGN drapé */
 #b3d{font:700 13px/1 var(--sans);letter-spacing:-.01em} #b3d.on{color:var(--sapin)}
-#v3d{position:fixed;inset:0;z-index:5000;background:#F4F7FA;color:var(--navy);font-family:var(--sans);overflow:hidden;touch-action:none}
+#v3d{position:fixed;inset:0;max-width:100vw;z-index:5000;background:#F4F7FA;color:var(--navy);font-family:var(--sans);overflow:hidden;touch-action:none}
 #v3dScene{position:absolute;inset:0} #v3dScene canvas{display:block;width:100%;height:100%;touch-action:none}
 #v3Labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .v3-lb{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;white-space:nowrap;transition:opacity .2s}
@@ -606,7 +606,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 .v3-title span{display:block;font:500 12px var(--sans);color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #v3Status{position:absolute;z-index:2;left:50%;top:45%;transform:translate(-50%,-50%);max-width:calc(100% - 40px);background:#fff;border-radius:14px;box-shadow:0 4px 18px rgba(11,47,91,.2);padding:14px 18px;font:500 14px/1.4 var(--sans);color:var(--navy);text-align:center}
 #v3Status button{margin-top:10px;border:0;border-radius:10px;background:var(--sapin);color:#fff;font:600 14px var(--sans);padding:9px 16px;cursor:pointer}
-#v3Tip{position:absolute;z-index:2;left:50%;top:calc(var(--st) + 66px);transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:12px;padding:7px 12px;font:600 13px var(--sans);white-space:nowrap;pointer-events:none}
+#v3Tip{position:absolute;z-index:2;left:50%;top:calc(var(--st) + 66px);transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:12px;padding:7px 12px;font:600 13px var(--sans);width:max-content;max-width:calc(100vw - 32px);text-align:center;pointer-events:none}
 #v3Here{position:absolute;z-index:2;left:50%;transform:translateX(-50%);bottom:calc(var(--v3card,64px) + 18px);border:0;border-radius:20px;background:var(--sapin);color:#fff;font:600 14px var(--sans);padding:10px 16px;box-shadow:0 4px 14px rgba(11,47,91,.25);cursor:pointer;white-space:nowrap}
 .v3-card{position:absolute;z-index:2;left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 10px);max-width:460px;margin:0 auto;background:rgba(255,255,255,.96);border-radius:18px;box-shadow:0 6px 20px rgba(11,47,91,.18);padding:10px 12px 8px}
 .v3-seg{display:flex;gap:6px}
@@ -3528,6 +3528,7 @@ const v3X = u => (u-.5)*V3.S, v3Z = v => (v-.5)*V3.S, v3Y = m => (m-V3.h0)/1000*
 async function open3D(opt){
   if(V3.open) return; opt = opt && opt.c ? opt : null;
   if(!FRANCE.contains(opt ? opt.c : map.getCenter())){ toast("Vue 3D : France seulement (relief IGN)"); return; }
+  { const vp = document.querySelector('meta[name="viewport"]'); if(vp){ const c = vp.content; vp.content = c+",minimum-scale=1"; setTimeout(() => vp.content = c, 50); } } // annule un zoom de page resté actif
   V3.open = true; V3.bg = opt ? opt.bg : v3AutoBg(); V3.camKeep = opt && opt.cam; $("b3d").classList.add("on"); $("v3d").hidden = false; v3Prefs();
   const z = opt ? v3Zone(opt.c, opt.side) : v3Zone(); Object.assign(V3, z, { S: z.side/1000, img:{}, labels:[], abort:new AbortController() });
   $("v3Info").textContent = (z.side/1000).toLocaleString("fr-FR")+" × "+(z.side/1000).toLocaleString("fr-FR")+" km · chargement…";
@@ -3542,8 +3543,10 @@ async function open3D(opt){
         .catch(e => { if(e.name==="AbortError") throw e; V3.bg = "relief"; if(auto !== "relief") V3.noTex = true; }); }
     if(V3.pref.slope) await v3Img("slope", sig).catch(() => null);
     if(!V3.open) return;
-    v3Heights(h); v3Build(); v3Prefs(); v3Status(null); if(V3.noTex){ V3.noTex = false; v3Tip("Pas de photo ici hors ligne : couleurs d'altitude"); }
-    else v3Tip(V3.bg==="relief" ? "Fond Relief : aucune donnée · Photo et Carte à un toucher" : "Fond : "+(V3.bg==="scan"?"carte":"photo")+" de la zone téléchargée");
+    v3Heights(h);
+    if(!store.get("v3exUser", false)){ const rg = V3.h1-V3.h0; V3.pref.exag = rg<250 ? 3 : rg<600 ? 2.2 : rg<1200 ? 1.6 : 1.3; }
+    v3Build(); v3Prefs(); v3Status(null); if(V3.noTex){ V3.noTex = false; v3Tip("Pas de photo ici hors ligne : couleurs d'altitude"); }
+    else v3Tip(V3.bg==="relief" ? "Relief : courbes tous les "+(V3.step||"")+" m · relief exagéré "+v3Fmt(V3.pref.exag)+"×" : "Fond : "+(V3.bg==="scan"?"carte":"photo")+" de la zone téléchargée");
   }catch(e){
     if(!V3.open || e.name==="AbortError") return;
     v3Status(/relief|Zone|moteur/i.test(e.message) ? (/moteur/.test(e.message) ? "Le moteur 3D n'est pas encore sur le téléphone : ouvrez la vue 3D une fois avec du réseau." : e.message) : "Relief IGN indisponible ("+e.message+").", true);
@@ -3628,15 +3631,31 @@ function v3Paint(){
   V3.tex.needsUpdate = true; V3.dirty = true;
 }
 // Couleurs d'altitude (fond « Relief ») : calculées sur le téléphone à partir du relief, aucune donnée à télécharger
-const V3HY = [[0,[150,190,120]],[600,[178,206,132]],[1200,[222,220,160]],[1700,[214,190,140]],[2200,[186,158,124]],[2700,[160,148,140]],[3100,[205,205,208]],[3600,[245,246,250]]];
+const V3HY = [[0,[150,190,120]],[600,[178,206,132]],[1200,[222,220,160]],[1700,[214,190,140]],[2200,[186,158,124]],[2700,[160,148,140]],[3300,[200,198,200]],[3900,[245,246,250]]];
+// Le fond « Relief » doit se lire partout, plaine comprise : couleurs étirées sur l'altitude de la zone (hors haute
+// montagne), ombrage calculé dans l'image (renforcé si le terrain est doux) et courbes de niveau adaptées au dénivelé.
+const V3LOW = [[0,[96,148,84]],[.25,[148,188,108]],[.5,[214,214,150]],[.75,[212,182,128]],[1,[176,136,98]]];
 function v3Hypso(){
-  const N = V3N, cv = document.createElement("canvas"), sm = document.createElement("canvas"); sm.width = sm.height = N;
-  const g = sm.getContext("2d"), im = g.createImageData(N, N), H = V3.h;
-  for(let i=0;i<N*N;i++){ const h = H[i]; let k = 1; while(k < V3HY.length-1 && h > V3HY[k][0]) k++;
-    const [h0, c0] = V3HY[k-1], [h1, c1] = V3HY[k], f = Math.max(0, Math.min(1, (h-h0)/(h1-h0)));
-    for(let c=0;c<3;c++) im.data[i*4+c] = c0[c] + (c1[c]-c0[c])*f; im.data[i*4+3] = 255; }
+  const N = 1024, cv = document.createElement("canvas"), sm = document.createElement("canvas"); sm.width = sm.height = N;
+  const g = sm.getContext("2d"), im = g.createImageData(N, N), D = im.data, lo = V3.h0, rg = Math.max(1, V3.h1-V3.h0), alpine = V3.h1 > 1800;
+  const H = new Float32Array(N*N); for(let j=0;j<N;j++) for(let i=0;i<N;i++) H[j*N+i] = v3H(i/(N-1), j/(N-1));
+  const step = rg<150 ? 5 : rg<400 ? 10 : rg<1000 ? 20 : rg<2500 ? 50 : 100, px = V3.side/N, zf = rg<300 ? 3 : rg<800 ? 2 : 1.3;
+  const a = V3.pref.sun*Math.PI/180, el = 40*Math.PI/180, Lx = Math.sin(a)*Math.cos(el), Ly = -Math.cos(a)*Math.cos(el), Lz = Math.sin(el);
+  const ramp = (h, out) => { let st, f;
+    if(alpine){ let k = 1; while(k < V3HY.length-1 && h > V3HY[k][0]) k++; const [a0, c0] = V3HY[k-1], [a1, c1] = V3HY[k]; f = Math.max(0, Math.min(1, (h-a0)/(a1-a0))); st = [c0, c1]; }
+    else { const t = Math.max(0, Math.min(1, (h-lo)/rg)); let k = 1; while(k < V3LOW.length-1 && t > V3LOW[k][0]) k++; const [a0, c0] = V3LOW[k-1], [a1, c1] = V3LOW[k]; f = (t-a0)/(a1-a0); st = [c0, c1]; }
+    for(let c=0;c<3;c++) out[c] = st[0][c] + (st[1][c]-st[0][c])*f; };
+  const col = [0,0,0];
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+    const k = j*N+i, h = H[k], hx0 = H[j*N+Math.max(0,i-1)], hx1 = H[j*N+Math.min(N-1,i+1)], hy0 = H[Math.max(0,j-1)*N+i], hy1 = H[Math.min(N-1,j+1)*N+i];
+    const gx = (hx1-hx0)/(2*px)*zf, gy = (hy1-hy0)/(2*px)*zf, nl = Math.hypot(gx, gy, 1);
+    const sh = Math.max(0, (-gx*Lx - gy*Ly + Lz)/nl), lum = .5 + .62*sh;
+    ramp(h, col); let m = lum;
+    const lv = Math.floor(h/step), lr = i<N-1 ? Math.floor(H[k+1]/step) : lv, ld = j<N-1 ? Math.floor(H[k+N]/step) : lv;
+    if(lv !== lr || lv !== ld){ const top = Math.max(lv, lr, ld); m *= top % 5 === 0 ? .55 : .78; }
+    D[k*4] = Math.min(255, col[0]*m); D[k*4+1] = Math.min(255, col[1]*m); D[k*4+2] = Math.min(255, col[2]*m); D[k*4+3] = 255; }
   g.putImageData(im, 0, 0); cv.width = cv.height = V3T; const cg = cv.getContext("2d"); cg.imageSmoothingQuality = "high"; cg.drawImage(sm, 0, 0, V3T, V3T); sm.width = 0;
-  return cv;
+  V3.step = step; return cv;
 }
 // Repères et position GPS : étiquettes HTML posées sur le relief, estompées quand une crête les cache
 const V3PIN = '<svg viewBox="0 0 24 24"><path d="M12 1a7 7 0 0 0-7 7c0 5 7 15 7 15s7-10 7-15a7 7 0 0 0-7-7z" fill="#0b63b6" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="8" r="2.6" fill="#fff"/></svg>';
@@ -3704,9 +3723,9 @@ document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.onclick 
 $("v3Slope").onclick = async () => { const on = !V3.pref.slope; if(on && !(await v3Need("slope"))) return; if(!V3.open) return; V3.pref.slope = on; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; };
 $("v3Exag").oninput = e => { V3.pref.exag = +e.target.value; $("v3ExagO").textContent = v3Fmt(V3.pref.exag)+"×";
   if(V3.mesh && !V3.exT) V3.exT = requestAnimationFrame(() => { V3.exT = 0; const t = V3.ctl.target, y0 = t.y; v3ApplyH(); const ny = v3Y(v3H(t.x/V3.S+.5, t.z/V3.S+.5)); V3.cam.position.y += ny-y0; t.y = ny; }); };
-$("v3Exag").onchange = () => store.set("v3", V3.pref);
+$("v3Exag").onchange = () => { store.set("v3exUser", true); store.set("v3", V3.pref); };
 $("v3Sun").oninput = e => { V3.pref.sun = +e.target.value; $("v3SunO").textContent = v3Dir(V3.pref.sun); v3Sun(); };
-$("v3Sun").onchange = () => store.set("v3", V3.pref);
+$("v3Sun").onchange = () => { store.set("v3", V3.pref); if(V3.img && V3.img.relief){ V3.img.relief.width = 0; V3.img.relief = null; if(V3.bg==="relief" && V3.cv) v3Paint(); } };
 $("v3North").onclick = () => { if(!V3.ctl) return; const t = V3.ctl.target, c = V3.cam.position, d = c.distanceTo(t), pol = V3.ctl.getPolarAngle();
   c.set(t.x, t.y + d*Math.cos(pol), t.z + d*Math.sin(pol)); V3.ctl.update(); V3.dirty = true; };
 $("v3Close").onclick = close3D;
@@ -3723,7 +3742,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-g"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-h"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
