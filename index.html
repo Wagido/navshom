@@ -459,6 +459,27 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
 #sMeteo .maptiles button{background:#F4F7FA;border:1px solid #E3E9EF}
 #sMeteo #meteoMsg{color:#4A5D73}
 body.night #sMeteo{background:#1a0000;color:#ff5a4a}
+/* Panneau météo : tableau façon « Prévisions détaillées », choix de la couche en touchant une ligne */
+#tChips,#tTblBtn{display:none!important}
+#tbar .tbl table{font:600 14px var(--sans);font-variant-numeric:tabular-nums;color:#0B2F5B}
+#tbar .tbl th{min-width:84px;max-width:84px;padding:4px 6px 4px 10px;background:#F7F9FB;border-right:1px solid #E8EDF2;font:600 12.5px var(--sans);color:#0B2F5B;line-height:1.15;white-space:normal}
+#tbar .tbl th small{display:block;font:500 10.5px var(--sans);color:#6B7C90}
+#tbar .tbl th[data-k]{cursor:pointer}
+#tbar .tbl th .onmap{display:block;font:600 9.5px var(--sans);font-style:normal;color:#E65100;margin-top:1px}
+#tbar .tbl tr.lay th{color:#E65100;background:#FFF4E8} #tbar .tbl tr.lay td{background:rgba(255,122,0,.05)}
+#tbar .tbl td{min-width:44px;height:36px;padding:0 2px;border-left:1px solid #F0F3F6}
+#tbar .tbl tr.hh td{font:600 12px var(--sans);color:#4A5D73;height:24px}
+#tbar .tbl tr.dayr td span{font:600 11.5px var(--sans);color:#6B7C90}
+#tbar .tbl tr.dayr th{background:#fff;font:600 11.5px var(--sans);color:#6B7C90}
+#tbar .tbl .wc{border-radius:7px;padding:5px 0;color:#0B2F5B;font-weight:700}
+#tbar .tbl .wc.rn{background:#E3F0FF;color:#0B5CAD} #tbar .tbl .wc.sn{background:#E1F5FE;color:#0B5CAD}
+#tbar .tbl .z{color:#B8C4D0}
+#tbar .tbl svg.wx{width:24px;height:24px}
+#tbar .tbl td.sel{box-shadow:inset 0 0 0 9999px rgba(255,122,0,.12)} #tbar .tbl td.now{box-shadow:inset 0 0 0 9999px rgba(46,125,50,.07)}
+#tbar .tbl td.night{background:rgba(11,47,91,.03)}
+.tog{background:#fff;color:#4A5D73;border:1px solid #DCE4EC} .tog.on{background:#E8F0FB;color:#0B2F5B;border-color:#1D6FB8}
+.trow select{border:1px solid #DCE4EC;background:#fff}
+#sMeteo{overflow-x:hidden}
 </style>
 </head>
 <body>
@@ -1215,13 +1236,13 @@ $("tFold").onclick=()=>setFold($("tbar").classList.contains("mini"));
 setTimeout(()=>setFold(store.get("tbarOpen",false)));
 $("tFcst").onclick=()=>openMeteo(null);
 /* ---- Tableau heure par heure, repliable ---- */
-const tbl={ll:null,f:null,m:null,model:null,open:store.get("tblOpen",false),loading:false};
+const tbl={ll:null,f:null,m:null,model:null,open:true,loading:false}; // le tableau est toujours affiché quand le panneau est déplié
 function crowdCheck(){ // un panneau haut ne doit pas recouvrir le groupe de commandes : on le réduit au zoom
   document.body.classList.remove("crowded","crowded2");
   const panel=[$("tbar"),$("measure")].find(e=>e && !e.hidden); if(!panel) return;
   const top=panel.getBoundingClientRect().top, mob=$("colBL").getBoundingClientRect();
   if(top < $("colTR").getBoundingClientRect().bottom+8) document.body.classList.add("crowded");
-  if(mob.height && mob.bottom > top-4) document.body.classList.add("crowded2"); }
+  if(mob.height && (mob.bottom > top-4 || mob.top < $("colTL").getBoundingClientRect().bottom+4)) document.body.classList.add("crowded2"); }
 const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); };
 $("tTblBtn").onclick=()=>{ tbl.open=!tbl.open; store.set("tblOpen",tbl.open); if(tbl.open) loadTable(); renderTable(); if(!tbl.open) drawTimeline(); };
 async function loadTable(force){
@@ -1251,36 +1272,38 @@ function renderTable(){
   let days='<tr class="dayr"><th>'+mname+'</th>'+cols.map((i,n)=>{ const t=h.time[i], hr=+t.slice(11,13);
     const lab=(n===0||hr===0)?new Date(t.slice(0,10)+"T12:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}):"";
     return `<td class="${hr===0?"d0":""}">${lab?`<span>${lab}</span>`:""}</td>`; }).join("")+'</tr>';
-  const row=(label,fn,cls="",key="")=>`<tr class="${cls}${key&&key===ov.type?" lay":""}"><th>${label}</th>${cols.map(fn).join("")}</tr>`;
+  const row=(label,fn,cls="",key="")=>{ const [nm,un]=label.split("|"), on=key&&key===ov.type;
+    return `<tr class="${cls}${on?" lay":""}"><th${key?` data-k="${key}" title="Afficher sur la carte"`:""}>${nm}${un?`<small>${un}</small>`:""}${on?'<i class="onmap">sur la carte</i>':""}</th>${cols.map(fn).join("")}</tr>`; };
   const num=(v,d=0)=>v==null?"":(+v).toFixed(d);
   let html='<table>'+days
-    +row("Heure",i=>cell(i,h.time[i].slice(11,13)),"hh")
+    +row("Heure",i=>cell(i,h.time[i].slice(11,13)+"h"),"hh")
     +row("Ciel",i=>cell(i,wxIcon(h.weather_code[i],h.is_day[i])))
-    +row("Temp. °C",i=>cell(i,Math.round(h.temperature_2m[i])),"","temp")
-    +row("Pluie mm",i=>{ const r=h.precipitation[i]; return cell(i, r>=0.1?`<div class="wc" style="${bg(OVT.rain,r,.9)};color:#fff">${r<1?r.toFixed(1):Math.round(r)}</div>`:""); },"","rain")
-    +row("Nuages %",i=>cell(i,num(h.cloud_cover&&h.cloud_cover[i])),"","cloud")
-    +row("Visib. km",i=>cell(i,h.visibility&&h.visibility[i]!=null?(h.visibility[i]>=10000?"10+":(h.visibility[i]/1000).toFixed(1)):""),"","vis")
-    +row("Pression",i=>cell(i,`<span style="font-size:10px">${num(h.pressure_msl&&h.pressure_msl[i])}</span>`),"","press")
-    +row("Vent nd",i=>cell(i,`<div class="wc" style="${bg(OVT.wind,h.wind_speed_10m[i],1)}">${Math.round(h.wind_speed_10m[i])}</div>`),"","wind")
-    +row("Rafales",i=>cell(i,`<div class="wc" style="${bg(OVT.wind,h.wind_gusts_10m[i],.6)}">${Math.round(h.wind_gusts_10m[i])}</div>`),"","gust")
+    +row("Temp.|°C",i=>cell(i,Math.round(h.temperature_2m[i])),"","temp")
+    +row("Pluie|mm",i=>{ const r=h.precipitation[i]; return cell(i, r>=0.1?`<div class="wc rn">${r<1?r.toFixed(1).replace(".",","):Math.round(r)}</div>`:'<span class="z">–</span>'); },"","rain")
+    +row("Nuages|%",i=>cell(i,num(h.cloud_cover&&h.cloud_cover[i])),"","cloud")
+    +row("Visibilité|km",i=>cell(i,h.visibility&&h.visibility[i]!=null?(h.visibility[i]>=10000?"10+":(h.visibility[i]/1000).toFixed(1)):""),"","vis")
+    +row("Pression|hPa",i=>cell(i,num(h.pressure_msl&&h.pressure_msl[i])),"","press")
+    +row("Vent|nœuds",i=>cell(i,`<div class="wc" style="${bg(OVT.wind,h.wind_speed_10m[i],.5)}">${Math.round(h.wind_speed_10m[i])}</div>`),"","wind")
+    +row("Rafales|nœuds",i=>cell(i,`<div class="wc" style="${bg(OVT.wind,h.wind_gusts_10m[i],.35)}">${Math.round(h.wind_gusts_10m[i])}</div>`),"","gust")
     +row("Direction",i=>cell(i,`<span class="ar" title="${compass(h.wind_direction_10m[i])}">${arrowSvg((h.wind_direction_10m[i]+180)%360,"#0B2F5B")}</span>`));
   if(R()){
-    html+=row("Neige cm",i=>{ const v=h.snowfall?h.snowfall[i]:null; return cell(i, v>=0.1?`<div class="wc" style="${bg(OVT.snowf,v,.95)}">${v<1?v.toFixed(1):Math.round(v)}</div>`:""); },"","snowf")
-        +row("Iso 0 °C",i=>{ const v=h.freezing_level_height?h.freezing_level_height[i]:null; return cell(i, v==null?"":`<span style="font-size:10px">${Math.round(v/50)*50}</span>`); },"","frz");
+    html+=row("Neige|cm",i=>{ const v=h.snowfall?h.snowfall[i]:null; return cell(i, v>=0.1?`<div class="wc sn">${v<1?v.toFixed(1).replace(".",","):Math.round(v)}</div>`:'<span class="z">–</span>'); },"","snowf")
+        +row("Iso 0 °C|m",i=>{ const v=h.freezing_level_height?h.freezing_level_height[i]:null; return cell(i, v==null?"":Math.round(v/50)*50); },"","frz");
   }
   if(!R() && !hm) html+=`<tr><th>Mer</th><td colspan="${cols.length}" style="text-align:left;padding-left:6px;color:var(--slate)">Point à terre : déplacez la carte sur la mer pour vagues et courant</td></tr>`;
   if(hm && !R()){
-    html+=row("Vagues m",i=>{ const j=mi(h.time[i]), v=j>=0?hm.wave_height[j]:null; return cell(i, v==null?"":v.toFixed(1)); },"","wave")
-        +row("Houle m",i=>{ const j=mi(h.time[i]), v=j>=0&&hm.swell_wave_height?hm.swell_wave_height[j]:null; return cell(i, v==null?"":v.toFixed(1)); },"","swell")
-        +row("Courant nd",i=>{ const j=mi(h.time[i]), v=j>=0&&hm.ocean_current_velocity[j]!=null?hm.ocean_current_velocity[j]/1.852:null;
-          return cell(i, v==null?"":`<div class="wc" style="${bg(OVT.cur,v,.95)}">${v.toFixed(1)}</div>`); },"","cur");
+    const dc=v=>v.toFixed(1).replace(".",",");
+    html+=row("Vagues|m",i=>{ const j=mi(h.time[i]), v=j>=0?hm.wave_height[j]:null; return cell(i, v==null?"":dc(v)); },"","wave")
+        +row("Houle|m",i=>{ const j=mi(h.time[i]), v=j>=0&&hm.swell_wave_height?hm.swell_wave_height[j]:null; return cell(i, v==null?"":dc(v)); },"","swell")
+        +row("Courant|nœuds",i=>{ const j=mi(h.time[i]), v=j>=0&&hm.ocean_current_velocity[j]!=null?hm.ocean_current_velocity[j]/1.852:null;
+          return cell(i, v==null?"":`<div class="wc" style="${bg(OVT.cur,v,.45)}">${dc(v)}</div>`); },"","cur");
   }
   html+='</table>';
   const el=$("tTbl"), keep=el.scrollLeft, first=!el.dataset.ready; el.innerHTML=html; el.dataset.ready=1;
   el.scrollLeft = first ? 0 : keep;
   fixTl();
 }
-$("tTbl").addEventListener("click", e=>{ const td=e.target.closest("td[data-t]"); if(!td||!ov.data) return; const k=ov.data[0].time.indexOf(td.dataset.t); if(k>=0) setHour(k); });
+$("tTbl").addEventListener("click", e=>{ const th=e.target.closest("th[data-k]"); if(th){ const k=th.dataset.k; if(OVT[k] && ov.type!==k) setOverlay(k); return; } const td=e.target.closest("td[data-t]"); if(!td||!ov.data) return; const k=ov.data[0].time.indexOf(td.dataset.t); if(k>=0) setHour(k); });
 $("tNums").classList.toggle("on", ov.nums);
 $("tNums").onclick=()=>{ ov.nums=!ov.nums; store.set("nums",ov.nums); $("tNums").classList.toggle("on",ov.nums); drawField(); };
 
@@ -2510,7 +2533,7 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
 async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
 renderZones();
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-n"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-o"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
