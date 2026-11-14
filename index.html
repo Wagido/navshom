@@ -2847,6 +2847,14 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
   usageNote(); }
 async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
 renderZones();
+// Ménage unique : les tuiles mises en cache en « opaque » par les anciennes versions gonflaient l'espace affiché
+// (plusieurs Mo comptés par tuile). On les retire, sauf SHOM (sans CORS) et celles des zones téléchargées ; elles
+// reviennent en version lisible à la prochaine consultation avec du réseau.
+setTimeout(async () => { if(store.get("v_purgeOpaque", false) || !("caches" in window) || !navigator.onLine) return;
+  try{ const keep = new Set(); zones.forEach(z => zoneUrls(z).forEach(u => keep.add(u)));
+    const c = await caches.open("navshom-tiles"), ks = await c.keys(); let n = 0;
+    for(const rq of ks){ if(keep.has(rq.url) || /services\.data\.shom\.fr/.test(rq.url)) continue; const r = await c.match(rq); if(r && r.type === "opaque"){ await c.delete(rq); n++; } }
+    store.set("v_purgeOpaque", true); if(n) usageNote(); }catch(e){} }, 8000);
 /* ---- Paquets de relief par massif (relief/<id>.bin.gz, préparés par tools-relief.js) ---- */
 // Le paquet est décompressé sur le téléphone et chaque tuile est rangée dans navshom-tiles sous son adresse WMS :
 // la vue 3D la trouve comme si elle venait du réseau.
@@ -3291,8 +3299,9 @@ function v3ZoneCount(b){ const lat = b.getCenter().lat, dy = .045, dx = .045/Mat
 async function v3Pool(items, n, fn){ let i = 0; await Promise.all(Array.from({length:n}, async () => { while(i < items.length){ const k = i++; await fn(items[k]); } })); }
 async function v3Cached(u){ try{ return await (await caches.open("navshom-tiles")).match(u); }catch(e){ return null; } }
 // Hors ligne : cache seulement (réponse immédiate) ; en ligne : réseau avec 20 s au plus par requête
-async function v3Fetch(url, sig){
-  if(!navigator.onLine){ const hit = await v3Cached(url); if(hit) return hit; throw new Error("hors ligne"); }
+async function v3Fetch(url, sig){ // ce qui est déjà sur le téléphone (zones, massifs, carte déjà vue) ne repasse jamais par le réseau
+  const hit = await v3Cached(url); if(hit && hit.type !== "opaque") return hit;
+  if(!navigator.onLine) throw new Error("hors ligne");
   const r = await Promise.race([fetch(url, {signal:sig}), new Promise((_, rej) => setTimeout(() => rej(new Error("délai dépassé")), 20000))]);
   if(!r.ok) throw new Error("IGN "+r.status); return r; }
 async function v3Bitmap(url, sig){ const b = await (await v3Fetch(url, sig)).blob(); if(!/^image\//.test(b.type)) throw new Error("image"); return createImageBitmap(b); }
@@ -3303,7 +3312,7 @@ async function v3Dem(sig){
   for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) list.push([x, y]);
   let done = 0, got = 0;
   await v3Pool(list, 4, async ([x, y]) => {
-    try{ const u = v3DemUrl(x, y), hit = await v3Cached(u), a = new Float32Array(await (hit || await v3Fetch(u, sig)).arrayBuffer());
+    try{ const a = new Float32Array(await (await v3Fetch(v3DemUrl(x, y), sig)).arrayBuffer());
       if(a.length >= P*P){ got++; const ox = (x-r.x0)*P, oy = (y-r.y0)*P; for(let j=0;j<P;j++) M.set(a.subarray(j*P, j*P+P), (oy+j)*W+ox); }
     }catch(e){ if(e.name==="AbortError") throw e; }
     v3Prog("relief", ++done, list.length); });
@@ -3534,7 +3543,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-b"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-c"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */

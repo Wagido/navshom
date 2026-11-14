@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.17-b · Dernière mise à jour : 16 novembre 2026
+> Statut : version 2026.11.17-c · Dernière mise à jour : 16 novembre 2026
 
 ## 1. Résumé
 
@@ -250,7 +250,7 @@ Trois étages se trouvent entre le serveur et l'écran :
 1. **GitHub Pages** republie le site à chaque `git push`, avec une copie autorisée de 10 minutes dans le navigateur.
 2. **Service worker** (`sw.js`) :
    - pour l'app, *réseau d'abord*, avec `fetch(…, {cache:"no-cache"})` pour passer outre la copie de 10 minutes ; la copie locale ne sert que sans réseau ;
-   - pour les tuiles, *cache d'abord* ;
+   - pour les tuiles, *cache d'abord*. Les tuiles sont demandées **en CORS**, même pour les images de la carte : la réponse est lisible (réutilisée telle quelle par la vue 3D) et comptée à sa vraie taille. Une réponse « opaque » (sans CORS) compte pour plusieurs Mo dans le quota de Chrome : l'espace affiché grimpait à des dizaines de Go. Seul le SHOM, sans CORS, reste en opaque. Un ménage unique retire les anciennes tuiles opaques, sauf SHOM et zones téléchargées ;
    - l'enregistrement se fait avec `updateViaCache:"none"`.
 3. **La page déjà ouverte** : un onglet resté en mémoire ne redemande rien. `checkUpdate()` relit `index.html` sur le serveur au retour sur l'appli et toutes les 30 minutes, compare `APP_VERSION`, puis affiche le bandeau « Nouvelle version disponible · Mettre à jour ».
 
@@ -313,6 +313,7 @@ Autres points :
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.17-c** : tuiles en cache en CORS (fin de l'espace utilisé gonflé, 3D réutilisant la carte déjà vue sans réseau) ; la vue 3D lit d'abord le cache.
 - **2026.11.17-b** : zone hors ligne possible avec OpenStreetMap affiché (carte IGN emportée à la place) ; option 3D limitée aux zones raisonnables.
 - **2026.11.17-a** : paquets de relief par massif (vue 3D hors ligne), fond « Relief » en couleurs d'altitude.
 - **2026.11.16-z** : vue 3D en tuiles fixes mises en cache, option « Vue 3D » des zones hors ligne, mode économe en données.
