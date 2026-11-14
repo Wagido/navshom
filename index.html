@@ -726,6 +726,8 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="stats" style="grid-template-columns:1fr 1fr"><div><b>Distance à l'ancre</b><span id="anDist">—</span></div><div><b>Rayon d'évitage</b><span id="anRv">40 m</span></div></div>
   <label class="opt" for="anR" style="border:0"><input type="range" id="anR" min="15" max="200" step="5" value="40" style="width:100%;accent-color:var(--blue)"></label>
   <div class="btnrow"><button class="pill primary" id="anSet">⚓ Mouiller ici</button><button class="pill danger" id="anClear" hidden>Lever l'ancre</button><button class="pill" id="anCenter">Voir l'ancre</button></div>
+  <div class="btnrow"><button class="pill" id="anTest">🔔 Tester l'alarme (3 s)</button></div>
+  <p class="note">Pour être réveillé : volume <b>multimédia</b> monté, téléphone branché et appli ouverte (« Garder l'écran allumé »). En mode silencieux, seule la vibration et la notification passent.</p>
   <p class="note">L'alarme sonne et vibre si le bateau sort du cercle, et prévient si le GPS ne répond plus. Rayon conseillé : longueur de chaîne + longueur du bateau. Faites glisser l'icône d'ancre si elle est tombée plus loin. Dans l'APK, la surveillance continue écran éteint ; dans le navigateur, gardez l'écran allumé.</p>
 </section>
 
@@ -2009,17 +2011,24 @@ let notifAsked=false;
 async function notify(title, body){
   if(navigator.vibrate) navigator.vibrate([400,150,400,150,400]);
   if(LNotif){ try{ if(!notifAsked){ notifAsked=true; await LNotif.requestPermissions(); }
-    await LNotif.schedule({notifications:[{id:Math.floor(Math.random()*1e6), title, body}]}); return; }catch(e){} }
+    if(!notify.ch){ notify.ch=true; try{ await LNotif.createChannel({id:"alarm", name:"Alarmes de navigation", description:"Mouillage, route, collision", importance:5, visibility:1, vibration:true}); }catch(e){} }
+    await LNotif.schedule({notifications:[{id:Math.floor(Math.random()*1e6), title, body, channelId:"alarm"}]}); return; }catch(e){} }
   try{ if("Notification" in window && Notification.permission==="granted") new Notification(title,{body}); }catch(e){}
 }
 let audioCtx=null, beepT=null;
 function alarmSound(on){
   clearInterval(beepT); beepT=null; if(!on) return;
   try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; }
-  const beep=()=>{ try{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type="square"; o.frequency.value=880; g.gain.value=.25;
-    o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+.35); }catch(e){} };
-  beep(); beepT=setInterval(beep, 900);
+  try{ audioCtx.resume(); }catch(e){}
+  // sirène deux tons, forte : 880 Hz puis 1320 Hz
+  const tone=(f,t0,d)=>{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type="square"; o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.9,t0+0.02); g.gain.setValueAtTime(0.9,t0+d-0.03); g.gain.exponentialRampToValueAtTime(0.0001,t0+d);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0+d); };
+  const beep=()=>{ try{ const t=audioCtx.currentTime; tone(880,t,0.3); tone(1320,t+0.32,0.3); }catch(e){} };
+  beep(); beepT=setInterval(beep, 800);
 }
+const unlockAudio=()=>{ try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); }catch(e){} };
+["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev, unlockAudio, {passive:true}));
 function showAlarm(msg){ $("alarmMsg").textContent=msg; $("alarm").hidden=false; }
 function hideAlarm(){ $("alarm").hidden=true; alarmSound(false); }
 
@@ -2069,6 +2078,8 @@ $("anSet").onclick = () => { if(!last) return toast("Pas encore de position GPS"
   try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); }catch(e){}
   if(LNotif) LNotif.requestPermissions().catch(()=>{});
   toast("Ancre mouillée. Déplacez l'icône d'ancre si elle est tombée plus loin.", 5000); };
+$("anTest").onclick = () => { unlockAudio(); alarmSound(true); if(navigator.vibrate) navigator.vibrate([500,200,500]); setTimeout(()=>alarmSound(false),3000);
+  notify("⚓ Test de l'alarme", "Si vous entendez et voyez ceci, l'alarme fonctionne."); };
 $("anClear").onclick = () => { anchor=null; store.set("anchor",null); anchorAlarmOn=false; hideAlarm(); drawAnchor(); renderAnchor(); toast("Ancre levée"); };
 $("anCenter").onclick = () => { if(anchor){ setFollow(false); map.setView([anchor.lat,anchor.lng], 17); closeSheets(); } };
 $("alarmStop").onclick = () => { anchorSnooze=Date.now()+3*60e3; anchorAlarmOn=false; hideAlarm(); drawAnchor(); renderAnchor(); toast("Alarme coupée 3 minutes"); };
@@ -2076,7 +2087,7 @@ function anchorTick(ll, c){
   lastFixT=Date.now(); if(!anchor) return;
   const d=map.distance(ll,[anchor.lat,anchor.lng]), out = d > anchor.r && c.accuracy < 60;
   if(out && Date.now()>anchorSnooze){
-    if(!anchorAlarmOn){ anchorAlarmOn=true; drawAnchor(); notify("⚓ Alarme de mouillage", "Le bateau est à "+Math.round(d)+" m de l'ancre (rayon "+anchor.r+" m)"); }
+    if(!anchorAlarmOn || Date.now()-(anchorTick.n||0)>30e3){ anchorTick.n=Date.now(); anchorAlarmOn=true; drawAnchor(); notify("⚓ Alarme de mouillage", "Le bateau est à "+Math.round(d)+" m de l'ancre (rayon "+anchor.r+" m)"); }
     showAlarm("ALARME DE MOUILLAGE · "+Math.round(d)+" m de l'ancre (rayon "+anchor.r+" m)"); alarmSound(true); if(navigator.vibrate) navigator.vibrate([500,200,500]);
   } else if(!out && anchorAlarmOn){ anchorAlarmOn=false; hideAlarm(); drawAnchor(); }
   if(!$("sAnchor").hidden) renderAnchor();
@@ -2814,7 +2825,7 @@ function wxTableNearest(p){ let best=null, bd=1e9; for(const id in WXOFF){ (WXOF
 wxLoadAll();
 
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-d"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-e"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
