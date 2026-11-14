@@ -678,6 +678,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="info">
     <div><b id="pLabel">Position</b><span id="pLL">—</span></div>
     <div id="pDistRow"><b>Depuis le bateau</b><span id="pDist">—</span></div>
+    <div id="pC2c" class="rando-only"><b>Montagne</b><span><a id="aC2c" href="#" target="_blank" rel="noopener">Itinéraires et sorties récentes ici (Camptocamp) ›</a></span></div>
     <div id="pGeo" hidden><b>Terrain ici (indicatif, BRGM)</b><span id="pGeoT">—</span></div>
   </div>
   <div class="seainfo" id="pSea" hidden></div>
@@ -1139,7 +1140,7 @@ function onErr(e){ $("gpsdot").className="gps bad"; $("acc").textContent = e.cod
 /* ================= Point / position ================= */
 let pointMode="gps", pointLL=null;
 function showGps(){
-  pointMode="gps"; pointWp=null; $("pSea").hidden=true; $("aPin").hidden=false; $("aDelWp").hidden=true; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
+  pointMode="gps"; pointWp=null; $("pSea").hidden=true; $("pC2c").hidden=true; $("aPin").hidden=false; $("aDelWp").hidden=true; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
   $("pDistRow").querySelector("b").textContent="Vitesse et cap"; $("aRoute").hidden=true;
   if(!last){ pointLL=null; $("pLL").textContent="En attente du GPS…"; $("pDistRow").hidden=true; }
   else { pointLL=last.ll; $("pLL").textContent=fmtLL(last.ll.lat,last.ll.lng); $("pDistRow").hidden=false;
@@ -1148,12 +1149,14 @@ function showGps(){
 }
 let pointWp=null;
 function showPoint(ll, wp){
-  pointMode="pt"; pointLL=ll; pointWp=wp||null; $("pTitle").textContent = wp ? wp.n : "Point sur la carte";
+  pointMode="pt"; pointLL=ll; $("pC2c").hidden=false; pointWp=wp||null; $("pTitle").textContent = wp ? wp.n : "Point sur la carte";
   $("aPin").hidden=!!wp; $("aDelWp").hidden=!wp; $("pLabel").textContent="Coordonnées";
   $("pLL").textContent=fmtLL(ll.lat,ll.lng); $("pDistRow").querySelector("b").textContent="Depuis le bateau";
   $("pDistRow").hidden=false; $("pDist").textContent = last ? fmtNM(map.distance(last.ll,ll))+" · "+pad3(bearing(last.ll,ll))+"°" : "GPS en attente";
   $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint"); if(typeof showSeamarks==="function") showSeamarks(ll);
   if(R()) slopeAt(ll).then(t=>{ if(pointLL===ll && t){ $("pDistRow").querySelector("b").textContent="Relief (IGN)"; $("pDist").textContent=t; } });
+  { const k=20037508.34/180, x=ll.lng*k, y=Math.log(Math.tan((90+ll.lat)*Math.PI/360))/(Math.PI/180)*k, d=4000;
+    $("aC2c").href=`https://www.camptocamp.org/routes?bbox=${Math.round(x-d)},${Math.round(y-d)},${Math.round(x+d)},${Math.round(y+d)}`; }
   $("pGeo").hidden=true; if(R() && typeof geoAt==="function"){ const g=geoAt(ll); if(g){ $("pGeo").hidden=false; $("pGeoT").textContent=g; } }
 }
 $("chip").onclick = () => R() ? showGps() : instOpen();
@@ -3124,7 +3127,7 @@ $("refChk").onchange=e=>refSet(e.target.checked); map.on("moveend", ()=>{ clearT
 map.attributionControl.addAttribution('<a href="https://www.refuges.info" target="_blank" rel="noopener">refuges.info</a>');
 refSet(store.get("refuges",false));
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-w"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-x"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
