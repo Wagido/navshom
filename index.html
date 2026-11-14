@@ -405,6 +405,9 @@ body:has(#tbar:not([hidden])) #forFloat, body.dlmode #forFloat, body.measuring #
 .lw .lwb svg{width:18px;height:18px} .lw span{font:700 11px var(--sans);color:#0B2F5B;text-shadow:0 0 3px #fff,0 0 3px #fff;margin-top:1px}
 .refi b{display:grid;place-items:center;width:24px;height:24px;border-radius:7px;border:2px solid #fff;color:#fff;font:700 12px var(--sans);box-shadow:0 1px 4px rgba(0,0,0,.35)}
 .tgi b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#1D6FB8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+#trPill{position:fixed;z-index:1001;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 84px);bottom:calc(var(--sb) + 112px);display:flex;align-items:center;gap:6px;width:max-content;max-width:calc(100% - 96px);background:rgba(255,255,255,.96);border-radius:18px;box-shadow:0 6px 18px rgba(11,47,91,.2);padding:5px 5px 5px 12px;font:600 13px var(--sans);color:#0B2F5B}
+#trPill[hidden]{display:none} #trPill span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#trPill button{flex:none;border:0;border-radius:13px;padding:7px 11px;background:#EEF2F6;color:#0B2F5B;font:600 12.5px var(--sans)} #trPill button.del{background:#FDECEA;color:#C62828}
 #dlFrame{position:fixed;z-index:900;pointer-events:none;border:2.5px dashed #FF7A00;border-radius:14px;box-shadow:0 0 0 9999px rgba(11,47,91,.28)}
 #dlBar{position:fixed;z-index:1300;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 16px);
   background:rgba(255,255,255,.97);color:var(--navy,#0B2F5B);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.25);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-family:var(--sans)}
@@ -894,7 +897,7 @@ body:not(.rando) .offcard{background:#EAF2FB}
     <div><b>Distance</b><span id="tsDist">—</span></div><div><b>Durée</b><span id="tsDur">—</span></div><div><b>Moyenne</b><span id="tsAvg">—</span></div>
     <div><b>Dénivelé +</b><span id="tsUp">—</span></div><div><b>Altitude</b><span id="tsAlt">—</span></div><div></div>
   </div>
-  <div class="seg" id="actSeg"><button data-a="hike">🥾 Rando</button><button data-a="run">🏃 Course à pied</button></div>
+  <p class="note" style="margin:2px 0 8px">Une seule trace pour tout : au-delà de 7 km/h, l'affichage passe en mode course (allure /km, temps de chaque km).</p>
   <div class="btnrow"><button class="pill primary" id="trStart">● Enregistrer</button><button class="pill" id="trPause" hidden>Pause</button><button class="pill danger" id="trStop" hidden>■ Terminer</button></div>
   <div id="trProfWrap" hidden><h3 id="trProfTitle" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Profil</h3><div class="prof"><canvas id="trProf"></canvas></div><div id="trSplits"></div>
     <p class="note" style="margin-top:4px">Touchez le profil pour situer le point sur la carte. Altitudes : IGN.</p></div>
@@ -1064,6 +1067,7 @@ body:not(.rando) .offcard{background:#EAF2FB}
   </div>
 </div>
 <div id="updBar" hidden role="status"><span>Nouvelle version <b id="updVer"></b> disponible</span><button id="updGo">Mettre à jour</button></div>
+<div id="trPill" hidden><span id="trPillT"></span><button id="trPillHide">Masquer</button><button id="trPillDel" class="del">Supprimer</button></div>
 <div id="forFloat" hidden></div>
 <div id="geoFloat" hidden></div>
 <div id="dlFrame" hidden></div>
@@ -2118,8 +2122,8 @@ function recPersist(force){ if(force || Date.now()-recSaveT>15000){ recSaveT=Dat
 const fmtPace = kmh => !(kmh>=1.5) ? "–:––" : (()=>{ const sec=Math.round(3600/kmh); return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0"); })();
 const fmtClock = h => { const t=Math.round(h*3600), H=Math.floor(t/3600), M=Math.floor(t%3600/60), Sx=t%60; return (H?H+":"+String(M).padStart(2,"0"):M)+":"+String(Sx).padStart(2,"0"); };
 let activity = store.get("activity","hike");
-function setActivity(a){ activity=a; store.set("activity",a); document.querySelectorAll("#actSeg button").forEach(b=>b.classList.toggle("on",b.dataset.a===a)); }
-document.querySelectorAll("#actSeg button").forEach(b=>b.onclick=()=>{ if(!(rec&&rec.on)) setActivity(b.dataset.a); }); setActivity(activity);
+
+
 function curSpeed(){ // km/h sur les 30 dernières secondes
   if(!rec||rec.pts.length<2) return 0; const P=rec.pts, tN=P[P.length-1][2]; let d=0, i=P.length-1;
   while(i>0 && tN-P[i-1][2]<=30){ d+=map.distance([P[i-1][0],P[i-1][1]],[P[i][0],P[i][1]]); i--; }
@@ -2146,6 +2150,10 @@ function recPoint(ll, c, t){
   const alt = c.altitude!=null ? Math.round(c.altitude) : null;
   rec.pts.push([+ll.lat.toFixed(6), +ll.lng.toFixed(6), Math.round(t/1000), alt]); recLine.addLatLng(ll);
   if(alt!=null){ if(recGpsRef==null) recGpsRef=alt; else if(alt-recGpsRef>=6){ recGpsUp+=alt-recGpsRef; recGpsRef=alt; } else if(recGpsRef-alt>=6) recGpsRef=alt; }
+  // course ou marche, décidé par la vitesse : course au-delà de 7 km/h, retour marche sous 5 km/h pendant une minute
+  const v=curSpeed();
+  if(rec.act!=="run" && v>7){ rec.fast=(rec.fast||0)+1; if(rec.fast>=3){ rec.act="run"; rec.slowT=0; toast("🏃 Course détectée : affichage allure /km",3000); } } else if(v<=7) rec.fast=0;
+  if(rec.act==="run"){ if(v>0 && v<5){ rec.slowT=rec.slowT||Date.now(); if(Date.now()-rec.slowT>60e3){ rec.act="hike"; rec.slowT=0; } } else rec.slowT=0; }
   recPersist(); renderRec(); renderRun();
 }
 function renderRec(){
@@ -2161,8 +2169,8 @@ function renderRec(){
   $("bRec").setAttribute("aria-label", !on ? "Enregistrer ma sortie" : "Sortie en cours : pause ou fin");
   if(R()) $("cog").textContent = on ? "+"+Math.round(recGpsUp||0) : "—";
 }
-$("trStart").onclick = () => { rec={on:true,paused:false,start:Date.now(),pausedTotal:0,pts:[],act:activity,dist:0,splits:[]};
-  if(activity==="run") closeSheets(); recGpsUp=0; recGpsRef=null; recLine.setLatLngs([]);
+$("trStart").onclick = () => { rec={on:true,paused:false,start:Date.now(),pausedTotal:0,pts:[],act:"hike",dist:0,splits:[]};
+  recGpsUp=0; recGpsRef=null; recLine.setLatLngs([]);
   if(last) recPoint(last.ll, {accuracy:last.acc||10, altitude:last.alt}, Date.now()); recPersist(true); renderRec(); wake(); toast("Enregistrement démarré. Gardez l'écran allumé."); };
 // Bouton central : démarre l'enregistrement d'un toucher ; pendant la sortie, ouvre le panneau (pause, fin)
 $("bRec").onclick = () => { if(rec && rec.on){ const a=$("recAsk"); a.hidden=!a.hidden; $("raPause").textContent = rec.paused ? "Reprendre" : "Pause"; $("raStop").textContent="■ Terminer"; $("raStop").dataset.armed=""; return; }
@@ -2178,7 +2186,7 @@ $("rhStop").onclick = () => { if($("rhStop").dataset.armed!=="1"){ $("rhStop").d
   $("rhStop").dataset.armed=""; $("rhStop").textContent="■ Terminer"; $("trStop").onclick(); };
 setInterval(()=>{ if(rec && rec.on && rec.act==="run") renderRun(); }, 1000);
 $("trStop").onclick = async () => {
-  if(!rec) return; const pts=rec.pts.slice(), dur=recDuration(), act=rec.act||"hike", splits=(rec.splits||[]).slice(); rec=null; store.set("rec",null); renderRec(); renderRun();
+  if(!rec) return; const pts=rec.pts.slice(), dur=recDuration(), act=(dur>0 && recDist(rec.pts)/1000/dur>7)?"run":"hike", splits=(rec.splits||[]).slice(); rec=null; store.set("rec",null); renderRec(); renderRun();
   if(pts.length<2){ recLine.setLatLngs([]); return toast("Trace trop courte, non enregistrée"); }
   const d=new Date(), tr={id:Date.now(), name:(act==="run"?"Course du ":"Rando du ")+d.toLocaleDateString("fr-FR",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
     date:d.toISOString(), pts:pts.map(p=>[p[0],p[1],p[2]]), dist:Math.round(recDist(pts)), dur, act, splits};
@@ -2198,16 +2206,23 @@ function showTrack(id){
   trLayer.clearLayers(); shownId=id; const tr=tracks.find(t=>t.id===id); if(!tr){ $("trProfWrap").hidden=true; renderTracks(); return; }
   const lls=tr.pts.map(p=>[p[0],p[1]]);
   L.polyline(lls,{color:"#fff",weight:7,opacity:.8,interactive:false}).addTo(trLayer);
-  L.polyline(lls,{color:"#6a1b9a",weight:4,interactive:false}).addTo(trLayer);
+  L.polyline(lls,{color:"#6a1b9a",weight:5}).on("click",e=>{ L.DomEvent.stop(e); trPillShow(tr); }).addTo(trLayer);
   L.circleMarker(lls[0],{radius:6,color:"#fff",weight:2,fillColor:"#1c9e47",fillOpacity:1}).bindTooltip("Départ").addTo(trLayer);
   L.circleMarker(lls[lls.length-1],{radius:6,color:"#fff",weight:2,fillColor:"#e5372b",fillOpacity:1}).bindTooltip("Arrivée").addTo(trLayer);
   setFollow(false); map.fitBounds(L.latLngBounds(lls).pad(.15), {paddingBottomRight:[0,260]});
   $("trProfTitle").textContent = tr.name+" · "+fmtD(tr.dist)+(tr.up!=null?" · D+ "+tr.up+" m · D− "+tr.dn+" m":"")+(tr.dur?" · "+fmtDur(tr.dur):"")+(tr.act==="run"&&tr.dur?" · "+fmtPace(tr.dist/1000/tr.dur)+" min/km":"");
   const sw=$("trSplits"); sw.innerHTML=""; if(tr.act==="run" && tr.splits && tr.splits.length){ sw.innerHTML='<table class="splits">'+tr.splits.map(x=>`<tr><td>Km ${x.km}</td><td>${fmtClock(x.sec/3600)} /km</td></tr>`).join("")+'</table>'; }
   $("trProfWrap").hidden=!tr.prof; if(tr.prof){ const c=$("trProf"); c._hov=null; requestAnimationFrame(()=>drawProfile(c, tr.prof)); }
-  renderTracks();
+  renderTracks(); trPillShow(tr);
 }
+// bandeau de la trace affichée : masquer ou supprimer sans passer par les menus
+function trPillShow(tr){ $("trPillT").textContent=(tr.act==="run"?"🏃 ":"🥾 ")+tr.name+" · "+fmtD(tr.dist); $("trPill").hidden=false; $("trPill").dataset.id=tr.id; $("trPillDel").textContent="Supprimer"; $("trPillDel").dataset.armed=""; }
+function trHide(){ shownId=null; trLayer.clearLayers(); $("trPill").hidden=true; if($("trProfWrap")) $("trProfWrap").hidden=true; try{ if(profMk){ map.removeLayer(profMk); profMk=null; } }catch(e){} renderTracks(); }
+$("trPillHide").onclick=trHide;
+$("trPillDel").onclick=()=>{ const b=$("trPillDel"); if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmer ?"; setTimeout(()=>{ b.dataset.armed=""; b.textContent="Supprimer"; },3000); return; }
+  const id=+$("trPill").dataset.id; tracks=tracks.filter(x=>x.id!==id); store.set("tracks",tracks); trHide(); toast("Trace supprimée"); };
 function renderTracks(){
+  if(!shownId && $("trPill")) $("trPill").hidden=true;
   const el=$("trList"); el.innerHTML="";
   if(!tracks.length){ el.innerHTML='<p class="note">Aucune trace. Enregistrez une sortie ou importez un fichier GPX.</p>'; return; }
   tracks.forEach(tr=>{ const row=document.createElement("div"), t=document.createElement("span");
@@ -3741,7 +3756,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-i"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-j"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
