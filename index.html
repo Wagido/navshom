@@ -3016,7 +3016,7 @@ function geoAt(ll){ const grp=RANDO_OVL.geol; if(!map.hasLayer(grp)) return null
 RANDO_OVL.geol.eachLayer(l=>l.on("load", ()=>{ clearTimeout(geoT); geoT=setTimeout(geoScan,300); }));
 RANDO_OVL.forest.on("load", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,300); });
 /* ================= Boussole et rotation de la carte (maison, sans dépendance) ================= */
-const ROT={on:false, bearing:0, heading:null, src:null};
+const ROT={on:false, bearing:0, heading:null, src:null, mode:"north"}; // north | heading (suit la marche) | free (tournée à la main)
 const mapEl=map.getContainer(), ctlEl=mapEl.querySelector(".leaflet-control-container");
 function rotLayout(){ const w=innerWidth, h=innerHeight;
   if(!ROT.on){ mapEl.style.cssText=""; ctlEl.style.cssText=""; map.invalidateSize(); return; }
@@ -3049,10 +3049,20 @@ function headTick(){ if(Date.now()-headT<120) return; headT=Date.now();
   if(last && ROT.heading!=null && R()){ const html=`<svg viewBox="-60 -60 120 120" width="120" height="120" style="transform:rotate(${ROT.heading}deg)"><path d="M0 0 L-26 -54 A60 60 0 0 1 26 -54 Z" fill="rgba(29,111,184,.22)"/></svg>`;
     if(!headCone) headCone=L.marker(last.ll,{icon:L.divIcon({className:"",iconSize:[120,120],iconAnchor:[60,60],html}),interactive:false,zIndexOffset:900}).addTo(map);
     else { headCone.setLatLng(last.ll); const el=headCone.getElement(); if(el) el.innerHTML=html; } }
-  if(ROT.on && hd!=null){ ROT.bearing=hd; applyBearing(); } }
-$("bCompass").onclick=async()=>{ if(ROT.on){ ROT.on=false; ROT.bearing=0; rotLayout(); applyBearing(); $("bCompass").classList.remove("on"); toast("Nord en haut"); return; }
-  await orientStart(); ROT.on=true; $("bCompass").classList.add("on"); rotLayout(); setFollow(true); if(last) map.panTo(last.ll);
+  if(ROT.on && ROT.mode==="heading" && hd!=null){ ROT.bearing=hd; applyBearing(); } }
+function rotNorth(){ ROT.on=false; ROT.mode="north"; ROT.bearing=0; rotLayout(); applyBearing(); $("bCompass").classList.remove("on"); }
+$("bCompass").onclick=async()=>{ if(ROT.on){ rotNorth(); toast("Nord en haut"); return; }
+  await orientStart(); ROT.on=true; ROT.mode="heading"; $("bCompass").classList.add("on"); rotLayout(); setFollow(true); if(last) map.panTo(last.ll);
   toast(R()?"Carte orientée dans le sens de la marche (boussole)":"Carte orientée selon la route du bateau",3000); headTick(); };
+// rotation libre à deux doigts (au-delà de 12° pour ne pas gêner le zoom)
+let rg=null; const tAng=e=>Math.atan2(e.touches[1].clientY-e.touches[0].clientY, e.touches[1].clientX-e.touches[0].clientX)*180/Math.PI;
+mapEl.addEventListener("touchstart", e=>{ if(e.touches.length===2) rg={a0:tAng(e), b0:ROT.bearing, active:false}; else rg=null; }, {passive:true});
+mapEl.addEventListener("touchmove", e=>{ if(!rg || e.touches.length!==2) return; const d=((tAng(e)-rg.a0+540)%360)-180;
+  if(!rg.active){ if(Math.abs(d)<12) return; rg.active=true; rg.a0+=d>0?12:-12; if(!ROT.on){ ROT.on=true; rotLayout(); } ROT.mode="free"; $("bCompass").classList.add("on"); return; }
+  ROT.bearing=(rg.b0-d+720)%360; applyBearing(); }, {passive:true});
+mapEl.addEventListener("touchend", e=>{ if(e.touches.length<2) rg=null; }, {passive:true});
+// ordinateur : Maj + molette pour tourner
+mapEl.addEventListener("wheel", e=>{ if(!e.shiftKey) return; e.preventDefault(); e.stopPropagation(); if(!ROT.on){ ROT.on=true; rotLayout(); $("bCompass").classList.add("on"); } ROT.mode="free"; ROT.bearing=(ROT.bearing+(e.deltaY>0?5:-5)+360)%360; applyBearing(); }, {passive:false, capture:true});
 if(R()) setTimeout(()=>{ if(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission!=="function") orientStart(); }, 2000);
 /* ================= Vent mesuré en direct (OpenWindMap / Pioupiou) ================= */
 const LW={layer:L.layerGroup(), data:null, t:0, timer:null};
@@ -3085,7 +3095,7 @@ $("refChk").onchange=e=>refSet(e.target.checked); map.on("moveend", ()=>{ clearT
 map.attributionControl.addAttribution('<a href="https://www.refuges.info" target="_blank" rel="noopener">refuges.info</a>');
 refSet(store.get("refuges",false));
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-t"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-u"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
