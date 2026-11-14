@@ -328,6 +328,28 @@ body:has(#runHud:not([hidden])) #chip{display:none}
 .modesw button:focus-visible{outline:3px solid #FF7A00;outline-offset:1px}
 .rtpt{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .rtbtn{display:flex;gap:6px} .rtbtn button{border:1px solid var(--line);background:var(--white);color:var(--blue);border-radius:8px;padding:6px 9px;font:600 12px var(--sans);cursor:pointer}
+#inst{position:fixed;inset:0;z-index:2000;background:#fff;color:#0B2F5B;display:flex;flex-direction:column;gap:12px;padding:calc(var(--st) + 14px) max(16px,var(--sr)) calc(var(--sb) + 16px) max(16px,var(--sl));overflow:auto;font-family:var(--sans)}
+#inst[hidden]{display:none}
+#inst .i-top{display:flex;align-items:center;gap:12px;font:600 15px var(--sans);color:#4A5D73;font-variant-numeric:tabular-nums}
+#inst .i-top #iPos{flex:1;text-align:right;font-size:13px}
+#inst .i-top button{width:44px;height:44px;border-radius:50%;border:0;background:#EEF2F6;color:#4A5D73;font-size:24px}
+#inst .i-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#inst .i-t{background:#F4F7FA;border-radius:18px;padding:12px 14px;display:flex;flex-direction:column}
+#inst .i-t b,#inst .i-x b,#inst .i-w b{font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:#4A5D73}
+#inst .i-t span{font:700 clamp(44px,15vw,92px)/1.05 var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+#inst #iNav .i-t span{font-size:clamp(30px,10vw,60px)}
+#inst .i-t i{font:600 15px var(--sans);font-style:normal;color:#4A5D73}
+#inst .i-wp{font:600 17px var(--sans)} #inst .i-wp b{color:#E65100}
+#inst .i-x,#inst .i-w{background:#F4F7FA;border-radius:18px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;font:700 20px var(--sans)}
+#inst .i-x.warn{background:#FFEBEE;color:#C62828}
+#inst .i-hint{font:500 14px var(--sans);color:#6B7C90;margin:0}
+body.night #inst{background:#000;color:#ff5a4a} body.night #inst .i-t,body.night #inst .i-x,body.night #inst .i-w{background:#1a0000} body.night #inst b,body.night #inst i{color:#c0392b!important}
+.seainfo{margin-top:10px;background:var(--soft);border-radius:12px;padding:10px 12px;display:grid;gap:8px}
+.seainfo>b{font:600 12px var(--sans);color:var(--muted)}
+.seainfo .sm{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.seainfo .sm strong{display:block;font:600 14px var(--sans)} .seainfo .sm small{display:block;font:500 12px var(--sans);color:var(--muted)}
+.seainfo .lc{font:700 14px var(--mono);color:#B45309;text-align:right;white-space:nowrap}
+#dlBar .dl-wx{display:flex;gap:8px;align-items:center;font:500 13px var(--sans);color:#0B2F5B} #dlBar .dl-wx input{width:18px;height:18px;accent-color:#FF7A00;flex:none}
 #dlFrame{position:fixed;z-index:900;pointer-events:none;border:2.5px dashed #FF7A00;border-radius:14px;box-shadow:0 0 0 9999px rgba(11,47,91,.28)}
 #dlBar{position:fixed;z-index:1300;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 16px);
   background:rgba(255,255,255,.97);color:var(--navy,#0B2F5B);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.25);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-family:var(--sans)}
@@ -583,6 +605,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <div><b id="pLabel">Position</b><span id="pLL">—</span></div>
     <div id="pDistRow"><b>Depuis le bateau</b><span id="pDist">—</span></div>
   </div>
+  <div class="seainfo" id="pSea" hidden></div>
   <div class="acts">
     <button class="act" id="aRoute"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></span>Aller ici</button>
     <button class="act mer-only" id="aRouting"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 20c3-1 4-5 7-6s5 2 9-9"/><path d="M14 5h6v6"/></svg></span>Routage</button>
@@ -769,6 +792,22 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="btnrow mer-only"><button class="pill primary" id="bRouting">Routage météo (route la plus rapide)</button></div>
   <h3>Routes</h3>
   <div class="wplist" id="rtList"></div>
+  <div class="mer-only">
+    <h3>À la barre</h3>
+    <div class="btnrow"><button class="pill primary" id="bInst">Instruments (gros chiffres)</button></div>
+    <p class="note">Aussi en touchant Vitesse / Cap en haut de l'écran. Alarme si vous sortez de la route de plus de 0,1 mille.</p>
+    <h3>AIS : navires autour</h3>
+    <label class="opt"><input type="checkbox" id="aisOn"><div>Afficher les navires (AIS)<small id="aisState">Désactivé</small></div></label>
+    <div class="opt" style="flex-wrap:wrap"><label for="aisKey" style="flex:1 1 100%">Clé aisstream.io<small>Gratuite : créez un compte sur aisstream.io, puis « API Keys ». Réseau nécessaire. Couverture variable selon les côtes.</small></label>
+      <input id="aisKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="collez votre clé ici"
+        style="flex:1;min-width:0;font:14px var(--mono);padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink)">
+      <button class="pill primary" id="aisSave" style="flex:0 0 auto;min-width:0">Enregistrer</button></div>
+    <p class="note">Alerte si un navire doit passer à moins de 0,5 mille dans les 15 minutes. L'AIS internet ne remplace pas la veille ni un récepteur AIS à bord.</p>
+    <h3>Bulletins officiels</h3>
+    <div class="btnrow"><a class="pill primary" href="https://meteofrance.com/meteo-marine" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">Bulletins côte et large (Météo-France)</a></div>
+    <div class="btnrow"><a class="pill" href="https://vigilance.meteofrance.fr" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">Vigilance vagues-submersion</a></div>
+    <p class="note">En mer : les CROSS annoncent les bulletins et les BMS (avis de coup de vent) sur le canal 16 de la VHF, puis les diffusent sur un canal de travail.</p>
+  </div>
   <h3>Suivi en arrière-plan</h3>
   <label class="opt"><input type="checkbox" id="bgAlways"><div>Toujours suivre la position, écran éteint<small id="bgInfo"></small></div></label>
   <h3>Sauvegarde</h3>
@@ -783,10 +822,30 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 
 <div id="toast" hidden></div>
 <div id="rtPill" hidden><button id="rtPillOpen">Routage · arrivée <b id="rtPillT"></b></button><button id="rtPillX" aria-label="Effacer le routage">✕</button></div>
+<div id="inst" hidden role="dialog" aria-label="Instruments">
+  <div class="i-top"><span id="iClock">—</span><span id="iPos">—</span><button id="instClose" aria-label="Fermer">×</button></div>
+  <div class="i-grid">
+    <div class="i-t" id="iSog"><b>Vitesse</b><span>—</span><i>nd</i></div>
+    <div class="i-t" id="iCog"><b>Cap</b><span>—</span><i>°</i></div>
+  </div>
+  <div id="iNav" hidden>
+    <div class="i-wp">Vers <b id="iWp">—</b></div>
+    <div class="i-grid">
+      <div class="i-t" id="iDtw"><b>Distance</b><span>—</span><i></i></div>
+      <div class="i-t" id="iBtw"><b>Relèvement</b><span>—</span><i>°</i></div>
+      <div class="i-t" id="iVmg"><b>Vitesse utile</b><span>—</span><i>nd</i></div>
+      <div class="i-t" id="iEta"><b>Arrivée</b><span>—</span><i></i></div>
+    </div>
+    <div class="i-x" id="iXte"><b>Écart de route</b><span>—</span></div>
+  </div>
+  <p class="i-hint" id="iNoNav">Pas de route en cours : Plus › Routes › Naviguer, ou touchez un point › Aller ici.</p>
+  <div class="i-w"><b>Vent prévu ici</b><span id="iWind">—</span></div>
+</div>
 <div id="dlFrame" hidden></div>
 <div id="dlBar" hidden>
   <div class="dl-t" id="dlTitle">Cadrez la zone à emporter</div>
   <div class="dl-s" id="dlEst">…</div>
+  <label class="dl-wx" id="dlWxRow"><input type="checkbox" id="dlWx" checked> Météo des 3 prochains jours (pour l'utiliser sans réseau)</label>
   <div class="dl-q" id="dlQ"><button data-q="0" class="on">Détail maximal</button><button data-q="1">Plus léger</button></div>
   <div class="dl-p" id="dlP" hidden><i id="dlProg"></i></div>
   <div class="dl-b"><button class="pill" id="dlCancel">Annuler</button><button class="pill primary" id="dlGo">Télécharger</button></div>
@@ -950,6 +1009,7 @@ function onPos(p){
   if(follow && AREA().contains(ll)) map.panTo(ll,{animate:true});
   updateMob(); updateRoute(); if(ov.data) drawTimeline();
   if(!$("sPoint").hidden && pointMode==="gps") showGps();
+  if(typeof instTick==="function" && instOn) instTick();
 }
 function onErr(e){ $("gpsdot").className="gps bad"; $("acc").textContent = e.code===1 ? "refusé" : "—"; if(e.code===1) toast("Autorisez la localisation pour ce site", 5000); }
 // le suivi GPS est démarré par geoStart() (navigateur, ou natif en arrière-plan dans l'APK)
@@ -957,7 +1017,7 @@ function onErr(e){ $("gpsdot").className="gps bad"; $("acc").textContent = e.cod
 /* ================= Point / position ================= */
 let pointMode="gps", pointLL=null;
 function showGps(){
-  pointMode="gps"; pointWp=null; $("aPin").hidden=false; $("aDelWp").hidden=true; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
+  pointMode="gps"; pointWp=null; $("pSea").hidden=true; $("aPin").hidden=false; $("aDelWp").hidden=true; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
   $("pDistRow").querySelector("b").textContent="Vitesse et cap"; $("aRoute").hidden=true;
   if(!last){ pointLL=null; $("pLL").textContent="En attente du GPS…"; $("pDistRow").hidden=true; }
   else { pointLL=last.ll; $("pLL").textContent=fmtLL(last.ll.lat,last.ll.lng); $("pDistRow").hidden=false;
@@ -970,10 +1030,10 @@ function showPoint(ll, wp){
   $("aPin").hidden=!!wp; $("aDelWp").hidden=!wp; $("pLabel").textContent="Coordonnées";
   $("pLL").textContent=fmtLL(ll.lat,ll.lng); $("pDistRow").querySelector("b").textContent="Depuis le bateau";
   $("pDistRow").hidden=false; $("pDist").textContent = last ? fmtNM(map.distance(last.ll,ll))+" · "+pad3(bearing(last.ll,ll))+"°" : "GPS en attente";
-  $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint");
+  $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint"); if(typeof showSeamarks==="function") showSeamarks(ll);
   if(R()) slopeAt(ll).then(t=>{ if(pointLL===ll && t){ $("pDistRow").querySelector("b").textContent="Relief (IGN)"; $("pDist").textContent=t; } });
 }
-$("chip").onclick = showGps;
+$("chip").onclick = () => R() ? showGps() : instOpen();
 map.on("click", e => { if(RT.picking){ RT[RT.picking]=e.latlng; RT.picking=null; $("pickBar").hidden=true; RT.layer.clearLayers(); RT.result=null; drawRtMarks(); openSheet("sRouting"); renderRouteParams(); $("rtRes").hidden=true; return; }
   if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets();
   if(ov.data) return showPicker(e.latlng); showPoint(e.latlng); });
@@ -1154,15 +1214,20 @@ async function loadOverlay(keepIdx){
   $("tSrc").textContent="chargement…"; stopParticles();
   try{
     const miss=g.pts.filter(p=>{ const c=PTC.get(ptKey(type,mdl,p)); return !c || Date.now()-c.t>3600e3; });
-    let used=ov.model||model;
-    if(miss.length){ const r=await fetchSeries(type, miss, 3); used=r.used; r.series.forEach((s,i)=>PTC.set(ptKey(type,mdl,miss[i]),{t:Date.now(),s})); ptcSave(); }
+    let used=ov.model||model, offT=null, series;
+    try{
+      if(miss.length){ const r=await fetchSeries(type, miss, 3); used=r.used; r.series.forEach((s,i)=>PTC.set(ptKey(type,mdl,miss[i]),{t:Date.now(),s})); ptcSave(); }
+      series=g.pts.map(p=>PTC.get(ptKey(type,mdl,p)).s);
+    }catch(err){ // sans réseau : prévisions enregistrées avec les zones hors ligne
+      await wxLoadAll(); const off=g.pts.map(p=>wxNearest(type,p)); if(!off.every(Boolean)) throw err;
+      series=off.map(o=>o.s); offT=off[0].t; }
     if(ov.type!==type) return;
-    const series=g.pts.map(p=>PTC.get(ptKey(type,mdl,p)).s);
     ov.data=series; ov.pts=g.pts; ov.grid=g.pts.length; ov.rows=g.rows; ov.cols=g.cols; ov.model=used;
     const now=Date.now(); let best=1e15; ov.now=0; series[0].time.forEach((t,i)=>{ const d=Math.abs(new Date(t)-now); if(d<best){best=d;ov.now=i;} });
     ov.idx = keepIdx!=null && keepIdx<series[0].time.length ? keepIdx : ov.now;
     $("tSlider").max=series[0].time.length-1; $("tSlider").value=ov.idx;
-    $("tSrc").textContent = "";
+    $("tSrc").textContent = offT ? "hors ligne · prévision du "+new Date(offT).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
+    if(offT) toast("Sans réseau : météo enregistrée le "+new Date(offT).toLocaleString("fr-FR",{weekday:"short",hour:"2-digit",minute:"2-digit"}),4000);
     drawOverlay();
   }catch(e){ $("tSrc").textContent="indisponible"; if(!/429/.test(String(e))) toast(OVT[type].name+" indisponible (réseau ?)"); }
 }
@@ -1269,7 +1334,8 @@ async function loadTable(force){
       getJSON(fu+(model!=="best_match"?`&models=${model}`:"")).catch(()=>getJSON(fu)),
       getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=wave_height,wave_direction,swell_wave_height,ocean_current_velocity,ocean_current_direction&timezone=auto&forecast_days=3&cell_selection=sea`).catch(()=>null)]);
     unsuffix(f.hourly); tbl.f=f; tbl.m=(m && !R() && landFrac(ll.lat,ll.lng)<0.5) ? m : null;
-  }catch(e){ toast("Tableau indisponible (réseau ?)"); }
+  }catch(e){ await wxLoadAll(); const x=wxTableNearest(ll);
+    if(x && x.f){ unsuffix(x.f.hourly); tbl.f=x.f; tbl.m=(x.m && !R())?x.m:null; } else toast("Tableau indisponible (réseau ?)"); }
   tbl.loading=false; renderTable();
 }
 function renderTable(){
@@ -1677,6 +1743,7 @@ function setMode(m, quiet){
   if(ov.type && ((OVT[ov.type].api==="mar" && R()) || (OVT[ov.type].rando && !R()))) setOverlay(null);
   $("mSpeed").value = store.get("mspeed_"+MODE, R()?4:5);
   try{ if(mobMk){ R()?map.removeLayer(mobMk):mobMk.addTo(map); } }catch(e){}
+  try{ if(R()){ aisStop(); map.removeLayer(AIS.layer); } else if(AIS.on) aisStart(); }catch(e){}
   try{ R()?map.removeLayer(anchorLayer):anchorLayer.addTo(map); }catch(e){}
   chipLabels(); if(measuring) drawMeasure(); if(typeof setSlopes==="function") setSlopes(store.get("slopes",false)); try{ autoSatCheck(); setShade(store.get("shade",true)); }catch(e){ /* pas encore initialisé au démarrage */ }
   if(!AREA().contains(map.getCenter())) map.setView(R()?[46.6,2.4]:[48.4,-3.4], R()?6:8);
@@ -2027,6 +2094,8 @@ function navTick(ll){
   $("ncDist").textContent = fmtD(dist); $("ncBrg").textContent = pad3(brg)+"°";
   $("ncXte").textContent = Math.abs(x)<5 ? "sur la route" : fmtD(Math.abs(x))+(x>0?" à droite":" à gauche");
   $("ncXte").style.color = Math.abs(x) > (R()?60:185) ? "#ff8a80" : "";
+  $("ncWp").dataset.vmg = sp>0.2 ? (vmg*1.943844).toFixed(1).replace(".",",") : "";
+  if(!R() && Math.abs(x)>185 && Date.now()-xteWarnT>3*60e3){ xteWarnT=Date.now(); notify("Hors de la route", "Écart "+fmtD(Math.abs(x))+(x>0?" à droite":" à gauche")+" : revenez au "+pad3(brg)+"°"); try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){} }
   $("ncEta").textContent = "arrivée WP "+eta+" · fin "+etaEnd+" ("+fmtD(rest)+")";
 }
 function startNav(id){
@@ -2510,7 +2579,7 @@ async function zoneName(c){ for(const ix of ["poi","address"]) try{ const r=awai
   return "Zone du "+new Date().toLocaleDateString("fr-FR"); }
 $("dlGo").onclick=async()=>{ if(!dl || dl.running || !dl.b) return;
   try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
-  const q=dlQ, zn={id:Date.now(), b:[dl.b.getSouth(),dl.b.getWest(),dl.b.getNorth(),dl.b.getEast()], keys:dl.keys, q, mode:MODE, d:new Date().toISOString()};
+  const wantWx=$("dlWx").checked, q=dlQ, zn={id:Date.now(), b:[dl.b.getSouth(),dl.b.getWest(),dl.b.getNorth(),dl.b.getEast()], keys:dl.keys, q, mode:MODE, d:new Date().toISOString()};
   const urls=zoneUrls(zn), total=urls.length; dl.running=true;
   $("dlTitle").textContent="Téléchargement…"; $("dlQ").hidden=true; $("dlP").hidden=false; $("dlGo").hidden=true; $("dlCancel").textContent="Arrêter";
   const cache=await caches.open("navshom-tiles"); let done=0, fail=0, bytes=0; const t0=Date.now();
@@ -2528,19 +2597,24 @@ $("dlGo").onclick=async()=>{ if(!dl || dl.running || !dl.b) return;
   const stopped=dl.stop; dlEnd();
   if(stopped && done<total*0.98){ toast("Téléchargement arrêté ("+done+" / "+total+" tuiles déjà enregistrées)",4000); return; }
   zn.n=total; zn.mb=Math.max(1,Math.round(bytes/1048576)); zn.fail=fail; zn.name=await zoneName(L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]).getCenter());
-  zones.push(zn); store.set("zones",zones); renderZones();
+  zones.push(zn); store.set("zones",zones);
+  if(wantWx){ toast("Cartes enregistrées · téléchargement de la météo…",3000); try{ await wxDownload(zn); }catch(e){ toast("Météo non enregistrée (réseau ou limite Open-Meteo)",4000); } }
+  renderZones();
   toast("« "+zn.name+" » disponible hors ligne"+(fail?" ("+fail+" tuiles manquantes, relancez pour compléter)":""),5000); };
 $("bCache").onclick=dlStart; $("bCache2").onclick=dlStart;
 function renderZones(){ const el=$("zoneList"); el.innerHTML="";
   if(!zones.length){ el.innerHTML='<p class="note" style="margin:4px 0">Aucune zone téléchargée pour l\'instant.</p>'; }
   zones.slice().reverse().forEach(zn=>{ const row=document.createElement("div");
-    row.innerHTML='<span style="flex:1;min-width:0"><b></b><small style="display:block;color:var(--muted);font-size:12px"></small></span><button data-a="see">Voir</button><button data-a="del" style="color:#C62828">Supprimer</button>';
+    row.innerHTML='<span style="flex:1;min-width:0"><b></b><small style="display:block;color:var(--muted);font-size:12px"></small></span><button data-a="wx">Météo</button><button data-a="see">Voir</button><button data-a="del" style="color:#C62828">Supprimer</button>';
     row.querySelector("b").textContent=zn.name+(zn.mode==="rando"?" · Rando":" · Mer");
-    row.querySelector("small").textContent=(zn.mb?zn.mb+" Mo · ":"")+zn.keys.map(k=>NAMES[k]||k).join(" + ")+" · "+new Date(zn.d).toLocaleDateString("fr-FR");
+    row.querySelector("small").textContent=(zn.mb?zn.mb+" Mo · ":"")+zn.keys.map(k=>NAMES[k]||k).join(" + ")+" · "+new Date(zn.d).toLocaleDateString("fr-FR")
+      +" · météo "+(zn.wx?"du "+new Date(zn.wx).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"non enregistrée");
     row.querySelector('[data-a=see]').onclick=()=>{ closeSheets(); if(zn.mode!==MODE) setMode(zn.mode); const b=L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]);
       setFollow(false); map.fitBounds(b); const r=L.rectangle(b,{color:"#FF7A00",weight:2,dashArray:"6 6",fill:false,interactive:false}).addTo(map); setTimeout(()=>map.removeLayer(r),4000); };
+    row.querySelector('[data-a=wx]').onclick=async()=>{ toast("Mise à jour de la météo de « "+zn.name+" »…",3000);
+      try{ await wxDownload(zn); toast("Météo enregistrée pour 3 jours"); }catch(e){ toast("Météo indisponible (réseau ou limite Open-Meteo)"); } renderZones(); };
     row.querySelector('[data-a=del]').onclick=async()=>{ if(!confirm("Supprimer « "+zn.name+" » du téléphone ?")) return;
-      zones=zones.filter(z=>z.id!==zn.id); store.set("zones",zones); renderZones();
+      zones=zones.filter(z=>z.id!==zn.id); store.set("zones",zones); renderZones(); delete WXOFF[zn.id]; try{ (await caches.open("navshom-wx")).delete(wxKey(zn.id)); }catch(e){}
       const keep=new Set(); zones.forEach(z=>zoneUrls(z).forEach(u=>keep.add(u)));
       try{ const c=await caches.open("navshom-tiles"); await Promise.all(zoneUrls(zn).filter(u=>!keep.has(u)).map(u=>c.delete(u))); }catch(e){}
       toast("Zone supprimée"); usageNote(); };
@@ -2548,8 +2622,126 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
   usageNote(); }
 async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
 renderZones();
+/* ================= Instruments (gros chiffres à la barre) ================= */
+var instOn=false, xteWarnT=0;
+function instOpen(){ instOn=true; $("inst").hidden=false; instTick(); if(!tbl.f) loadTable().then(instTick).catch(()=>{}); }
+function instClose(){ instOn=false; $("inst").hidden=true; }
+$("instClose").onclick=instClose;
+function instTick(){ if(!instOn) return;
+  const T=(id,v,u)=>{ const e=$(id); if(e){ e.querySelector("span").textContent=v; if(u!=null) e.querySelector("i").textContent=u; } };
+  T("iSog", sogNow!=null?sogNow.toFixed(1).replace(".",","):"—"); T("iCog", $("cog").textContent||"—");
+  const rt = navR && routes.find(r=>r.id===navR.id);
+  $("iNav").hidden=!rt; $("iNoNav").hidden=!!rt;
+  if(rt){ $("iWp").textContent=$("ncWp").textContent; T("iDtw",$("ncDist").textContent); T("iBtw",$("ncBrg").textContent.replace("°",""));
+    $("iXte").querySelector("span").textContent=$("ncXte").textContent; $("iXte").classList.toggle("warn", !!$("ncXte").style.color);
+    $("iEta").querySelector("span").textContent=$("ncEta").textContent.replace(/^arrivée WP /,"").split(" · ")[0];
+    const vm=$("ncWp").dataset.vmg; T("iVmg", vm||"—"); }
+  $("iClock").textContent=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  $("iPos").textContent= last ? fmtLL(last.ll.lat,last.ll.lng) : "GPS en attente";
+  // vent prévu au bateau, si le tableau météo est chargé
+  let w="—"; try{ const h=tbl.f&&tbl.f.hourly; if(h){ const now=Date.now(); let k=0; h.time.forEach((t,i)=>{ if(new Date(t).getTime()<=now) k=i; });
+    w=Math.round(h.wind_speed_10m[k])+" nd (raf. "+Math.round(h.wind_gusts_10m[k])+") "+compass(h.wind_direction_10m[k]); } }catch(e){}
+  $("iWind").textContent=w;
+}
+setInterval(instTick, 5000);
+$("bInst").onclick=()=>{ closeSheets(); instOpen(); };
+
+/* ================= Balisage : infos des bouées et des feux (OpenStreetMap / OpenSeaMap) ================= */
+const SM_TYPE={buoy_lateral:"Bouée latérale",beacon_lateral:"Balise latérale",buoy_cardinal:"Bouée cardinale",beacon_cardinal:"Balise cardinale",
+  buoy_isolated_danger:"Danger isolé",beacon_isolated_danger:"Danger isolé",buoy_safe_water:"Eaux saines",buoy_special_purpose:"Bouée spéciale",beacon_special_purpose:"Balise spéciale",
+  light_major:"Phare",light_minor:"Feu",light_vessel:"Bateau-feu",light_float:"Feu flottant",landmark:"Amer",harbour:"Port",rock:"Roche",wreck:"Épave",mooring:"Coffre / mouillage",
+  anchorage:"Zone de mouillage",small_craft_facility:"Installation plaisance",pile:"Pieu",signal_station_traffic:"Sémaphore",bridge:"Pont",fog_signal:"Signal de brume",radio_station:"Station radio"};
+const SM_CAT={port:"bâbord (rouge)",starboard:"tribord (vert)",preferred_channel_port:"chenal préféré à bâbord",preferred_channel_starboard:"chenal préféré à tribord",
+  north:"Nord",south:"Sud",east:"Est",west:"Ouest"};
+const SM_COL={red:"R",green:"G",white:"W",yellow:"Y",blue:"Bu",orange:"Or",violet:"Vi"};
+function lightChar(t, p){ const g=k=>t["seamark:light"+p+":"+k]; const ch=g("character"); if(!ch) return null;
+  const col=(g("colour")||"").split(";").map(c=>SM_COL[c]||"").join(""), grp=g("group"), per=g("period"), rng=g("range"), sec=g("sector_start")!=null?` (${g("sector_start")}°–${g("sector_end")}°)`:"";
+  return ch+(grp?"("+grp+")":"")+(col?" "+col:"")+(per?" "+per+"s":"")+(rng?" "+rng+"M":"")+sec; }
+function seamarkText(t){ const ty=t["seamark:type"], name=t["seamark:name"]||t.name||"";
+  let what=SM_TYPE[ty]||ty.replace(/_/g," "); const cat=t["seamark:"+ty+":category"]; if(cat && SM_CAT[cat]) what+=" "+SM_CAT[cat];
+  const lights=[]; const l0=lightChar(t,""); if(l0) lights.push(l0); for(let i=1;i<=8;i++){ const l=lightChar(t,":"+i); if(l) lights.push(l); }
+  const top=t["seamark:topmark:shape"]; return {name, what, lights, top}; }
+async function seamarksNear(ll){
+  const r=Math.max(60, Math.min(600, 40*156543*Math.cos(ll.lat*Math.PI/180)/2**map.getZoom()));
+  const q=`[out:json][timeout:15];node(around:${Math.round(r)},${ll.lat.toFixed(5)},${ll.lng.toFixed(5)})["seamark:type"];out tags center 12;`;
+  const res=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+  if(!res.ok) throw new Error(res.status); const j=await res.json();
+  return j.elements.filter(e=>e.tags).map(e=>({d:map.distance(ll,[e.lat,e.lon]), ...seamarkText(e.tags)}))
+    .filter(x=>!/^(harbour|small_craft_facility)$/.test(x.what)).sort((a,b)=>a.d-b.d).slice(0,4); }
+function showSeamarks(ll){ const box=$("pSea"); box.hidden=true; if(R()) return;
+  seamarksNear(ll).then(list=>{ if(pointLL!==ll || !list.length) return;
+    box.innerHTML='<b>Balisage à proximité</b>'+list.map(s=>`<div class="sm"><div><strong></strong><small></small></div><span class="lc"></span></div>`).join("");
+    box.querySelectorAll(".sm").forEach((el,i)=>{ const s=list[i]; el.querySelector("strong").textContent=s.name||s.what; el.querySelector("small").textContent=(s.name?s.what+" · ":"")+Math.round(s.d)+" m";
+      el.querySelector(".lc").textContent=s.lights.join(" / "); });
+    box.hidden=false; }).catch(()=>{}); }
+
+/* ================= AIS : navires autour (aisstream.io, clé gratuite) ================= */
+const AIS={ws:null, ships:new Map(), layer:L.layerGroup(), key:store.get("aisKey",""), on:store.get("aisOn",false), warned:new Map(), sub:null};
+function aisIcon(s){ const c=s.sog>0.5?"#7B1FA2":"#9E9E9E"; return L.divIcon({className:"",iconSize:[22,22],iconAnchor:[11,11],
+  html:`<svg viewBox="-11 -11 22 22" width="22" height="22" style="transform:rotate(${s.cog||0}deg)"><path d="M0 -9 6 8 0 4 -6 8Z" fill="${c}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`}); }
+function cpa(s){ if(!last || sogNow==null) return null; // point de rapprochement le plus proche (approximation plane)
+  const k=Math.cos(last.ll.lat*Math.PI/180), toXY=ll=>[(ll[1]-last.ll.lng)*k*60, (ll[0]-last.ll.lat)*60];
+  const p=toXY([s.lat,s.lng]), cg=parseFloat($("cog").textContent)||0, v0=[sogNow*Math.sin(cg*Math.PI/180), sogNow*Math.cos(cg*Math.PI/180)], v1=[(s.sog||0)*Math.sin((s.cog||0)*Math.PI/180),(s.sog||0)*Math.cos((s.cog||0)*Math.PI/180)];
+  const dv=[v1[0]-v0[0],v1[1]-v0[1]], dv2=dv[0]**2+dv[1]**2; const t=dv2<1e-6?0:Math.max(0,-(p[0]*dv[0]+p[1]*dv[1])/dv2);
+  const d=Math.hypot(p[0]+dv[0]*t, p[1]+dv[1]*t); return {d, t:t*60}; } // milles, minutes
+function aisDraw(s){ if(!s.mk){ s.mk=L.marker([s.lat,s.lng],{icon:aisIcon(s),zIndexOffset:800}).addTo(AIS.layer).on("click",()=>{
+      const c=cpa(s); toast((s.name||"MMSI "+s.mmsi)+" · "+(s.sog!=null?s.sog.toFixed(1)+" nd":"")+" · cap "+Math.round(s.cog||0)+"°"+(last?" · à "+fmtNM(map.distance(last.ll,[s.lat,s.lng])):"")+(c&&c.t>0?" · CPA "+c.d.toFixed(2)+" M dans "+Math.round(c.t)+" min":""),6000); });
+    if(s.name) s.mk.bindTooltip(s.name,{permanent:map.getZoom()>=12,direction:"right",className:"mlabel",offset:[8,0]}); }
+  else { s.mk.setLatLng([s.lat,s.lng]).setIcon(aisIcon(s)); if(s.name && !s.mk.getTooltip()) s.mk.bindTooltip(s.name,{permanent:map.getZoom()>=12,direction:"right",className:"mlabel",offset:[8,0]}); }
+  const c=cpa(s); if(c && c.d<0.5 && c.t>0 && c.t<15 && Date.now()-(AIS.warned.get(s.mmsi)||0)>10*60e3){ AIS.warned.set(s.mmsi,Date.now());
+    notify("Risque de collision", (s.name||"Navire "+s.mmsi)+" : passage à "+c.d.toFixed(2)+" M dans "+Math.round(c.t)+" min"); try{ navigator.vibrate&&navigator.vibrate([300,150,300]); }catch(e){} } }
+function aisBox(){ const b=map.getBounds().pad(0.5); return [[[b.getSouth(),b.getWest()],[b.getNorth(),b.getEast()]]]; }
+function aisSubscribe(){ if(AIS.ws && AIS.ws.readyState===1) AIS.ws.send(JSON.stringify({APIKey:AIS.key, BoundingBoxes:aisBox(), FilterMessageTypes:["PositionReport","StandardClassBPositionReport","ShipStaticData","StaticDataReport"]})); }
+function aisStart(){ aisStop(); if(!AIS.on || !AIS.key || R()) return; AIS.layer.addTo(map); $("aisState").textContent="Connexion…";
+  try{ AIS.ws=new WebSocket("wss://stream.aisstream.io/v0/stream"); }catch(e){ $("aisState").textContent="Connexion impossible"; return; }
+  AIS.ws.onopen=()=>{ aisSubscribe(); $("aisState").textContent="Connecté : en attente des navires…"; };
+  AIS.ws.onmessage=async ev=>{ let m; try{ m=JSON.parse(typeof ev.data==="string"?ev.data:await ev.data.text()); }catch(e){ return; }
+    if(m.error){ $("aisState").textContent="Erreur : "+m.error; return; }
+    const md=m.MetaData||{}, id=md.MMSI; if(!id) return; let s=AIS.ships.get(id); if(!s){ s={mmsi:id}; AIS.ships.set(id,s); }
+    if(md.ShipName && md.ShipName.trim()) s.name=md.ShipName.trim();
+    const pr=m.Message&&(m.Message.PositionReport||m.Message.StandardClassBPositionReport);
+    if(pr){ s.lat=pr.Latitude??md.latitude; s.lng=pr.Longitude??md.longitude; s.sog=pr.Sog; s.cog=(pr.TrueHeading!=null&&pr.TrueHeading<360)?pr.TrueHeading:pr.Cog; s.t=Date.now(); }
+    if(s.lat!=null){ aisDraw(s); $("aisState").textContent="Connecté · "+AIS.ships.size+" navire"+(AIS.ships.size>1?"s":""); } };
+  AIS.ws.onerror=()=>{ $("aisState").textContent="Erreur de connexion (clé ? réseau ?)"; };
+  AIS.ws.onclose=()=>{ if(AIS.on && AIS.ws){ setTimeout(()=>{ if(AIS.on && (!AIS.ws||AIS.ws.readyState>1)) aisStart(); },15000); } }; }
+function aisStop(){ if(AIS.ws){ const w=AIS.ws; AIS.ws=null; try{ w.close(); }catch(e){} } }
+setInterval(()=>{ const now=Date.now(); AIS.ships.forEach((s,k)=>{ if(now-(s.t||0)>12*60e3){ if(s.mk) AIS.layer.removeLayer(s.mk); AIS.ships.delete(k); } }); }, 60e3);
+map.on("moveend", ()=>{ clearTimeout(AIS._t); AIS._t=setTimeout(aisSubscribe, 1500); });
+$("aisOn").checked=AIS.on; $("aisKey").value=AIS.key;
+$("aisOn").onchange=e=>{ AIS.on=e.target.checked; store.set("aisOn",AIS.on); if(AIS.on && !AIS.key){ toast("Collez d'abord votre clé aisstream.io"); } AIS.on?aisStart():(aisStop(),map.removeLayer(AIS.layer),$("aisState").textContent="Désactivé"); };
+$("aisSave").onclick=()=>{ AIS.key=$("aisKey").value.trim(); store.set("aisKey",AIS.key); toast(AIS.key?"Clé AIS enregistrée":"Clé effacée"); if(AIS.on) aisStart(); };
+if(AIS.on) setTimeout(aisStart, 3000);
+
+/* ================= Météo hors ligne : prévisions 3 jours sur les zones téléchargées ================= */
+const WXOFF={};   // id de zone -> {t, types:{type:{pts,series}}, tbl:[{ll,f,m}]}
+const wxKey=id=>"/wx/"+id+".json";
+async function wxLoadAll(){ try{ const c=await caches.open("navshom-wx"); for(const zn of zones){ if(WXOFF[zn.id]) continue; const r=await c.match(wxKey(zn.id)); if(r) WXOFF[zn.id]=await r.json(); } }catch(e){} }
+function wxTypes(mode){ return mode==="rando" ? ["wind","gust","temp","rain","snowf","frz"] : ["wind","gust","cur","wave","swell","press","rain"]; }
+async function wxDownload(zn, onProg){
+  const b=L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]), n=Math.min(11, Math.max(4, Math.round(Math.max(b.getEast()-b.getWest(), b.getNorth()-b.getSouth())/0.05)+1));
+  const pts=[]; for(let i=0;i<n;i++) for(let j=0;j<n;j++) pts.push([+(b.getSouth()+(b.getNorth()-b.getSouth())*i/(n-1)).toFixed(4), +(b.getWest()+(b.getEast()-b.getWest())*j/(n-1)).toFixed(4)]);
+  const out={t:Date.now(), model, types:{}, tbl:[]}, types=wxTypes(zn.mode); let k=0;
+  for(const ty of types){ onProg&&onProg(++k, types.length+1); try{ const r=await fetchSeries(ty, pts, 3); out.types[ty]={pts, series:r.series}; }catch(e){} }
+  onProg&&onProg(types.length+1, types.length+1);
+  const tp=[]; for(let i=0;i<3;i++) for(let j=0;j<3;j++) tp.push([+(b.getSouth()+(b.getNorth()-b.getSouth())*(i+.5)/3).toFixed(3), +(b.getWest()+(b.getEast()-b.getWest())*(j+.5)/3).toFixed(3)]);
+  try{ const la=tp.map(p=>p[0]).join(","), lo=tp.map(p=>p[1]).join(",");
+    let f=await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=temperature_2m,weather_code,is_day,precipitation,cloud_cover,visibility,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,snowfall,freezing_level_height&daily=sunrise,sunset&wind_speed_unit=kn&timezone=auto&forecast_days=3`);
+    let m=zn.mode==="rando"?null:await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=wave_height,wave_direction,swell_wave_height,ocean_current_velocity,ocean_current_direction&timezone=auto&forecast_days=3&cell_selection=sea`).catch(()=>null);
+    if(!Array.isArray(f)) f=[f]; if(m && !Array.isArray(m)) m=[m];
+    tp.forEach((p,i)=>out.tbl.push({ll:p, f:f[i], m:m?m[i]:null})); }catch(e){}
+  if(!Object.keys(out.types).length) throw new Error("wx");
+  const c=await caches.open("navshom-wx"); await c.put(wxKey(zn.id), new Response(JSON.stringify(out),{headers:{"Content-Type":"application/json"}}));
+  WXOFF[zn.id]=out; zn.wx=out.t; store.set("zones",zones); return out; }
+// cherche une série hors ligne pour un point (zone qui le contient, point le plus proche)
+function wxNearest(type, p){ let best=null, bd=1e9;
+  for(const id in WXOFF){ const o=WXOFF[id], T=o.types[type]; if(!T) continue; const zn=zones.find(z=>String(z.id)===String(id)); if(!zn) continue;
+    T.pts.forEach((q,i)=>{ const d=(q[0]-p[0])**2+((q[1]-p[1])*Math.cos(p[0]*Math.PI/180))**2; if(d<bd){ bd=d; best={s:T.series[i], t:o.t}; } }); }
+  return bd<0.04 ? best : null; } // jusqu'à ~20 km de la zone
+function wxTableNearest(p){ let best=null, bd=1e9; for(const id in WXOFF){ (WXOFF[id].tbl||[]).forEach(x=>{ const d=(x.ll[0]-p.lat)**2+(x.ll[1]-p.lng)**2; if(d<bd && d<0.25){ bd=d; best={...x, t:WXOFF[id].t}; } }); } return best; }
+wxLoadAll();
+
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-q"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-a"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
