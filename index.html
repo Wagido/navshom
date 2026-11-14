@@ -2817,7 +2817,7 @@ $("dlGo").onclick=async()=>{ if(!dl || dl.running || !dl.b) return;
   const stopped=dl.stop; dlEnd();
   if(stopped && done<total*0.98){ toast("Téléchargement arrêté ("+done+" / "+total+" tuiles déjà enregistrées)",4000); return; }
   zn.n=total; zn.mb=Math.max(1,Math.round(bytes/1048576)); zn.fail=fail; zn.name=await zoneName(L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]).getCenter());
-  zones.push(zn); store.set("zones",zones);
+  zones.push(zn); store.set("zones",zones); if(zn.d3) v3KeepLib();
   if(wantWx){ toast("Cartes enregistrées · téléchargement de la météo…",3000); try{ await wxDownload(zn); }catch(e){ toast("Météo non enregistrée (réseau ou limite Open-Meteo)",4000); } }
   renderZones();
   toast("« "+zn.name+" » disponible hors ligne"+(fail?" ("+fail+" tuiles manquantes, relancez pour compléter)":""),5000); };
@@ -2869,7 +2869,7 @@ async function massifInstall(m, btn){
         if(v === -32768){ f[k] = -99999; prev = null; } else { prev = prev===null ? v : prev+v; f[k] = prev; } } }
       await c.put(v3DemUrl(x0+tx, y0+ty), new Response(f.buffer, {headers:{"Content-Type":"image/x-bil;bits=32"}}));
       if(++n % 20 === 0) btn.textContent = (90+Math.round(10*n/m.tiles))+" %"; }
-    mInst[m.id] = {x0, y0, nx, ny, n, d:new Date().toISOString()}; store.set("massifs", mInst);
+    mInst[m.id] = {x0, y0, nx, ny, n, d:new Date().toISOString()}; store.set("massifs", mInst); v3KeepLib();
     toast("Relief « "+m.name+" » enregistré : vue 3D sans réseau dans le massif", 4000);
   }catch(e){ toast("Téléchargement du relief impossible ("+e.message+")"); }
   renderMassifs(); usageNote();
@@ -3252,8 +3252,12 @@ const V3 = { open:false, raf:0, pref: Object.assign({tex:"ortho", slope:false, e
 const v3Low = matchMedia("(pointer:coarse)").matches, v3Mem = navigator.deviceMemory || 4;
 const V3N = v3Mem <= 2 ? 192 : v3Low ? 256 : 400;       // côté de la grille du relief (sommets)
 const V3T = v3Mem <= 2 ? 1024 : 2048;                    // côté de la texture drapée (pixels)
-function v3Script(src){ return new Promise((res, rej) => { const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("chargement de "+src)); document.head.appendChild(s); }); }
-async function v3Lib(){ if(!window.THREE) await v3Script("lib/three.min.js"); if(!THREE.OrbitControls) await v3Script("lib/three-orbit.js"); }
+function v3Script(src){ return new Promise((res, rej) => { const s=document.createElement("script"), t=setTimeout(()=>rej(new Error("moteur 3D indisponible hors ligne")), 20000);
+  s.src=src; s.onload=()=>{ clearTimeout(t); res(); }; s.onerror=()=>{ clearTimeout(t); rej(new Error("moteur 3D indisponible hors ligne")); }; document.head.appendChild(s); }); }
+// Three.js gardé dans un cache à part (conservé d'une version de l'appli à l'autre) pour ouvrir la 3D hors ligne
+const V3LIB = ["lib/three.min.js", "lib/three-orbit.js"];
+function v3KeepLib(){ try{ caches.open("navshom-lib").then(async c => { for(const u of V3LIB) if(!(await c.match(u))) await c.add(u); }).catch(()=>{}); }catch(e){} }
+async function v3Lib(){ if(!window.THREE) await v3Script(V3LIB[0]); if(!THREE.OrbitControls) await v3Script(V3LIB[1]); v3KeepLib(); }
 const v3Dir = d => ["N","NE","E","SE","S","SO","O","NO"][Math.round(((d%360)+360)%360/45)%8];
 const v3Fmt = v => v.toFixed(1).replace(".", ",");
 // Données en tuiles fixes (grille Web Mercator, comme la carte) : les mêmes adresses reviennent d'une ouverture
@@ -3277,7 +3281,11 @@ function v3ZoneUrls(b){ const out = [], lat = b.getCenter().lat, dy = .045, dx =
   out.dem = dem; return out; }
 async function v3Pool(items, n, fn){ let i = 0; await Promise.all(Array.from({length:n}, async () => { while(i < items.length){ const k = i++; await fn(items[k]); } })); }
 async function v3Cached(u){ try{ return await (await caches.open("navshom-tiles")).match(u); }catch(e){ return null; } }
-async function v3Fetch(url, sig){ const r = await fetch(url, {signal:sig}); if(!r.ok) throw new Error("IGN "+r.status); return r; }
+// Hors ligne : cache seulement (réponse immédiate) ; en ligne : réseau avec 20 s au plus par requête
+async function v3Fetch(url, sig){
+  if(!navigator.onLine){ const hit = await v3Cached(url); if(hit) return hit; throw new Error("hors ligne"); }
+  const r = await Promise.race([fetch(url, {signal:sig}), new Promise((_, rej) => setTimeout(() => rej(new Error("délai dépassé")), 20000))]);
+  if(!r.ok) throw new Error("IGN "+r.status); return r; }
 async function v3Bitmap(url, sig){ const b = await (await v3Fetch(url, sig)).blob(); if(!/^image\//.test(b.type)) throw new Error("image"); return createImageBitmap(b); }
 function v3Prog(what, done, n){ const t = what+" "+Math.round(100*done/n)+" %"; if(V3.mesh) v3Tip(t); else if(V3.open) $("v3Status").textContent = "Chargement · "+t; }
 // Relief : mosaïque des tuiles z13, puis grille N×N par interpolation bilinéaire (centres des pixels)
@@ -3344,16 +3352,16 @@ async function open3D(){
     const sig = V3.abort.signal;
     const [h] = await Promise.all([v3Dem(sig), v3Lib()]);
     // fond indisponible (ex. hors ligne hors zone téléchargée) : on essaie l'autre, sinon couleurs d'altitude
-    V3.tex = V3.pref.tex;
-    if(V3.tex !== "relief"){ const alt = V3.tex==="scan" ? "ortho" : "scan";
-      await v3Img(V3.tex, sig).catch(e => { if(e.name==="AbortError") throw e; return v3Img(alt, sig).then(() => { V3.tex = alt; }); })
-        .catch(e => { if(e.name==="AbortError") throw e; V3.tex = "relief"; if(V3.pref.tex !== "relief") V3.noTex = true; }); }
+    V3.bg = V3.pref.tex;
+    if(V3.bg !== "relief"){ const alt = V3.bg==="scan" ? "ortho" : "scan";
+      await v3Img(V3.bg, sig).catch(e => { if(e.name==="AbortError") throw e; return v3Img(alt, sig).then(() => { V3.bg = alt; }); })
+        .catch(e => { if(e.name==="AbortError") throw e; V3.bg = "relief"; if(V3.pref.tex !== "relief") V3.noTex = true; }); }
     if(V3.pref.slope) await v3Img("slope", sig).catch(() => null);
     if(!V3.open) return;
     v3Heights(h); v3Build(); v3Prefs(); v3Status(null); if(V3.noTex){ V3.noTex = false; v3Tip("Pas de photo ici hors ligne : couleurs d'altitude"); }
   }catch(e){
     if(!V3.open || e.name==="AbortError") return;
-    v3Status(/relief|Zone/i.test(e.message) ? e.message : "Relief IGN indisponible ("+e.message+").", true);
+    v3Status(/relief|Zone|moteur/i.test(e.message) ? (/moteur/.test(e.message) ? "Le moteur 3D n'est pas encore sur le téléphone : ouvrez la vue 3D une fois avec du réseau." : e.message) : "Relief IGN indisponible ("+e.message+").", true);
   }
 }
 function v3Status(msg, retry){ const el = $("v3Status"); el.hidden = !msg; if(!msg) return; el.textContent = msg;
@@ -3416,7 +3424,7 @@ function v3Lines(){
   return out;
 }
 function v3Paint(){
-  const g = V3.cv.getContext("2d"), T = V3T, base = V3.tex==="relief" ? (V3.img.relief || (V3.img.relief = v3Hypso())) : V3.img[V3.tex];
+  const g = V3.cv.getContext("2d"), T = V3T, base = V3.bg==="relief" ? (V3.img.relief || (V3.img.relief = v3Hypso())) : V3.img[V3.bg];
   g.fillStyle = "#e9edf1"; g.fillRect(0, 0, T, T);
   if(base) g.drawImage(base, 0, 0, T, T);
   if(V3.pref.slope && V3.img.slope){ g.globalAlpha = .6; g.drawImage(V3.img.slope, 0, 0, T, T); g.globalAlpha = 1; }
@@ -3486,13 +3494,13 @@ function close3D(){
   $("v3d").hidden = true; $("b3d").classList.remove("on"); $("v3Labels").innerHTML = ""; $("v3Status").hidden = true; removeEventListener("resize", v3Resize);
   if(V3.renderer){ V3.ctl.dispose(); V3.mesh.geometry.dispose(); V3.mesh.material.dispose(); V3.tex.dispose(); V3.renderer.dispose(); V3.renderer.forceContextLoss(); V3.renderer.domElement.remove(); }
   for(const k in (V3.img||{})) V3.img[k].width = 0;  // libère la mémoire des canvas
-  Object.assign(V3, {tex:null, renderer:null, sun:null, ctl:null, scene:null, mesh:null, tex:null, cv:null, h:null, img:{}, labels:[]});
+  Object.assign(V3, {bg:null, renderer:null, sun:null, ctl:null, scene:null, mesh:null, tex:null, cv:null, h:null, img:{}, labels:[]});
 }
 // Réglages : fond, pentes, exagération, soleil (mémorisés)
 function v3Sun(){ if(!V3.sun) return; const a = V3.pref.sun*Math.PI/180, S = V3.S; V3.sun.position.set(Math.sin(a)*S, S*.8, -Math.cos(a)*S); V3.dirty = true; }
 function v3Prefs(){
   const P = V3.pref; store.set("v3", P);
-  document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t===(V3.tex || P.tex)));
+  document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t===(V3.bg || P.tex)));
   $("v3Slope").setAttribute("aria-pressed", P.slope);
   $("v3Exag").value = P.exag; $("v3ExagO").textContent = v3Fmt(P.exag)+"×";
   $("v3Sun").value = P.sun; $("v3SunO").textContent = v3Dir(P.sun);
@@ -3503,7 +3511,7 @@ function v3Prefs(){
 async function v3Need(key){ if(key==="relief" || V3.img[key] || !V3.mesh) return true;
   v3Tip("Chargement…"); try{ await v3Img(key, V3.abort.signal); return true; }catch(e){ if(V3.open) v3Tip(key==="scan" ? "Carte IGN indisponible" : "Image IGN indisponible"); return false; } }
 document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.onclick = async () => {
-  const t = b.dataset.t; if(!(await v3Need(t)) || !V3.open) return; V3.pref.tex = V3.tex = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
+  const t = b.dataset.t; if(!(await v3Need(t)) || !V3.open) return; V3.pref.tex = V3.bg = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
 $("v3Slope").onclick = async () => { const on = !V3.pref.slope; if(on && !(await v3Need("slope"))) return; if(!V3.open) return; V3.pref.slope = on; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; };
 $("v3Exag").oninput = e => { V3.pref.exag = +e.target.value; $("v3ExagO").textContent = v3Fmt(V3.pref.exag)+"×";
   if(V3.mesh && !V3.exT) V3.exT = requestAnimationFrame(() => { V3.exT = 0; const t = V3.ctl.target, y0 = t.y; v3ApplyH(); const ny = v3Y(v3H(t.x/V3.S+.5, t.z/V3.S+.5)); V3.cam.position.y += ny-y0; t.y = ny; }); };

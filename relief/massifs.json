@@ -1,0 +1,182 @@
+[
+ {
+  "id": "mont-blanc",
+  "name": "Mont-Blanc · Aravis",
+  "b": [
+   45.75,
+   6.35,
+   46.15,
+   7.05
+  ],
+  "kb": 1922,
+  "tiles": 231
+ },
+ {
+  "id": "chablais",
+  "name": "Chablais · Haut-Giffre",
+  "b": [
+   46.05,
+   6.4,
+   46.42,
+   6.95
+  ],
+  "kb": 1236,
+  "tiles": 179
+ },
+ {
+  "id": "vanoise",
+  "name": "Vanoise · Beaufortain",
+  "b": [
+   45.2,
+   6.4,
+   45.7,
+   7.15
+  ],
+  "kb": 2665,
+  "tiles": 291
+ },
+ {
+  "id": "belledonne",
+  "name": "Belledonne · Chartreuse",
+  "b": [
+   45.05,
+   5.7,
+   45.55,
+   6.3
+  ],
+  "kb": 2080,
+  "tiles": 255
+ },
+ {
+  "id": "vercors",
+  "name": "Vercors",
+  "b": [
+   44.7,
+   5.25,
+   45.25,
+   5.75
+  ],
+  "kb": 1750,
+  "tiles": 228
+ },
+ {
+  "id": "ecrins",
+  "name": "Écrins",
+  "b": [
+   44.6,
+   6,
+   45.15,
+   6.6
+  ],
+  "kb": 2482,
+  "tiles": 270
+ },
+ {
+  "id": "queyras",
+  "name": "Queyras · Ubaye",
+  "b": [
+   44.3,
+   6.4,
+   44.9,
+   7.05
+  ],
+  "kb": 2851,
+  "tiles": 320
+ },
+ {
+  "id": "mercantour",
+  "name": "Mercantour",
+  "b": [
+   43.95,
+   6.75,
+   44.35,
+   7.65
+  ],
+  "kb": 2644,
+  "tiles": 286
+ },
+ {
+  "id": "pyrenees-ouest",
+  "name": "Pyrénées occidentales",
+  "b": [
+   42.75,
+   -0.9,
+   43.1,
+   0
+  ],
+  "kb": 2034,
+  "tiles": 234
+ },
+ {
+  "id": "pyrenees-centre",
+  "name": "Pyrénées centrales",
+  "b": [
+   42.6,
+   0,
+   43,
+   1
+  ],
+  "kb": 2134,
+  "tiles": 253
+ },
+ {
+  "id": "pyrenees-est",
+  "name": "Pyrénées orientales",
+  "b": [
+   42.35,
+   1.7,
+   42.85,
+   2.7
+  ],
+  "kb": 3387,
+  "tiles": 408
+ },
+ {
+  "id": "auvergne",
+  "name": "Volcans d'Auvergne",
+  "b": [
+   44.95,
+   2.5,
+   45.65,
+   3.05
+  ],
+  "kb": 2202,
+  "tiles": 336
+ },
+ {
+  "id": "jura",
+  "name": "Jura",
+  "b": [
+   46.3,
+   5.8,
+   46.8,
+   6.3
+  ],
+  "kb": 1400,
+  "tiles": 221
+ },
+ {
+  "id": "vosges",
+  "name": "Vosges",
+  "b": [
+   47.8,
+   6.8,
+   48.3,
+   7.3
+  ],
+  "kb": 1446,
+  "tiles": 234
+ },
+ {
+  "id": "corse",
+  "name": "Corse (GR20)",
+  "b": [
+   41.75,
+   8.6,
+   42.6,
+   9.4
+  ],
+  "kb": 4148,
+  "tiles": 469
+ }
+]
