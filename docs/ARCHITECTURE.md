@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.17-a · Dernière mise à jour : 16 novembre 2026
+> Statut : version 2026.11.17-b · Dernière mise à jour : 16 novembre 2026
 
 ## 1. Résumé
 
@@ -226,7 +226,9 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 **Télécharger une zone** (Plus › Hors ligne) :
 - l'utilisateur cadre la zone dans un rectangle et voit l'estimation de taille en direct ;
 - l'appli enregistre les tuiles des couches affichées, du zoom 6 au détail maximal du fond (option « Plus léger » : un niveau de moins), avec une limite de 9 000 tuiles ;
+- si le fond affiché est OpenStreetMap ou OpenTopoMap (téléchargement en masse interdit), la carte IGN 1:25 000 (Rando) ou le plan IGN (Mer) est emportée à la place, avec un message ;
 - l'option cochée par défaut ajoute **la météo des 3 jours** ;
+- en Rando, l'option « Vue 3D » ajoute relief et photo (taille affichée) ; au-delà de 3 000 tuiles 3D (zone d'environ 70 km), elle est grisée et renvoie vers le relief par massif ;
 - le bouton « Météo » d'une zone la rafraîchit avant de partir ;
 - supprimer une zone retire ses tuiles, sauf celles partagées avec une autre zone.
 
@@ -311,6 +313,7 @@ Autres points :
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.17-b** : zone hors ligne possible avec OpenStreetMap affiché (carte IGN emportée à la place) ; option 3D limitée aux zones raisonnables.
 - **2026.11.17-a** : paquets de relief par massif (vue 3D hors ligne), fond « Relief » en couleurs d'altitude.
 - **2026.11.16-z** : vue 3D en tuiles fixes mises en cache, option « Vue 3D » des zones hors ligne, mode économe en données.
 - **2026.11.16-y** : **vue 3D** en Rando (relief IGN, photo, carte ou pentes drapées, traces, itinéraire mesuré, repères et position).

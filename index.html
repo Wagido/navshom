@@ -2757,7 +2757,9 @@ const TILE_KB={ign1950:30,litto:30,scan25:38,ign:22,ortho:30,emod:12,shom:30,geb
 const OVL={shade, slopes, seamarks};
 let zones=store.get("zones",[]), dl=null, dlQ=0;
 const lyOf=k=>bases[k]||OVL[k];
-function dlKeys(){ const k=(autoSatOn&&curBase==="ortho")?"scan25":curBase, ks=[k];
+function dlKeys(){ let k=(autoSatOn&&curBase==="ortho")?"scan25":curBase;
+  if(k==="osm"||k==="topo") k=R()?"scan25":"ign"; // OpenStreetMap et OpenTopoMap interdisent le téléchargement en masse : carte IGN à la place
+  const ks=[k];
   if(R()){ if(store.get("shade",true) && k!=="ortho") ks.push("shade"); if(map.hasLayer(slopes)) ks.push("slopes"); }
   else if($("seamarks").checked) ks.push("seamarks");
   return ks; }
@@ -2777,13 +2779,16 @@ function dlLayout(){ const top=$("colTL").getBoundingClientRect().bottom+14, bot
   f.top=top+"px"; f.left=side+"px"; f.right=rt+"px"; f.height=Math.max(80,bot-top)+"px"; }
 const NAMES={ign1950:"carte IGN 1950",litto:"carte marine",scan25:"IGN 1:25 000",ign:"plan IGN",ortho:"photos aériennes",emod:"profondeurs",shom:"cartes SHOM",gebco:"GEBCO",shade:"relief",slopes:"pentes",seamarks:"balisage"};
 function dlEstimate(){ if(!dl || dl.running) return; const b=dlBounds(), ks=dlKeys(), e=$("dlEst"), go=$("dlGo");
-  if(curBase==="osm"||curBase==="topo"){ e.className="dl-s warn"; e.textContent=(curBase==="osm"?"OpenStreetMap":"OpenTopoMap")+" interdit le téléchargement en masse : choisissez un autre fond (bouton Cartes)."; go.disabled=true; return; }
+  const sub=(curBase==="osm"||curBase==="topo") ? (curBase==="osm"?"OpenStreetMap":"OpenTopoMap")+" ne se télécharge pas (interdit par le service) : "+(R()?"la carte IGN 1:25 000 est emportée":"le plan IGN est emporté")+" à la place.<br>" : "";
   let n=0, kb=0; ks.forEach(k=>{ const c=tilesIn(b,k,dlQ); n+=c; kb+=c*(TILE_KB[k]||20); });
-  if(R()){ const u=v3ZoneUrls(b), k3=u.dem*64+(u.length-u.dem)*TILE_KB.ortho; $("dlD3Txt").textContent="Vue 3D : relief et photo (≈ "+Math.max(1,Math.round(k3/1024))+" Mo)";
-    if($("dlD3").checked){ n+=u.length; kb+=k3; } }
+  dl.d3=false;
+  if(R()){ const c3=v3ZoneCount(b), k3=c3.dem*64+c3.ph*TILE_KB.ortho, big=c3.dem+c3.ph>V3DL_MAX, cb=$("dlD3");
+    cb.disabled=big; $("dlD3Row").style.opacity=big?.55:1;
+    $("dlD3Txt").textContent = big ? "Vue 3D : zone trop grande. Prenez plutôt le relief par massif (Plus › Hors ligne)" : "Vue 3D : relief et photo (≈ "+Math.max(1,Math.round(k3/1024))+" Mo)";
+    if(cb.checked && !big){ n+=c3.dem+c3.ph; kb+=k3; dl.d3=true; } }
   const mo=Math.max(1,Math.round(kb/1024)), zx=dlZooms(ks[0],dlQ)[1];
-  if(n>DL_MAX){ e.className="dl-s warn"; e.innerHTML="Zone trop grande ("+n.toLocaleString("fr-FR")+" tuiles). Rapprochez-vous ou choisissez « Plus léger »."; go.disabled=true; return; }
-  e.className="dl-s"; e.innerHTML="<b>≈ "+mo+" Mo</b> · "+n.toLocaleString("fr-FR")+" tuiles · "+ks.map(k=>NAMES[k]||k).join(" + ")+" · détail jusqu'au 1:"+Math.round(591658711/2**zx/1000)+" 000";
+  if(n>DL_MAX){ e.className="dl-s warn"; e.innerHTML=sub+"Zone trop grande ("+n.toLocaleString("fr-FR")+" tuiles). Rapprochez-vous ou choisissez « Plus léger »."; go.disabled=true; return; }
+  e.className="dl-s"; e.innerHTML=sub+"<b>≈ "+mo+" Mo</b> · "+n.toLocaleString("fr-FR")+" tuiles · "+ks.map(k=>NAMES[k]||k).join(" + ")+" · détail jusqu'au 1:"+Math.round(591658711/2**zx/1000)+" 000";
   go.disabled=false; dl.n=n; dl.keys=ks; dl.b=b; }
 function dlStart(){ if(!("caches" in window)) return toast("Ce navigateur ne permet pas le hors ligne");
   closeSheets(); if(measuring) stopMeasure();
@@ -2799,7 +2804,7 @@ async function zoneName(c){ for(const ix of ["poi","address"]) try{ const r=awai
   return "Zone du "+new Date().toLocaleDateString("fr-FR"); }
 $("dlGo").onclick=async()=>{ if(!dl || dl.running || !dl.b) return;
   try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
-  const wantWx=$("dlWx").checked, q=dlQ, zn={id:Date.now(), b:[dl.b.getSouth(),dl.b.getWest(),dl.b.getNorth(),dl.b.getEast()], keys:dl.keys, q, mode:MODE, d3:R()&&$("dlD3").checked, d:new Date().toISOString()};
+  const wantWx=$("dlWx").checked, q=dlQ, zn={id:Date.now(), b:[dl.b.getSouth(),dl.b.getWest(),dl.b.getNorth(),dl.b.getEast()], keys:dl.keys, q, mode:MODE, d3:!!dl.d3, d:new Date().toISOString()};
   const urls=zoneUrls(zn), total=urls.length; dl.running=true;
   $("dlTitle").textContent="Téléchargement…"; $("dlQ").hidden=true; $("dlP").hidden=false; $("dlGo").hidden=true; $("dlCancel").textContent="Arrêter";
   const cache=await caches.open("navshom-tiles"); let done=0, fail=0, bytes=0; const t0=Date.now();
@@ -3279,6 +3284,10 @@ function v3ZoneUrls(b){ const out = [], lat = b.getCenter().lat, dy = .045, dx =
   let r = v3Tiles(v3Proj(pb), V3DZ); for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) out.push(v3DemUrl(x, y));
   const dem = out.length; r = v3Tiles(v3Proj(b), 14); for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) out.push(v3TileUrl(bases.ortho, 14, x, y));
   out.dem = dem; return out; }
+// Nombre de tuiles 3D d'une zone (sans fabriquer les adresses) ; au-delà de V3DL_MAX, on renvoie vers les paquets par massif
+const V3DL_MAX = 3000;
+function v3ZoneCount(b){ const lat = b.getCenter().lat, dy = .045, dx = .045/Math.cos(lat*Math.PI/180), n = r => (r.x1-r.x0+1)*(r.y1-r.y0+1);
+  return { dem: n(v3Tiles(v3Proj(L.latLngBounds([b.getSouth()-dy, b.getWest()-dx], [b.getNorth()+dy, b.getEast()+dx])), V3DZ)), ph: n(v3Tiles(v3Proj(b), 14)) }; }
 async function v3Pool(items, n, fn){ let i = 0; await Promise.all(Array.from({length:n}, async () => { while(i < items.length){ const k = i++; await fn(items[k]); } })); }
 async function v3Cached(u){ try{ return await (await caches.open("navshom-tiles")).match(u); }catch(e){ return null; } }
 // Hors ligne : cache seulement (réponse immédiate) ; en ligne : réseau avec 20 s au plus par requête
@@ -3525,7 +3534,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-a"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-b"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
