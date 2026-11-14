@@ -460,8 +460,18 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
 #sMeteo #meteoMsg{color:#4A5D73}
 body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 /* Panneau météo : tableau façon « Prévisions détaillées », choix de la couche en touchant une ligne */
-#tChips,#tTblBtn{display:none!important}
-#tbar .sunl{position:sticky;left:0;display:flex;gap:20px;padding:2px 10px 8px;font:500 13px var(--sans);color:#4A5D73}
+#tTblBtn{display:none!important} body.rando #tChips{display:none!important}
+#tbar .tbl{max-height:min(30vh,270px);overflow:auto;overscroll-behavior:contain}
+#tbar .tbl tr.hh td,#tbar .tbl tr.hh th{position:sticky;top:0;z-index:2;background:#fff}
+#tbar .tbl tr.hh th{z-index:3;background:#F7F9FB}
+#tbar .tbl th{z-index:1}
+#tbar .tbl td{height:32px}
+#tbar .trow{flex-wrap:nowrap;align-items:center}
+#tbar .trow select{flex:1 1 60px!important;min-width:60px!important}
+#tbar .trow .tog{padding:6px 9px}
+@media (max-height:700px){ #tbar .tbl{max-height:26vh} }
+#tbar.mini #tSun{display:none}
+#tbar .sunl{display:flex;gap:20px;padding:4px 2px 6px;font:500 13px var(--sans);color:#4A5D73}
 #tbar .sunl span{display:flex;align-items:center;gap:6px} #tbar .sunl b{color:#0B2F5B;font-weight:700} #tbar .sunl svg{width:18px;height:18px}
 #tbar .tbl table{font:600 14px var(--sans);font-variant-numeric:tabular-nums;color:#0B2F5B}
 #tbar .tbl th{min-width:84px;max-width:84px;padding:4px 6px 4px 10px;background:#F7F9FB;border-right:1px solid #E8EDF2;font:600 12.5px var(--sans);color:#0B2F5B;line-height:1.15;white-space:normal}
@@ -559,6 +569,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">✕</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
+  <div class="sunl" id="tSun"></div>
   <div class="tbl" id="tTbl" hidden></div>
   <div class="tl"><canvas id="tGraph"></canvas><input type="range" id="tSlider" min="0" max="47" value="0" aria-label="Heure, faire glisser"></div>
   <div class="tlbtns"><button id="tm3">−3 h</button><button id="tm1">−1 h</button><button id="tnow">Maint.</button><button id="tp1">+1 h</button><button id="tp3">+3 h</button></div>
@@ -1300,8 +1311,11 @@ function renderTable(){
           return cell(i, v==null?"":`<div class="wc" style="${bg(OVT.cur,v,.45)}">${dc(v)}</div>`); },"","cur");
   }
   html+='</table>';
-  const dd=tbl.f.daily; if(dd && dd.sunrise) html='<div class="sunl"><span><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#ffc83d"/></svg>Lever <b>'+dd.sunrise[0].slice(11,16)+'</b></span><span><svg viewBox="0 0 48 48"><path d="M28 8a14 14 0 1 0 12 20 11 11 0 0 1-12-20z" fill="#9AA8B8"/></svg>Coucher <b>'+dd.sunset[0].slice(11,16)+'</b></span></div>'+html;
+  const dd=tbl.f.daily; if(dd && dd.sunrise) $("tSun").innerHTML='<span><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#ffc83d"/></svg>Lever <b>'+dd.sunrise[0].slice(11,16)+'</b></span><span><svg viewBox="0 0 48 48"><path d="M28 8a14 14 0 1 0 12 20 11 11 0 0 1-12-20z" fill="#9AA8B8"/></svg>Coucher <b>'+dd.sunset[0].slice(11,16)+'</b></span>';
   const el=$("tTbl"), keep=el.scrollLeft, first=!el.dataset.ready; el.innerHTML=html; el.dataset.ready=1;
+  if(!R()){ // en mer : vent, direction, vagues et courant en premier
+    const rows=[...el.querySelectorAll("tr")], byTxt=t=>rows.find(r=>r.cells[0] && r.cells[0].textContent===t), byK=k=>{ const th=el.querySelector(`th[data-k="${k}"]`); return th&&th.parentElement; };
+    let after=byTxt("Ciel"); [byK("wind"),byK("gust"),byTxt("Direction"),byK("wave"),byK("swell"),byK("cur"),byTxt("Mer")].forEach(r=>{ if(r&&after){ after.after(r); after=r; } }); }
   el.scrollLeft = first ? 0 : keep;
   fixTl();
 }
@@ -2535,7 +2549,7 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
 async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
 renderZones();
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-p"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-q"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
