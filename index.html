@@ -555,6 +555,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 /* barre de temps façon Windy : toujours visible, même panneau replié */
 #tbar.mini .tl{display:block!important;height:46px} #tbar.tblopen .tl{display:block;height:46px}
 #tbar.mini .tlbtns{display:none}
+#tbar .train{font:500 13.5px var(--sans);color:#0B2F5B;background:#E3F0FF;border-radius:8px;padding:6px 9px;margin:4px 0}
 #tbar .tnote{font:500 11.5px var(--sans);color:#B45309;background:#FFF4E5;border-radius:8px;padding:5px 8px;margin:4px 0}
 #tbar.mini .tnote{display:none}
 </style>
@@ -632,9 +633,10 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <button id="tFold" aria-expanded="false"><span class="fold-bar"></span><span id="tFoldTxt">Détails ︿</span></button>
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
-  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tRadar" class="tog">Radar</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button></div>
+  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tRadar" class="tog">☔ Pluie à venir</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
+  <div class="train" id="tRain" hidden></div>
   <div class="tnote" id="tNote" hidden>⚠ Modèle de 8 km : courants des goulets et des raz très sous-estimés (Port-Navalo, Raz de Sein…).</div>
   <div class="sunl" id="tSun"></div>
   <div class="tbl" id="tTbl" hidden></div>
@@ -2884,21 +2886,28 @@ document.querySelectorAll("#sMenu [data-open]").forEach(b=>b.onclick=()=>{ const
 function hubRefresh(){ try{ $("hbOff").textContent = zones.length ? zones.length+" zone"+(zones.length>1?"s":"")+" enregistrée"+(zones.length>1?"s":"") : "Cartes et météo";
   $("hbAis").textContent = AIS.on ? (AIS.ships.size? AIS.ships.size+" navire"+(AIS.ships.size>1?"s":"") : "Activé") : "Désactivé"; }catch(e){} }
 $("bMenu").addEventListener("click", hubRefresh);
-/* ================= Radar de pluie (RainViewer : 2 dernières heures, toutes les 10 min) ================= */
-const RADAR={on:false, frames:[], layers:[], i:0, timer:null, host:""};
-async function radarOn(){
-  try{ const j=await (await fetch("https://api.rainviewer.com/public/weather-maps.json",{cache:"no-store"})).json();
-    RADAR.host=j.host; RADAR.frames=(j.radar&&j.radar.past)||[]; }catch(e){ toast("Radar indisponible (réseau ?)"); return radarOff(); }
-  if(!RADAR.frames.length){ toast("Radar indisponible"); return radarOff(); }
-  RADAR.layers=RADAR.frames.map(f=>L.tileLayer(RADAR.host+f.path+"/256/{z}/{x}/{y}/2/1_1.png",{opacity:0,maxNativeZoom:7,maxZoom:19,zIndex:450,attribution:'Radar <a href="https://www.rainviewer.com" target="_blank" rel="noopener">RainViewer</a>'}).addTo(map));
-  RADAR.i=RADAR.frames.length-1; radarShow(); toast("Radar de pluie : 2 dernières heures, en boucle",3000);
-  RADAR.timer=setInterval(()=>{ RADAR.i=(RADAR.i+1)%RADAR.frames.length; radarShow(); }, 700); }
-function radarShow(){ RADAR.layers.forEach((l,k)=>l.setOpacity(k===RADAR.i?.75:0)); const f=RADAR.frames[RADAR.i], m=Math.round((Date.now()/1000-f.time)/60);
-  $("tRadar").textContent = "Radar "+(m<=5?"maint.":"−"+(m>=60?Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"):m+" min")); }
-function radarOff(){ clearInterval(RADAR.timer); RADAR.layers.forEach(l=>map.removeLayer(l)); RADAR.layers=[]; RADAR.on=false; $("tRadar").classList.remove("on"); $("tRadar").textContent="Radar"; }
-$("tRadar").onclick=()=>{ if(RADAR.on) return radarOff(); RADAR.on=true; $("tRadar").classList.add("on"); radarOn(); };
+/* ================= Pluie à venir : prévision animée des 12 prochaines heures + résumé à la position ================= */
+const RAIN={on:false, timer:null};
+function rainSummary(){ const h=tbl.f&&tbl.f.hourly; if(!h||!h.precipitation) return null;
+  const now=Date.now(); let k0=0; h.time.forEach((t,i)=>{ if(new Date(t).getTime()<=now) k0=i; });
+  const hh=i=>h.time[i].slice(11,13)+" h", n=Math.min(h.time.length, k0+13), wet=i=>(h.precipitation[i]||0)>=0.2;
+  let first=-1; for(let i=k0;i<n;i++) if(wet(i)){ first=i; break; }
+  if(first<0) return "☀️ <b>Pas de pluie prévue</b> d'ici "+hh(n-1);
+  let end=first; while(end+1<n && wet(end+1)) end++; let tot=0; for(let i=first;i<=end;i++) tot+=h.precipitation[i]||0;
+  const mm=tot<1?tot.toFixed(1).replace(".",","):Math.round(tot);
+  return (first===k0?"🌧️ <b>Pluie en ce moment</b>":"🌦️ <b>Sec jusqu'à "+hh(first)+"</b>, puis pluie")+" jusqu'à "+hh(end+1)+" · "+mm+" mm"+(end+1<n?" · ensuite sec":""); }
+async function rainOn(){ RAIN.on=true; $("tRadar").classList.add("on");
+  if(ov.type!=="rain") setOverlay("rain"); setFold(true);
+  for(let k=0;k<40 && !ov.data;k++) await new Promise(r=>setTimeout(r,250));
+  if(!tbl.f) await loadTable(); const t=rainSummary(); $("tRain").innerHTML=t||""; $("tRain").hidden=!t;
+  if(!ov.data||!RAIN.on) return; const start=ov.now, stop=Math.min(ov.data[0].time.length-1, ov.now+12); let i=start;
+  clearInterval(RAIN.timer); RAIN.timer=setInterval(()=>{ if(ov.type!=="rain"){ return rainOff(); } setHour(i); i = i>=stop ? start : i+1; }, 800); }
+function rainOff(){ clearInterval(RAIN.timer); RAIN.on=false; $("tRadar").classList.remove("on"); $("tRain").hidden=true; }
+function radarOff(){ rainOff(); }
+$("tRadar").onclick=()=>RAIN.on ? rainOff() : rainOn();
+$("tSlider").addEventListener("pointerdown", ()=>{ if(RAIN.on){ clearInterval(RAIN.timer); } });
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-h"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-i"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
