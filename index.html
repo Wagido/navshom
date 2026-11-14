@@ -522,7 +522,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 #tbar .tbl tr.hh th{z-index:3;background:#F7F9FB}
 #tbar .tbl th{z-index:1}
 #tbar .tbl td{height:32px}
-#tbar .trow{flex-wrap:nowrap;align-items:center}
+#tbar .trow{flex-wrap:nowrap;align-items:center;overflow-x:auto;scrollbar-width:none} #tbar .trow::-webkit-scrollbar{display:none} #tbar .trow .tog{flex:none}
 #tbar .trow select{flex:1 1 60px!important;min-width:60px!important}
 #tbar .trow .tog{padding:6px 9px}
 @media (max-height:700px){ #tbar .tbl{max-height:26vh} }
@@ -632,7 +632,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <button id="tFold" aria-expanded="false"><span class="fold-bar"></span><span id="tFoldTxt">Détails ︿</span></button>
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
-  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button></div>
+  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tRadar" class="tog">Radar</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
   <div class="tnote" id="tNote" hidden>⚠ Modèle de 8 km : courants des goulets et des raz très sous-estimés (Port-Navalo, Raz de Sein…).</div>
@@ -1043,7 +1043,8 @@ const boatIcon = L.divIcon({className:"boat", iconSize:[34,34], iconAnchor:[17,1
   '<svg viewBox="0 0 34 34"><path d="M17 2 26 30 17 24 8 30Z" fill="#e5372b" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'});
 let boat=null, accCircle=null, last=null, follow=true, vecLine=null, sogNow=null;
 const trackLine = L.polyline(store.get("track", []), {color:"#e5372b", weight:3, opacity:.7, interactive:false});
-$("track").checked = store.get("showTrack", true); if($("track").checked) trackLine.addTo(map);
+$("track").checked = store.get("showTrack", true); if($("track").checked && !R()) trackLine.addTo(map);
+if(Date.now()-store.get("trackT",0)>12*3600e3){ trackLine.setLatLngs([]); store.set("track",[]); }
 $("track").onchange = e => { e.target.checked ? trackLine.addTo(map) : map.removeLayer(trackLine); store.set("showTrack", e.target.checked); };
 $("bClearTrack").onclick = () => { trackLine.setLatLngs([]); store.set("track", []); toast("Trace effacée"); };
 function setFollow(v){ follow=v; $("bFollow").classList.toggle("on", v); }
@@ -1070,9 +1071,11 @@ function onPos(p){
   if(cog!==null){ const s=boat.getElement()&&boat.getElement().querySelector("svg"); if(s) s.style.transform="rotate("+cog+"deg)"; }
   if(cog!==null && sog>0.4){ const end=dest(ll, cog, sog/KN*360);
     vecLine ? vecLine.setLatLngs([ll,end]) : vecLine=L.polyline([ll,end],{color:"#e5372b",weight:2,dashArray:"6 5",interactive:false}).addTo(map); }
-  const lt=trackLine.getLatLngs();
-  if(c.accuracy<50 && (!lt.length || map.distance(lt[lt.length-1],ll)>15)){
-    trackLine.addLatLng(ll); store.set("track", trackLine.getLatLngs().slice(-5000).map(x=>[+x.lat.toFixed(6),+x.lng.toFixed(6)])); }
+  if(!R()){ // trace du bateau : en mode Mer seulement ; nouvelle trace après 12 h sans point
+    if(Date.now()-store.get("trackT",0)>12*3600e3 && trackLine.getLatLngs().length){ trackLine.setLatLngs([]); store.set("track",[]); }
+    const lt=trackLine.getLatLngs();
+    if(c.accuracy<50 && (!lt.length || map.distance(lt[lt.length-1],ll)>15)){
+      trackLine.addLatLng(ll); store.set("trackT",Date.now()); store.set("track", trackLine.getLatLngs().slice(-5000).map(x=>[+x.lat.toFixed(6),+x.lng.toFixed(6)])); } }
   last={ll,t:p.timestamp,alt:c.altitude,acc:c.accuracy};
   if(R()){ if(sogNow!=null) $("sog").textContent=(sogNow*1.852).toFixed(1); $("cog").textContent = c.altitude!=null ? Math.round(c.altitude) : "—"; }
   recPoint(ll, c, p.timestamp); navTick(ll);
@@ -1378,7 +1381,7 @@ function setModel(m){ model=m; store.set("model",m); $("tModel").value=m; $("men
   if(ov.type && OVT[ov.type].api==="fc") loadOverlay(ov.idx); if(tbl.open) loadTable(true); toast("Modèle : "+modelName(m)); }
 $("tModel").onchange=e=>setModel(e.target.value); $("menuModel").onchange=e=>setModel(e.target.value);
 $("tAnim").onclick=()=>{ ov.anim=!ov.anim; store.set("anim",ov.anim); $("tAnim").classList.toggle("on",ov.anim); drawOverlay(); if(!ov.anim) stopParticles(); };
-$("tClose").onclick=()=>{ tbl.force=null; setOverlay(null); };
+$("tClose").onclick=()=>{ tbl.force=null; try{ radarOff(); }catch(e){} setOverlay(null); };
 function setFold(open){ store.set("tbarOpen",open); $("tbar").classList.toggle("mini",!open); $("tFold").setAttribute("aria-expanded",open);
   $("tFoldTxt").textContent = open ? "Réduire ﹀" : "Détails ︿"; if(open && tbl.open) loadTable(); fixTl(); setTimeout(()=>{ drawLegend(); drawTimeline(); },30); }
 $("tFold").onclick=()=>setFold($("tbar").classList.contains("mini"));
@@ -1815,6 +1818,7 @@ function setMode(m, quiet){
   if(ov.type && ((OVT[ov.type].api==="mar" && R()) || (OVT[ov.type].rando && !R()))) setOverlay(null);
   $("mSpeed").value = store.get("mspeed_"+MODE, R()?4:5);
   try{ if(mobMk){ R()?map.removeLayer(mobMk):mobMk.addTo(map); } }catch(e){}
+  try{ (R() || !$("track").checked) ? map.removeLayer(trackLine) : trackLine.addTo(map); }catch(e){}
   try{ if(R()){ aisStop(); map.removeLayer(AIS.layer); } else if(AIS.on) aisStart(); }catch(e){}
   try{ R()?map.removeLayer(anchorLayer):anchorLayer.addTo(map); }catch(e){}
   chipLabels(); if(measuring) drawMeasure(); if(typeof setSlopes==="function") setSlopes(store.get("slopes",false)); try{ autoSatCheck(); setShade(store.get("shade",true)); }catch(e){ /* pas encore initialisé au démarrage */ }
@@ -2871,8 +2875,21 @@ document.querySelectorAll("#sMenu [data-open]").forEach(b=>b.onclick=()=>{ const
 function hubRefresh(){ try{ $("hbOff").textContent = zones.length ? zones.length+" zone"+(zones.length>1?"s":"")+" enregistrée"+(zones.length>1?"s":"") : "Cartes et météo";
   $("hbAis").textContent = AIS.on ? (AIS.ships.size? AIS.ships.size+" navire"+(AIS.ships.size>1?"s":"") : "Activé") : "Désactivé"; }catch(e){} }
 $("bMenu").addEventListener("click", hubRefresh);
+/* ================= Radar de pluie (RainViewer : 2 dernières heures, toutes les 10 min) ================= */
+const RADAR={on:false, frames:[], layers:[], i:0, timer:null, host:""};
+async function radarOn(){
+  try{ const j=await (await fetch("https://api.rainviewer.com/public/weather-maps.json",{cache:"no-store"})).json();
+    RADAR.host=j.host; RADAR.frames=(j.radar&&j.radar.past)||[]; }catch(e){ toast("Radar indisponible (réseau ?)"); return radarOff(); }
+  if(!RADAR.frames.length){ toast("Radar indisponible"); return radarOff(); }
+  RADAR.layers=RADAR.frames.map(f=>L.tileLayer(RADAR.host+f.path+"/256/{z}/{x}/{y}/2/1_1.png",{opacity:0,maxNativeZoom:7,maxZoom:19,zIndex:450,attribution:'Radar <a href="https://www.rainviewer.com" target="_blank" rel="noopener">RainViewer</a>'}).addTo(map));
+  RADAR.i=RADAR.frames.length-1; radarShow(); toast("Radar de pluie : 2 dernières heures, en boucle",3000);
+  RADAR.timer=setInterval(()=>{ RADAR.i=(RADAR.i+1)%RADAR.frames.length; radarShow(); }, 700); }
+function radarShow(){ RADAR.layers.forEach((l,k)=>l.setOpacity(k===RADAR.i?.75:0)); const f=RADAR.frames[RADAR.i], m=Math.round((Date.now()/1000-f.time)/60);
+  $("tRadar").textContent = "Radar "+(m<=5?"maint.":"−"+(m>=60?Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"):m+" min")); }
+function radarOff(){ clearInterval(RADAR.timer); RADAR.layers.forEach(l=>map.removeLayer(l)); RADAR.layers=[]; RADAR.on=false; $("tRadar").classList.remove("on"); $("tRadar").textContent="Radar"; }
+$("tRadar").onclick=()=>{ if(RADAR.on) return radarOff(); RADAR.on=true; $("tRadar").classList.add("on"); radarOn(); };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-f"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-g"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
