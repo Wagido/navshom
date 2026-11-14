@@ -2968,7 +2968,7 @@ function forScan(){ const box=$("forFloat"), ly=RANDO_OVL.forest; if(!R() || !ma
   box.hidden=false; }
 map.on("moveend zoomend", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,900); clearTimeout(geoT); geoT=setTimeout(geoScan,1000); });
 /* Légende géologique indicative : grands types de terrains d'après le code couleur standard des cartes géologiques */
-const GEO_CL=[["Quaternaire · alluvions, éboulis","#F3EED2"],["Tertiaire · sables, argiles, molasses","#F2C94C"],["Crétacé · craie, calcaires, marnes","#7CC47C"],["Jurassique · calcaires, marnes","#5DA9E0"],["Trias · grès, argiles, gypse","#B07CC6"],["Granites et roches magmatiques","#E5737A"],["Primaire, schistes, roches métamorphiques","#A89F91"]];
+const GEO_CL=[["Quaternaire · alluvions, éboulis","#F3EED2"],["Tertiaire · sables, argiles, molasses","#F2C94C"],["Crétacé · craie, calcaires, marnes","#7CC47C"],["Jurassique · calcaires, marnes","#5DA9E0"],["Trias · grès, argiles, gypse","#B07CC6"],["Granites et roches magmatiques","#E5737A"],["Primaire · schistes, roches anciennes","#A89F91"]];
 let geoT=null; const geoCv=document.createElement("canvas"); geoCv.width=geoCv.height=48;
 function geoClass(r,g,b){ const mx=Math.max(r,g,b)/255, mn=Math.min(r,g,b)/255, v=mx, s=mx?1-mn/mx:0; if(v<0.3) return -1;
   let h=0; const d=(mx-mn)*255||1; if(mx*255===r) h=((g-b)/d)%6; else if(mx*255===g) h=(b-r)/d+2; else h=(r-g)/d+4; h=(h*60+360)%360; // teinte calculée avant les tests
@@ -2982,14 +2982,14 @@ function geoScan(){ const box=$("geoFloat"), grp=RANDO_OVL.geol; if(!R() || !map
   if(!tot){ box.hidden=true; return; }
   const top=cnt.map((n,k)=>[n,k]).filter(x=>x[0]/tot>=0.04).sort((a,b)=>b[0]-a[0]).slice(0,5);
   const c=map.getCenter(), ancien=(c.lng<-0.6&&c.lat>46.3&&c.lat<49.3)||(c.lat>44.2&&c.lat<46.6&&c.lng>1.4&&c.lng<4.6)||(c.lat>47.6&&c.lat<48.7&&c.lng>6.5&&c.lng<7.5)||(c.lat>49.7&&c.lng>4.3&&c.lng<5.1);
-  const nm=k=> ancien && (k===2||k===3||k===1) ? "Primaire · schistes, grès anciens" : GEO_CL[k][0];
+  const nm=k=> ancien && (k===2||k===3||k===1) ? GEO_CL[6][0] : GEO_CL[k][0];
   const merged={}; top.forEach(([n,k])=>{ const key=nm(k); merged[key]=merged[key]||{n:0,c:GEO_CL[ancien&&(k===2||k===3||k===1)?6:k][1]}; merged[key].n+=n; });
   box.innerHTML='<b>Terrains à l\'écran · indicatif</b>'+Object.entries(merged).sort((a,b)=>b[1].n-a[1].n).map(([t,o])=>`<span><i style="background:${o.c}"></i>${t}<em>${Math.round(o.n/tot*100)} %</em></span>`).join("")+'<small>D\'après les couleurs de la carte. Nom exact des roches : infoterre.brgm.fr</small>';
   box.hidden=false; }
 RANDO_OVL.geol.eachLayer(l=>l.on("load", ()=>{ clearTimeout(geoT); geoT=setTimeout(geoScan,300); }));
 RANDO_OVL.forest.on("load", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,300); });
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-p"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-q"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
