@@ -391,7 +391,12 @@ body.night #sMenu .card{background:#1a0000;border-color:#3a1010} body.night .hb{
 .forleg i{flex:none;width:12px;height:12px;border-radius:3px;border:1px solid rgba(11,47,91,.15)}
 .forleg small{display:block;margin-top:8px;color:var(--muted)}
 #forFloat{position:fixed;z-index:950;left:calc(var(--sl) + 12px);bottom:calc(var(--sb) + 96px);max-width:min(70vw,300px);background:rgba(255,255,255,.95);border-radius:14px;box-shadow:0 6px 18px rgba(11,47,91,.18);padding:8px 10px;display:flex;flex-direction:column;gap:4px;font:500 12.5px var(--sans);color:#0B2F5B;pointer-events:none}
-#forFloat[hidden]{display:none}
+#forFloat[hidden],#geoFloat[hidden]{display:none}
+#geoFloat{position:fixed;z-index:950;right:calc(var(--sr) + 12px);bottom:calc(var(--sb) + 96px);max-width:min(62vw,280px);background:rgba(255,255,255,.95);border-radius:14px;box-shadow:0 6px 18px rgba(11,47,91,.18);padding:8px 10px;display:flex;flex-direction:column;gap:4px;font:500 12px var(--sans);color:#0B2F5B;pointer-events:none}
+#geoFloat b{font:600 10.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:#6B7C90}
+#geoFloat span{display:flex;align-items:center;gap:7px;line-height:1.2} #geoFloat i{flex:none;width:12px;height:12px;border-radius:3px;border:1px solid rgba(11,47,91,.15)}
+#geoFloat em{margin-left:auto;padding-left:8px;font-style:normal;color:#6B7C90} #geoFloat small{color:#6B7C90;font-size:10.5px}
+body:has(#tbar:not([hidden])) #geoFloat, body.dlmode #geoFloat, body.measuring #geoFloat{display:none}
 #forFloat b{font:600 10.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:#6B7C90}
 #forFloat span{display:flex;align-items:center;gap:7px} #forFloat i{flex:none;width:12px;height:12px;border-radius:3px;border:1px solid rgba(11,47,91,.15)}
 #forFloat em{margin-left:auto;padding-left:8px;font-style:normal;color:#6B7C90;font-variant-numeric:tabular-nums}
@@ -812,7 +817,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <label class="opt"><input type="checkbox" id="shadeChk"><div>Ombrage du relief (IGN)<small>Crêtes et vallées en relief sur la carte</small></div></label>
     <label class="opt"><input type="checkbox" id="autoSat"><div>Photos aériennes au zoom maximal<small>Au-delà du détail du 1:25 000, bascule sur les photos, puis revient</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="trails"><div>Sentiers balisés GR, PR<small>Itinéraires de randonnée officiels (Waymarked Trails)</small></div></label>
-    <label class="opt"><input type="checkbox" class="ovl" data-k="geol"><div>Géologie (BRGM)<small>Nature des roches : 1:1 000 000 à 1:50 000 selon le zoom</small></div></label>
+    <label class="opt"><input type="checkbox" class="ovl" data-k="geol"><div>Géologie (BRGM)<small>Nature des roches : 1:1 000 000, puis 1:50 000 en zoomant</small></div></label>
     <p class="note" id="geolNote" hidden style="margin:-4px 0 8px">Chaque couleur est une formation géologique. La légende détaillée de chaque feuille est sur <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">infoterre.brgm.fr</a> (toucher la carte à l'endroit voulu).</p>
     <label class="opt"><input type="checkbox" class="ovl" data-k="contour"><div>Courbes de niveau (IGN)<small>Utile sur les photos aériennes</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="cadastre"><div>Cadastre (parcelles)<small>Limites de propriété, à partir du zoom 14</small></div></label>
@@ -935,6 +940,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 </div>
 <div id="updBar" hidden role="status"><span>Nouvelle version <b id="updVer"></b> disponible</span><button id="updGo">Mettre à jour</button></div>
 <div id="forFloat" hidden></div>
+<div id="geoFloat" hidden></div>
 <div id="dlFrame" hidden></div>
 <div id="dlBar" hidden>
   <div class="dl-t" id="dlTitle">Cadrez la zone à emporter</div>
@@ -2937,12 +2943,11 @@ const RANDO_OVL={
   contour: L.tileLayer(geopf("ELEVATION.CONTOUR.LINE","image/png"), {maxZoom:19, maxNativeZoom:18, zIndex:410, bounds:FRANCE, attribution:"Courbes © IGN"}),
   cadastre:L.tileLayer(geopf("CADASTRALPARCELS.PARCELLAIRE_EXPRESS","image/png"), {minZoom:14, maxZoom:19, maxNativeZoom:19, zIndex:415, bounds:FRANCE, attribution:"Cadastre © IGN/DGFiP"}),
   geol: L.layerGroup([
-    L.tileLayer(geopf("BRGM_SCAN_F_GEOL1M","image/jpeg"), {maxZoom:10, maxNativeZoom:11, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"}),
-    L.tileLayer(geopf("BRGM_SCAN_F_GEOL250","image/jpeg"), {minZoom:11, maxZoom:12, maxNativeZoom:14, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"}),
-    L.tileLayer(geopf("BRGM_SCAN_D_GEOL50","image/jpeg"), {minZoom:13, maxZoom:19, maxNativeZoom:15, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"})]),
+    L.tileLayer(geopf("BRGM_SCAN_F_GEOL1M","image/jpeg"), {crossOrigin:true, maxZoom:12, maxNativeZoom:11, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"}),
+    L.tileLayer(geopf("BRGM_SCAN_D_GEOL50","image/jpeg"), {crossOrigin:true, minZoom:13, maxZoom:19, maxNativeZoom:15, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"})]),
   forest:  L.tileLayer(geopf("LANDCOVER.FORESTINVENTORY.V2","image/png"), {crossOrigin:true, maxZoom:19, maxNativeZoom:16, zIndex:405, opacity:.55, bounds:FRANCE, attribution:"Forêts © IGN"})};
 function randoOvlApply(){ document.querySelectorAll("input.ovl").forEach(cb=>{ const ly=RANDO_OVL[cb.dataset.k]; cb.checked=store.get("ovl_"+cb.dataset.k,false);
-  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); if(cb.dataset.k==="forest"){ $("forLeg").hidden=!cb.checked; if(!(cb.checked&&R())) $("forFloat").hidden=true; } if(cb.dataset.k==="geol") $("geolNote").hidden=!cb.checked; }); }
+  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); if(cb.dataset.k==="forest"){ $("forLeg").hidden=!cb.checked; if(!(cb.checked&&R())) $("forFloat").hidden=true; } if(cb.dataset.k==="geol"){ $("geolNote").hidden=!cb.checked; if(!(cb.checked&&R())) $("geoFloat").hidden=true; } }); }
 document.querySelectorAll("input.ovl").forEach(cb=>cb.onchange=()=>{ store.set("ovl_"+cb.dataset.k,cb.checked); randoOvlApply(); });
 randoOvlApply();
 /* Légende dynamique des forêts : seulement les essences visibles à l'écran, avec leur part */
@@ -2961,10 +2966,30 @@ function forScan(){ const box=$("forFloat"), ly=RANDO_OVL.forest; if(!R() || !ma
   const top=cnt.map((n,k)=>[n,k]).filter(x=>x[0]/tot>=0.02).sort((a,b)=>b[0]-a[0]).slice(0,6);
   box.innerHTML='<b>Forêts à l\'écran</b>'+top.map(([n,k])=>`<span><i style="background:${FOR_COL[k]}"></i>${FOR_LAB[k]}<em>${Math.round(n/tot*100)} %</em></span>`).join("");
   box.hidden=false; }
-map.on("moveend zoomend", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,900); });
+map.on("moveend zoomend", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,900); clearTimeout(geoT); geoT=setTimeout(geoScan,1000); });
+/* Légende géologique indicative : grands types de terrains d'après le code couleur standard des cartes géologiques */
+const GEO_CL=[["Quaternaire · alluvions, éboulis","#F3EED2"],["Tertiaire · sables, argiles, molasses","#F2C94C"],["Crétacé · craie, calcaires, marnes","#7CC47C"],["Jurassique · calcaires, marnes","#5DA9E0"],["Trias · grès, argiles, gypse","#B07CC6"],["Granites et roches magmatiques","#E5737A"],["Primaire, schistes, roches métamorphiques","#A89F91"]];
+let geoT=null; const geoCv=document.createElement("canvas"); geoCv.width=geoCv.height=48;
+function geoClass(r,g,b){ const mx=Math.max(r,g,b)/255, mn=Math.min(r,g,b)/255, v=mx, s=mx?1-mn/mx:0; if(v<0.3) return -1;
+  let h=0; const d=(mx-mn)*255||1; if(mx*255===r) h=((g-b)/d)%6; else if(mx*255===g) h=(b-r)/d+2; else h=(r-g)/d+4; h=(h*60+360)%360; // teinte calculée avant les tests
+  if(v>0.93 && s<0.08) return -1; // blanc : pas de donnée
+  if(s<0.12) return v>0.86 ? -1 : 6; if(v>0.85 && s<0.25 && h>=30 && h<75) return 0; if(v>0.9 && s<0.2) return -1;
+  if(h<20||h>=320) return 5; if(h<38) return s>0.45?5:6; if(h<68) return 1; if(h<165) return 2; if(h<250) return 3; return 4; }
+function geoScan(){ const box=$("geoFloat"), grp=RANDO_OVL.geol; if(!R() || !map.hasLayer(grp)){ box.hidden=true; return; }
+  const cnt=new Array(GEO_CL.length).fill(0), g=geoCv.getContext("2d",{willReadFrequently:true}), vb=map.getBounds(); let tot=0;
+  grp.eachLayer(ly=>{ if(!ly._map) return; Object.values(ly._tiles||{}).forEach(t=>{ const im=t.el; if(!im||!im.complete||!im.naturalWidth) return; if(!vb.intersects(ly._tileCoordsToBounds(t.coords))) return;
+    try{ g.drawImage(im,0,0,48,48); const d=g.getImageData(0,0,48,48).data; for(let i=0;i<d.length;i+=4){ const c=geoClass(d[i],d[i+1],d[i+2]); if(c>=0){ cnt[c]++; tot++; } } }catch(e){} }); });
+  if(!tot){ box.hidden=true; return; }
+  const top=cnt.map((n,k)=>[n,k]).filter(x=>x[0]/tot>=0.04).sort((a,b)=>b[0]-a[0]).slice(0,5);
+  const c=map.getCenter(), ancien=(c.lng<-0.6&&c.lat>46.3&&c.lat<49.3)||(c.lat>44.2&&c.lat<46.6&&c.lng>1.4&&c.lng<4.6)||(c.lat>47.6&&c.lat<48.7&&c.lng>6.5&&c.lng<7.5)||(c.lat>49.7&&c.lng>4.3&&c.lng<5.1);
+  const nm=k=> ancien && (k===2||k===3||k===1) ? "Primaire · schistes, grès anciens" : GEO_CL[k][0];
+  const merged={}; top.forEach(([n,k])=>{ const key=nm(k); merged[key]=merged[key]||{n:0,c:GEO_CL[ancien&&(k===2||k===3||k===1)?6:k][1]}; merged[key].n+=n; });
+  box.innerHTML='<b>Terrains à l\'écran · indicatif</b>'+Object.entries(merged).sort((a,b)=>b[1].n-a[1].n).map(([t,o])=>`<span><i style="background:${o.c}"></i>${t}<em>${Math.round(o.n/tot*100)} %</em></span>`).join("")+'<small>D\'après les couleurs de la carte. Nom exact des roches : infoterre.brgm.fr</small>';
+  box.hidden=false; }
+RANDO_OVL.geol.eachLayer(l=>l.on("load", ()=>{ clearTimeout(geoT); geoT=setTimeout(geoScan,300); }));
 RANDO_OVL.forest.on("load", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,300); });
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-n"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-p"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
