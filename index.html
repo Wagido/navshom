@@ -775,6 +775,7 @@ const bases = {
 };
 const slopes = L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN","image/png"), {maxZoom:19, maxNativeZoom:17, opacity:.45, bounds:FRANCE, attribution:"Pentes © IGN"});
 const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:FRANCE, attribution:"© OpenSeaMap"});
+if(!store.get("v_nums2",false)){ store.set("v_nums2",true); store.set("nums",true); }
 if(!store.get("v_litto",false)){ store.set("v_litto",true); store.set("base","litto"); store.set("seamarks",false); }
 if(store.get("base_mer",null)===null) store.set("base_mer", store.get("base","litto"));
 let curBase = store.get(baseKey(), R()?"scan25":"litto"); if(!bases[curBase]) curBase = R()?"ign":"litto";
@@ -996,7 +997,7 @@ const OVT = {
 };
 const colorOf = (t,v) => { let c=t.scale[0][1]; for(const [s,col] of t.scale) if(v>=s) c=col; return c; };
 const ov = {type:null, data:null, pts:[], grid:0, rows:0, cols:0, idx:0, now:0, model:null,
-  layer:L.layerGroup(), cells:L.layerGroup(), anim: store.get("anim", true), nums: store.get("nums", true)};
+  layer:L.layerGroup(), cells:L.layerGroup(), anim: store.get("anim", true), nums: true};
 let lastWx = store.get("lastWx","wind"); if(!OVT[lastWx] || lastWx==="cur") lastWx="wind";
 
 function arrowIcon(dirTo, v, t){
@@ -1038,24 +1039,38 @@ async function fetchSeries(type, pts, days){
       g: type==="wind" ? hv(h,"wind_gusts_10m",used) : null,
       per: t.vars[2] && type!=="wind" ? hv(h,t.vars[2],used) : null}; })};
 }
+// Grille FIXE (points calés sur des degrés « ronds ») : en déplaçant la carte, les points déjà connus sont réutilisés
+const NICE=[0.01,0.02,0.025,0.05,0.1,0.2,0.25,0.5,1,2,5];
 function gridPts(){
-  const dec=map.getZoom()>=11?3:2, sz=map.getSize(), cols=Math.max(5,Math.min(8,Math.round(sz.x/85))), rows=Math.max(5,Math.min(10,Math.round(sz.y/85))), pts=[];
-  for(let i=0;i<rows;i++) for(let j=0;j<cols;j++){ const p=map.containerPointToLatLng([(j+.5)*sz.x/cols,(i+.5)*sz.y/rows]); pts.push([+p.lat.toFixed(dec),+p.lng.toFixed(dec)]); }
+  const B=map.getBounds(), lat=map.getCenter().lat, k=Math.cos(lat*Math.PI/180);
+  const want=(B.getEast()-B.getWest())/4, sLo=NICE.find(x=>x>=want)||5, sLa=NICE.find(x=>x>=sLo*k*0.9)||sLo;
+  const j0=Math.floor(B.getWest()/sLo)-1, j1=Math.ceil(B.getEast()/sLo)+1, i0=Math.ceil(B.getNorth()/sLa)+1, i1=Math.floor(B.getSouth()/sLa)-1;
+  const cols=j1-j0+1, rows=i0-i1+1, pts=[];
+  for(let i=i0;i>=i1;i--) for(let j=j0;j<=j1;j++) pts.push([+(i*sLa).toFixed(4), +(j*sLo).toFixed(4)]);
   return {pts, rows, cols};
 }
+// cache par point : 1 h en mémoire, et sur l'appareil pour la journée
+const PTC=new Map(); const ptKey=(type,mdl,p)=>type+"|"+mdl+"|"+p[0]+","+p[1];
+try{ const sv=JSON.parse(localStorage.getItem("nav_ptc")||"{}"); for(const k in sv) if(Date.now()-sv[k].t<3600e3) PTC.set(k,sv[k]); }catch(e){}
+let ptcSaveT=null; function ptcSave(){ clearTimeout(ptcSaveT); ptcSaveT=setTimeout(()=>{ try{ const o={}; let n=0; for(const [k,v] of [...PTC.entries()].reverse()){ if(Date.now()-v.t<3600e3 && n++<600) o[k]=v; } localStorage.setItem("nav_ptc",JSON.stringify(o)); }catch(e){} },1500); }
 async function loadOverlay(keepIdx){
   const type=ov.type; if(!type) return;
-  const g=gridPts(), pts=g.pts.slice(); if(last) pts.push([+last.ll.lat.toFixed(3),+last.ll.lng.toFixed(3)]);
+  const g=gridPts(); if(g.pts.length>130){ toast("Zoomez un peu pour afficher la météo"); return; }
+  const mdl = OVT[type].api==="fc" ? model : "mar";
   $("tSrc").textContent="chargement…"; stopParticles();
   try{
-    const {used, series} = await fetchSeries(type, pts, 3); if(ov.type!==type) return;
-    ov.data=series; ov.pts=pts; ov.grid=g.pts.length; ov.rows=g.rows; ov.cols=g.cols; ov.model=used;
+    const miss=g.pts.filter(p=>{ const c=PTC.get(ptKey(type,mdl,p)); return !c || Date.now()-c.t>3600e3; });
+    let used=ov.model||model;
+    if(miss.length){ const r=await fetchSeries(type, miss, 3); used=r.used; r.series.forEach((s,i)=>PTC.set(ptKey(type,mdl,miss[i]),{t:Date.now(),s})); ptcSave(); }
+    if(ov.type!==type) return;
+    const series=g.pts.map(p=>PTC.get(ptKey(type,mdl,p)).s);
+    ov.data=series; ov.pts=g.pts; ov.grid=g.pts.length; ov.rows=g.rows; ov.cols=g.cols; ov.model=used;
     const now=Date.now(); let best=1e15; ov.now=0; series[0].time.forEach((t,i)=>{ const d=Math.abs(new Date(t)-now); if(d<best){best=d;ov.now=i;} });
     ov.idx = keepIdx!=null && keepIdx<series[0].time.length ? keepIdx : ov.now;
     $("tSlider").max=series[0].time.length-1; $("tSlider").value=ov.idx;
     $("tSrc").textContent = "";
     drawOverlay();
-  }catch(e){ $("tSrc").textContent="indisponible"; toast(OVT[type].name+" indisponible (réseau ?)"); }
+  }catch(e){ $("tSrc").textContent="indisponible"; if(!/429/.test(String(e))) toast(OVT[type].name+" indisponible (réseau ?)"); }
 }
 function drawOverlay(){
   ov.layer.clearLayers(); if(!ov.data) return;
@@ -1291,14 +1306,14 @@ function drawField(){
 function drawNumbers(g, f, sz){
   const t=f.t, gap=sz.x>900?115:88, ox=(map.containerPointToLayerPoint([0,0]).x % gap + gap) % gap, oy=(map.containerPointToLayerPoint([0,0]).y % gap + gap) % gap;
   g.font="600 11px Inter,system-ui,sans-serif"; g.textAlign="center"; g.textBaseline="middle";
-  g.shadowColor="rgba(0,20,40,.85)"; g.shadowBlur=3; g.shadowOffsetX=0; g.shadowOffsetY=0;
+  g.font="700 12px Inter,system-ui,sans-serif"; g.lineJoin="round";
   const ui=[[0,0,64,64],[sz.x-64,0,sz.x,150],[0,sz.y-260,70,sz.y],[sz.x-70,sz.y-260,sz.x,sz.y]]; // évite les boutons
   for(let y=gap/2-oy+gap; y<sz.y-20; y+=gap) for(let x=gap/2-ox; x<sz.x-10; x+=gap){
     if(x<12||y<70) continue; if(ui.some(([a,b,c,d])=>x>a&&x<c&&y>b&&y<d)) continue;
     if(t.api==="mar" && isLandXY(x,y)) continue;
     const v=sampleS(f,x,y); if(v==null) continue;
     const txt = t.dec ? v.toFixed(t.dec) : String(Math.round(v));
-    g.fillStyle="#fff"; g.fillText(txt,x,y);
+    g.lineWidth=3.5; g.strokeStyle="rgba(255,255,255,.92)"; g.strokeText(txt,x,y); g.fillStyle="#0B2F5B"; g.fillText(txt,x,y);
   }
   g.shadowBlur=0; g.shadowColor="transparent";
 }
@@ -2340,7 +2355,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-i"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-j"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
