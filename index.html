@@ -668,6 +668,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="info">
     <div><b id="pLabel">Position</b><span id="pLL">—</span></div>
     <div id="pDistRow"><b>Depuis le bateau</b><span id="pDist">—</span></div>
+    <div id="pGeo" hidden><b>Terrain ici (indicatif, BRGM)</b><span id="pGeoT">—</span></div>
   </div>
   <div class="seainfo" id="pSea" hidden></div>
   <div class="acts">
@@ -818,6 +819,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <label class="opt"><input type="checkbox" id="autoSat"><div>Photos aériennes au zoom maximal<small>Au-delà du détail du 1:25 000, bascule sur les photos, puis revient</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="trails"><div>Sentiers balisés GR, PR<small>Itinéraires de randonnée officiels (Waymarked Trails)</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="geol"><div>Géologie (BRGM)<small>Nature des roches : 1:1 000 000, puis 1:50 000 en zoomant</small></div></label>
+    <div class="opt" id="geolOpRow" hidden style="border:0;padding-top:0;gap:10px"><small style="flex:none;color:var(--muted)">Transparence</small><input type="range" id="geolOp" min="30" max="100" value="80" style="flex:1;accent-color:#2E7D32" aria-label="Opacité de la géologie"></div>
     <p class="note" id="geolNote" hidden style="margin:-4px 0 8px">Chaque couleur est une formation géologique. La légende détaillée de chaque feuille est sur <a href="https://infoterre.brgm.fr" target="_blank" rel="noopener">infoterre.brgm.fr</a> (toucher la carte à l'endroit voulu).</p>
     <label class="opt"><input type="checkbox" class="ovl" data-k="contour"><div>Courbes de niveau (IGN)<small>Utile sur les photos aériennes</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="cadastre"><div>Cadastre (parcelles)<small>Limites de propriété, à partir du zoom 14</small></div></label>
@@ -1137,6 +1139,7 @@ function showPoint(ll, wp){
   $("pDistRow").hidden=false; $("pDist").textContent = last ? fmtNM(map.distance(last.ll,ll))+" · "+pad3(bearing(last.ll,ll))+"°" : "GPS en attente";
   $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint"); if(typeof showSeamarks==="function") showSeamarks(ll);
   if(R()) slopeAt(ll).then(t=>{ if(pointLL===ll && t){ $("pDistRow").querySelector("b").textContent="Relief (IGN)"; $("pDist").textContent=t; } });
+  $("pGeo").hidden=true; if(R() && typeof geoAt==="function"){ const g=geoAt(ll); if(g){ $("pGeo").hidden=false; $("pGeoT").textContent=g; } }
 }
 $("chip").onclick = () => R() ? showGps() : instOpen();
 map.on("click", e => { if(RT.picking){ RT[RT.picking]=e.latlng; RT.picking=null; $("pickBar").hidden=true; RT.layer.clearLayers(); RT.result=null; drawRtMarks(); openSheet("sRouting"); renderRouteParams(); $("rtRes").hidden=true; return; }
@@ -2943,12 +2946,14 @@ const RANDO_OVL={
   contour: L.tileLayer(geopf("ELEVATION.CONTOUR.LINE","image/png"), {maxZoom:19, maxNativeZoom:18, zIndex:410, bounds:FRANCE, attribution:"Courbes © IGN"}),
   cadastre:L.tileLayer(geopf("CADASTRALPARCELS.PARCELLAIRE_EXPRESS","image/png"), {minZoom:14, maxZoom:19, maxNativeZoom:19, zIndex:415, bounds:FRANCE, attribution:"Cadastre © IGN/DGFiP"}),
   geol: L.layerGroup([
-    L.tileLayer(geopf("BRGM_SCAN_F_GEOL1M","image/jpeg"), {crossOrigin:true, maxZoom:12, maxNativeZoom:11, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"}),
-    L.tileLayer(geopf("BRGM_SCAN_D_GEOL50","image/jpeg"), {crossOrigin:true, minZoom:13, maxZoom:19, maxNativeZoom:15, opacity:.6, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"})]),
+    L.tileLayer(geopf("BRGM_SCAN_F_GEOL1M","image/jpeg"), {crossOrigin:true, maxZoom:12, maxNativeZoom:11, opacity:.8, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"}),
+    L.tileLayer(geopf("BRGM_SCAN_D_GEOL50","image/jpeg"), {crossOrigin:true, minZoom:13, maxZoom:19, maxNativeZoom:15, opacity:.8, zIndex:404, bounds:FRANCE, attribution:"Géologie © BRGM"})]),
   forest:  L.tileLayer(geopf("LANDCOVER.FORESTINVENTORY.V2","image/png"), {crossOrigin:true, maxZoom:19, maxNativeZoom:16, zIndex:405, opacity:.55, bounds:FRANCE, attribution:"Forêts © IGN"})};
 function randoOvlApply(){ document.querySelectorAll("input.ovl").forEach(cb=>{ const ly=RANDO_OVL[cb.dataset.k]; cb.checked=store.get("ovl_"+cb.dataset.k,false);
-  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); if(cb.dataset.k==="forest"){ $("forLeg").hidden=!cb.checked; if(!(cb.checked&&R())) $("forFloat").hidden=true; } if(cb.dataset.k==="geol"){ $("geolNote").hidden=!cb.checked; if(!(cb.checked&&R())) $("geoFloat").hidden=true; } }); }
+  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); if(cb.dataset.k==="forest"){ $("forLeg").hidden=!cb.checked; if(!(cb.checked&&R())) $("forFloat").hidden=true; } if(cb.dataset.k==="geol"){ $("geolNote").hidden=!cb.checked; $("geolOpRow").hidden=!cb.checked; if(!(cb.checked&&R())) $("geoFloat").hidden=true; } }); }
 document.querySelectorAll("input.ovl").forEach(cb=>cb.onchange=()=>{ store.set("ovl_"+cb.dataset.k,cb.checked); randoOvlApply(); });
+$("geolOp").value=store.get("geolOp",80); const geolOp=()=>RANDO_OVL.geol.eachLayer(l=>l.setOpacity(+$("geolOp").value/100)); geolOp();
+$("geolOp").oninput=()=>{ store.set("geolOp",+$("geolOp").value); geolOp(); };
 randoOvlApply();
 /* Légende dynamique des forêts : seulement les essences visibles à l'écran, avec leur part */
 const FOR_COL=["#E5C45D", "#008C4D", "#004D2E", "#668040", "#00FF80", "#40FF1C", "#915633", "#AFCA59", "#00D92F", "#8080FF", "#BF26FF", "#9926FF", "#4D33FF", "#FF1AFF", "#734DE6", "#A666FF", "#D999FF", "#1AE6E6", "#4D80FF", "#3399FF", "#00929F", "#59FFFF", "#404DFF", "#FF6633", "#FF4033", "#B3B3B3", "#CCFFBF", "#99B3CC", "#FFD138", "#FFFF00", "#FFE6BF", "#FFF9A5"], FOR_LAB=["Fermée, sans arbres (coupe)", "Feuillus en îlots", "Chênes à feuilles caduques", "Chênes verts", "Hêtre", "Châtaignier", "Robinier", "Autre feuillu", "Mélange de feuillus", "Conifères en îlots", "Pin maritime", "Pin sylvestre", "Pin laricio ou noir", "Pin d'Alep", "Pin à crochets ou cembro", "Autre pin", "Mélange de pins", "Sapin ou épicéa", "Mélèze", "Douglas", "Mélange d'autres conifères", "Autre conifère", "Mélange de conifères", "Mixte, feuillus dominants", "Mixte, conifères dominants", "Ouverte sans arbres", "Ouverte, feuillus", "Ouverte, conifères", "Ouverte, mixte", "Peupleraie", "Lande", "Formation herbacée"];
@@ -2986,10 +2991,21 @@ function geoScan(){ const box=$("geoFloat"), grp=RANDO_OVL.geol; if(!R() || !map
   const merged={}; top.forEach(([n,k])=>{ const key=nm(k); merged[key]=merged[key]||{n:0,c:GEO_CL[ancien&&(k===2||k===3||k===1)?6:k][1]}; merged[key].n+=n; });
   box.innerHTML='<b>Terrains à l\'écran · indicatif</b>'+Object.entries(merged).sort((a,b)=>b[1].n-a[1].n).map(([t,o])=>`<span><i style="background:${o.c}"></i>${t}<em>${Math.round(o.n/tot*100)} %</em></span>`).join("")+'<small>D\'après les couleurs de la carte. Nom exact des roches : infoterre.brgm.fr</small>';
   box.hidden=false; }
+// Terrain sous un point touché : on lit le pixel de la tuile géologique affichée
+function geoAt(ll){ const grp=RANDO_OVL.geol; if(!map.hasLayer(grp)) return null; let out=null;
+  grp.eachLayer(ly=>{ if(out || !ly._map) return; const z=ly._tileZoom; if(z==null) return; const pt=map.project(ll,z), ts=ly.getTileSize(), cx=Math.floor(pt.x/ts.x), cy=Math.floor(pt.y/ts.y);
+    const t=Object.values(ly._tiles||{}).find(t=>t.coords.x===cx && t.coords.y===cy && t.coords.z===z); if(!t||!t.el.complete||!t.el.naturalWidth) return;
+    try{ const g=geoCv.getContext("2d",{willReadFrequently:true}), px=Math.floor((pt.x-cx*ts.x)/ts.x*t.el.naturalWidth), py=Math.floor((pt.y-cy*ts.y)/ts.y*t.el.naturalHeight);
+      g.clearRect(0,0,48,48); g.drawImage(t.el, px-2, py-2, 5, 5, 0, 0, 5, 5); const d=g.getImageData(0,0,5,5).data, cnt={};
+      for(let i=0;i<d.length;i+=4){ const c=geoClass(d[i],d[i+1],d[i+2]); if(c>=0) cnt[c]=(cnt[c]||0)+1; }
+      const best=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]; if(!best) return; const k=+best[0], c=ll;
+      const ancien=(c.lng<-0.6&&c.lat>46.3&&c.lat<49.3)||(c.lat>44.2&&c.lat<46.6&&c.lng>1.4&&c.lng<4.6)||(c.lat>47.6&&c.lat<48.7&&c.lng>6.5&&c.lng<7.5)||(c.lat>49.7&&c.lng>4.3&&c.lng<5.1);
+      out = ancien && (k===1||k===2||k===3) ? GEO_CL[6][0] : GEO_CL[k][0]; }catch(e){} });
+  return out; }
 RANDO_OVL.geol.eachLayer(l=>l.on("load", ()=>{ clearTimeout(geoT); geoT=setTimeout(geoScan,300); }));
 RANDO_OVL.forest.on("load", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,300); });
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-q"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-r"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
