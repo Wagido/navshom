@@ -241,7 +241,7 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 .arr.val small{font-size:9px;opacity:.8}
 body.rando .mer-only, body:not(.rando) .rando-only{display:none!important}
 body:not(.rando) #tChips button[data-t="snowd"], body:not(.rando) #tChips button[data-t="snowf"], body:not(.rando) #tChips button[data-t="frz"]{display:none}
-body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="wave"], body.rando #tChips button[data-t="swell"]{display:none}
+body.rando #tChips button[data-t="cur"], body.rando #tChips button[data-t="sst"], body.rando #tChips button[data-t="wave"], body.rando #tChips button[data-t="swell"]{display:none}
 .slopeleg{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:500 12px var(--sans);color:var(--muted);margin:6px 0}
 .slopeleg span{display:inline-block;width:18px;height:12px;border-radius:3px;margin-left:6px}
 #bTrack.rec{background:#d81b60} #bTrack.paused{background:#8d6e63}
@@ -401,6 +401,9 @@ body:has(#tbar:not([hidden])) #geoFloat, body.dlmode #geoFloat, body.measuring #
 #forFloat span{display:flex;align-items:center;gap:7px} #forFloat i{flex:none;width:12px;height:12px;border-radius:3px;border:1px solid rgba(11,47,91,.15)}
 #forFloat em{margin-left:auto;padding-left:8px;font-style:normal;color:#6B7C90;font-variant-numeric:tabular-nums}
 body:has(#tbar:not([hidden])) #forFloat, body.dlmode #forFloat, body.measuring #forFloat{display:none}
+.lw{display:flex;flex-direction:column;align-items:center} .lw .lwb{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);display:grid;place-items:center}
+.lw .lwb svg{width:18px;height:18px} .lw span{font:700 11px var(--sans);color:#0B2F5B;text-shadow:0 0 3px #fff,0 0 3px #fff;margin-top:1px}
+.refi b{display:grid;place-items:center;width:24px;height:24px;border-radius:7px;border:2px solid #fff;color:#fff;font:700 12px var(--sans);box-shadow:0 1px 4px rgba(0,0,0,.35)}
 #dlFrame{position:fixed;z-index:900;pointer-events:none;border:2.5px dashed #FF7A00;border-radius:14px;box-shadow:0 0 0 9999px rgba(11,47,91,.28)}
 #dlBar{position:fixed;z-index:1300;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 16px);
   background:rgba(255,255,255,.97);color:var(--navy,#0B2F5B);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.25);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-family:var(--sans)}
@@ -829,6 +832,9 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <label class="opt"><input type="checkbox" id="slopeChk"><div>Pentes de plus de 30° (IGN)<small>Ski de rando : relief IGN au pas de 5 m</small></div></label>
     <div class="slopeleg"><span style="background:#f2e600"></span>30–35°<span style="background:#f39200"></span>35–40°<span style="background:#e3000f"></span>40–45°<span style="background:#a3007d"></span>&gt; 45°</div>
   </div>
+  <h3>En direct</h3>
+  <label class="opt"><input type="checkbox" id="liveWind"><div>Vent mesuré en direct<small>Balises OpenWindMap (Pioupiou) : côtes, cols, sites de vol libre</small></div></label>
+  <label class="opt rando-only"><input type="checkbox" id="refChk"><div>Refuges, cabanes, points d'eau<small>Base communautaire refuges.info</small></div></label>
   <h3>Hors ligne</h3>
   <div class="btnrow" style="margin-top:4px"><button class="pill primary" id="bCache">Télécharger une zone</button></div>
   <p class="note">Pour naviguer sans réseau. Vos zones enregistrées : menu Plus › Cartes hors ligne.</p>
@@ -1256,6 +1262,7 @@ const OVT = {
   snowd:{name:"Neige au sol", api:"fc", rando:true, vars:["snow_depth"], unit:"cm", conv:x=>x*100, dec:0, zero:true, scale:[[0,null],[5,"#e3f2fd"],[30,"#90caf9"],[80,"#42a5f5"],[150,"#1e63b5"],[300,"#5e35b1"]]},
   snowf:{name:"Chute de neige", api:"fc", rando:true, vars:["snowfall"], unit:"cm/h", dec:1, zero:true, scale:[[0,null],[0.2,"#e1f5fe"],[1,"#81d4fa"],[3,"#29b6f6"],[6,"#7e57c2"]]},
   frz:  {name:"Iso 0 °C", api:"fc", rando:true, vars:["freezing_level_height"], unit:"m", dec:0, scale:[[0,"#5e35b1"],[1000,"#1e88e5"],[2000,"#26c6da"],[3000,"#ffca28"],[4000,"#e53935"]]},
+  sst:  {name:"Temp. eau", api:"mar", vars:["sea_surface_temperature"], unit:"°C", dec:0, scale:[[8,"#3949ab"],[11,"#1e88e5"],[14,"#26c6da"],[17,"#66bb6a"],[20,"#ffca28"],[23,"#fb8c00"],[26,"#e53935"]]},
   wave: {name:"Vagues", api:"mar", vars:["wave_height","wave_direction","wave_period"], unit:"m", vec:true, from:true, dec:1, zero:true, scale:WAVE_SCALE},
   swell:{name:"Houle", api:"mar", vars:["swell_wave_height","swell_wave_direction","swell_wave_period"], unit:"m", vec:true, from:true, dec:1, zero:true, scale:WAVE_SCALE},
   cur:  {name:"Courant", api:"mar", vars:["ocean_current_velocity","ocean_current_direction"], unit:"nd", conv:x=>x/1.852, vec:true, from:false, dec:1, zero:true, scale:[[0,"#4fc3f7"],[0.5,"#ffd54f"],[1.5,"#ff9800"],[3,"#ff3d00"]], anim:0.3}
@@ -1444,7 +1451,7 @@ async function loadTable(force){
   try{
     const [f,m]=await Promise.all([
       getJSON(fu+(model!=="best_match"?`&models=${model}`:"")).catch(()=>getJSON(fu)),
-      getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=wave_height,wave_direction,swell_wave_height,ocean_current_velocity,ocean_current_direction&timezone=auto&forecast_days=3&cell_selection=sea`).catch(()=>null)]);
+      getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=wave_height,wave_direction,swell_wave_height,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timezone=auto&forecast_days=3&cell_selection=sea`).catch(()=>null)]);
     unsuffix(f.hourly); tbl.f=f; tbl.m=(m && !R() && landFrac(ll.lat,ll.lng)<0.5) ? m : null;
   }catch(e){ await wxLoadAll(); const x=wxTableNearest(ll);
     if(x && x.f){ unsuffix(x.f.hourly); tbl.f=x.f; tbl.m=(x.m && !R())?x.m:null; } else toast("Tableau indisponible (réseau ?)"); }
@@ -1485,6 +1492,7 @@ function renderTable(){
     const dc=v=>v.toFixed(1).replace(".",",");
     html+=row("Vagues|m",i=>{ const j=mi(h.time[i]), v=j>=0?hm.wave_height[j]:null; return cell(i, v==null?"":dc(v)); },"","wave")
         +row("Houle|m",i=>{ const j=mi(h.time[i]), v=j>=0&&hm.swell_wave_height?hm.swell_wave_height[j]:null; return cell(i, v==null?"":dc(v)); },"","swell")
+        +row("Eau|°C",i=>{ const j=mi(h.time[i]), v=j>=0&&hm.sea_surface_temperature?hm.sea_surface_temperature[j]:null; return cell(i, v==null?"":Math.round(v)); },"","sst")
         +row("Courant|nœuds",i=>{ const j=mi(h.time[i]), v=j>=0&&hm.ocean_current_velocity[j]!=null?hm.ocean_current_velocity[j]/1.852:null;
           return cell(i, v==null?"":`<div class="wc" style="${bg(OVT.cur,v,.45)}">${dc(v)}</div>`); },"","cur");
   }
@@ -1493,7 +1501,7 @@ function renderTable(){
   const el=$("tTbl"), keep=el.scrollLeft, first=!el.dataset.ready; el.innerHTML=html; el.dataset.ready=1;
   if(!R()){ // en mer : vent, direction, vagues et courant en premier
     const rows=[...el.querySelectorAll("tr")], byTxt=t=>rows.find(r=>r.cells[0] && r.cells[0].textContent===t), byK=k=>{ const th=el.querySelector(`th[data-k="${k}"]`); return th&&th.parentElement; };
-    let after=byTxt("Ciel"); [byK("wind"),byK("gust"),byTxt("Direction"),byK("wave"),byK("swell"),byK("cur"),byTxt("Mer")].forEach(r=>{ if(r&&after){ after.after(r); after=r; } }); }
+    let after=byTxt("Ciel"); [byK("wind"),byK("gust"),byTxt("Direction"),byK("wave"),byK("swell"),byK("cur"),byK("sst"),byTxt("Mer")].forEach(r=>{ if(r&&after){ after.after(r); after=r; } }); }
   el.scrollLeft = first ? 0 : keep;
   fixTl();
 }
@@ -1857,6 +1865,7 @@ function setMode(m, quiet){
   try{ if(mobMk){ R()?map.removeLayer(mobMk):mobMk.addTo(map); } }catch(e){}
   try{ (R() || !$("track").checked) ? map.removeLayer(trackLine) : trackLine.addTo(map); }catch(e){}
   try{ randoOvlApply(); }catch(e){}
+  try{ refSet(store.get("refuges",false)); if(map.hasLayer(LW.layer)) lwDraw(); }catch(e){}
   try{ if(R()){ aisStop(); map.removeLayer(AIS.layer); } else if(AIS.on) aisStart(); }catch(e){}
   try{ R()?map.removeLayer(anchorLayer):anchorLayer.addTo(map); }catch(e){}
   chipLabels(); if(measuring) drawMeasure(); if(typeof setSlopes==="function") setSlopes(store.get("slopes",false)); try{ autoSatCheck(); setShade(store.get("shade",true)); }catch(e){ /* pas encore initialisé au démarrage */ }
@@ -2902,7 +2911,7 @@ async function wxDownload(zn, onProg){
   const tp=[]; for(let i=0;i<3;i++) for(let j=0;j<3;j++) tp.push([+(b.getSouth()+(b.getNorth()-b.getSouth())*(i+.5)/3).toFixed(3), +(b.getWest()+(b.getEast()-b.getWest())*(j+.5)/3).toFixed(3)]);
   try{ const la=tp.map(p=>p[0]).join(","), lo=tp.map(p=>p[1]).join(",");
     let f=await getJSON(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=temperature_2m,weather_code,is_day,precipitation,cloud_cover,visibility,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,snowfall,freezing_level_height&daily=sunrise,sunset&wind_speed_unit=kn&timezone=auto&forecast_days=3`);
-    let m=zn.mode==="rando"?null:await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=wave_height,wave_direction,swell_wave_height,ocean_current_velocity,ocean_current_direction&timezone=auto&forecast_days=3&cell_selection=sea`).catch(()=>null);
+    let m=zn.mode==="rando"?null:await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=wave_height,wave_direction,swell_wave_height,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timezone=auto&forecast_days=3&cell_selection=sea`).catch(()=>null);
     if(!Array.isArray(f)) f=[f]; if(m && !Array.isArray(m)) m=[m];
     tp.forEach((p,i)=>out.tbl.push({ll:p, f:f[i], m:m?m[i]:null})); }catch(e){}
   if(!Object.keys(out.types).length) throw new Error("wx");
@@ -3045,8 +3054,38 @@ $("bCompass").onclick=async()=>{ if(ROT.on){ ROT.on=false; ROT.bearing=0; rotLay
   await orientStart(); ROT.on=true; $("bCompass").classList.add("on"); rotLayout(); setFollow(true); if(last) map.panTo(last.ll);
   toast(R()?"Carte orientée dans le sens de la marche (boussole)":"Carte orientée selon la route du bateau",3000); headTick(); };
 if(R()) setTimeout(()=>{ if(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission!=="function") orientStart(); }, 2000);
+/* ================= Vent mesuré en direct (OpenWindMap / Pioupiou) ================= */
+const LW={layer:L.layerGroup(), data:null, t:0, timer:null};
+const lwCol=k=>k<10?"#7ED957":k<17?"#FFD54F":k<25?"#FF9800":k<34?"#E5372B":"#8E24AA";
+async function lwLoad(force){ if(!force && LW.data && Date.now()-LW.t<4*60e3) return lwDraw();
+  try{ const j=await (await fetch("https://api.pioupiou.fr/v1/live/all")).json(); LW.data=j.data; LW.t=Date.now(); }catch(e){ toast("Vent en direct indisponible (réseau ?)"); }
+  lwDraw(); }
+function lwDraw(){ LW.layer.clearLayers(); if(!LW.data) return; const b=map.getBounds().pad(.2), now=Date.now();
+  LW.data.forEach(st=>{ const m=st.measurements, loc=st.location; if(!m||!loc||st.status.state!=="on"||m.wind_speed_avg==null) return;
+    const age=(now-new Date(m.date).getTime())/60e3; if(age>90) return; const ll=[loc.latitude,loc.longitude]; if(!b.contains(ll)) return;
+    const kn=m.wind_speed_avg/1.852, gk=(m.wind_speed_max||m.wind_speed_avg)/1.852, v=R()?Math.round(m.wind_speed_avg):Math.round(kn), u=R()?"km/h":"nd";
+    const ic=L.divIcon({className:"lw", iconSize:[44,44], iconAnchor:[22,22], html:`<div class="lwb" style="background:${lwCol(kn)}"><svg viewBox="-12 -12 24 24" style="transform:rotate(${(m.wind_heading+180)%360}deg)"><path d="M0 -10 5 6 0 3 -5 6Z" fill="#0B2F5B"/></svg></div><span>${v}</span>`});
+    L.marker(ll,{icon:ic, zIndexOffset:700}).addTo(LW.layer).bindPopup(`<b>${(st.meta&&st.meta.name)||"Balise "+st.id}</b><br>Vent ${v} ${u} (rafales ${Math.round(R()?m.wind_speed_max:gk)}, mini ${Math.round(R()?m.wind_speed_min:m.wind_speed_min/1.852)})<br>Du ${pad3(m.wind_heading)}° ${compass(m.wind_heading)} · il y a ${Math.round(age)} min<br><a href="https://www.openwindmap.org/PP${st.id}" target="_blank" rel="noopener">Historique sur OpenWindMap</a>`); }); }
+function lwSet(on){ store.set("liveWind",on); $("liveWind").checked=on; clearInterval(LW.timer);
+  if(on){ LW.layer.addTo(map); lwLoad(); LW.timer=setInterval(()=>{ if(document.visibilityState==="visible") lwLoad(true); }, 5*60e3); } else map.removeLayer(LW.layer); }
+$("liveWind").onchange=e=>lwSet(e.target.checked); map.on("moveend", ()=>{ if(map.hasLayer(LW.layer)) lwDraw(); });
+map.attributionControl.addAttribution('<a href="https://www.openwindmap.org" target="_blank" rel="noopener">OpenWindMap</a>');
+lwSet(store.get("liveWind",false));
+/* ================= Refuges, cabanes, points d'eau (refuges.info) ================= */
+const REF={layer:L.layerGroup(), key:""};
+const REF_T={"refuge gardé":["R","#2E7D32"],"cabane non gardée":["C","#8D6E63"],"gîte d'étape":["G","#6A1B9A"],"point d'eau":["💧","#1E88E5"],"bivouac":["B","#00897B"],"abri sommaire":["A","#8D6E63"]};
+async function refLoad(){ if(!map.hasLayer(REF.layer)) return; if(map.getZoom()<11){ REF.layer.clearLayers(); return; }
+  const b=map.getBounds(), key=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(x=>x.toFixed(3)).join(","); if(key===REF.key) return; REF.key=key;
+  try{ const j=await (await fetch("https://www.refuges.info/api/bbox?bbox="+key+"&type_points=all&format=geojson&detail=simple")).json(); REF.layer.clearLayers();
+    j.features.forEach(f=>{ const p=f.properties, t=REF_T[p.type.valeur]; if(!t) return; const [lo,la]=f.geometry.coordinates;
+      L.marker([la,lo],{icon:L.divIcon({className:"refi",iconSize:[26,26],iconAnchor:[13,13],html:`<b style="background:${t[1]}">${t[0]}</b>`}),zIndexOffset:650}).addTo(REF.layer)
+       .bindPopup(`<b>${p.nom}</b><br>${p.type.valeur}${p.coord&&p.coord.alt?" · "+p.coord.alt+" m":""}${p.places&&p.places.valeur?" · "+p.places.valeur+" places":""}<br><a href="${p.lien}" target="_blank" rel="noopener">Fiche refuges.info</a>`); }); }catch(e){ REF.key=""; } }
+function refSet(on){ store.set("refuges",on); $("refChk").checked=on; if(on && R()){ REF.layer.addTo(map); REF.key=""; refLoad(); if(map.getZoom()<11) toast("Zoomez pour voir les refuges"); } else map.removeLayer(REF.layer); }
+$("refChk").onchange=e=>refSet(e.target.checked); map.on("moveend", ()=>{ clearTimeout(REF.t); REF.t=setTimeout(refLoad,500); });
+map.attributionControl.addAttribution('<a href="https://www.refuges.info" target="_blank" rel="noopener">refuges.info</a>');
+refSet(store.get("refuges",false));
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-s"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-t"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
