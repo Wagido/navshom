@@ -328,6 +328,19 @@ body:has(#runHud:not([hidden])) #chip{display:none}
 .modesw button:focus-visible{outline:3px solid #FF7A00;outline-offset:1px}
 .rtpt{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .rtbtn{display:flex;gap:6px} .rtbtn button{border:1px solid var(--line);background:var(--white);color:var(--blue);border-radius:8px;padding:6px 9px;font:600 12px var(--sans);cursor:pointer}
+#dlFrame{position:fixed;z-index:900;pointer-events:none;border:2.5px dashed #FF7A00;border-radius:14px;box-shadow:0 0 0 9999px rgba(11,47,91,.28)}
+#dlBar{position:fixed;z-index:1300;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 16px);
+  background:rgba(255,255,255,.97);color:var(--navy,#0B2F5B);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.25);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-family:var(--sans)}
+#dlBar .dl-t{font:700 16px var(--sans)} #dlBar .dl-s{font:500 13px var(--sans);color:#4A5D73;font-variant-numeric:tabular-nums}
+#dlBar .dl-s b{color:#0B2F5B} #dlBar .dl-s.warn{color:#C62828}
+#dlBar .dl-q{display:flex;background:#EEF2F6;border-radius:16px;padding:3px;align-self:flex-start}
+#dlBar .dl-q button{border:0;border-radius:13px;padding:7px 12px;background:transparent;color:#4A5D73;font:600 12px var(--sans)}
+#dlBar .dl-q button.on{background:#fff;color:#0B2F5B;box-shadow:0 1px 4px rgba(11,47,91,.15)}
+#dlBar .dl-p{height:8px;border-radius:4px;background:#EEF2F6;overflow:hidden} #dlBar .dl-p i{display:block;height:100%;width:0;background:#FF7A00;transition:width .3s}
+#dlBar .dl-b{display:flex;gap:8px;justify-content:flex-end} #dlBar .dl-b .pill{flex:0 0 auto;min-width:110px;margin:0}
+#dlBar .pill:disabled{opacity:.45}
+body.dlmode .bar, body.dlmode #tbar, body.dlmode #colBL, body.dlmode #colBR, body.dlmode #measure, body.dlmode #rtPill, body.dlmode #bMode{display:none!important}
+body.night #dlBar{background:#1a0000;color:#ff5a4a}
 #pickBar{position:fixed;z-index:1300;left:50%;transform:translateX(-50%);top:calc(var(--st) + 70px);background:#FF7A00;color:#fff;border-radius:12px;padding:10px 14px;font:600 14px var(--sans);display:flex;gap:10px;align-items:center;box-shadow:0 3px 12px rgba(0,0,0,.35)}
 #pickBar button{border:0;border-radius:8px;background:rgba(255,255,255,.25);color:#fff;font:600 13px var(--sans);padding:5px 9px}
 body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measuring #bSat, body.measuring #bSlope, body.measuring #chip{display:none!important}
@@ -649,8 +662,8 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
     <div class="slopeleg"><span style="background:#f2e600"></span>30–35°<span style="background:#f39200"></span>35–40°<span style="background:#e3000f"></span>40–45°<span style="background:#a3007d"></span>&gt; 45°</div>
   </div>
   <h3>Hors ligne</h3>
-  <div class="btnrow" style="margin-top:4px"><button class="pill primary" id="bCache">Télécharger la zone affichée</button></div>
-  <p class="note" id="cacheinfo">Enregistre le fond choisi sur la zone affichée (zoom actuel à +3) pour l'utiliser sans réseau.</p>
+  <div class="btnrow" style="margin-top:4px"><button class="pill primary" id="bCache">Télécharger une zone</button></div>
+  <p class="note">Pour naviguer sans réseau. Vos zones enregistrées : menu Plus › Cartes hors ligne.</p>
   <details class="adv"><summary>Avancé</summary>
     <div class="btnrow"><button class="pill" id="bTestSrc">Tester les fonds de carte</button></div>
     <div class="wplist" id="srcTest"></div>
@@ -678,6 +691,10 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
     <div class="btnrow"><label class="pill primary" for="gpxIn" style="text-align:center;cursor:pointer">Importer un fichier GPX</label></div>
     <div class="btnrow"><a class="pill" href="https://meteofrance.com/meteo-montagne" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">Bulletin avalanche (Météo-France)</a></div>
   </div>
+  <h3>Cartes hors ligne</h3>
+  <div class="btnrow"><button class="pill primary" id="bCache2">Télécharger une zone</button></div>
+  <div class="wplist" id="zoneList"></div>
+  <p class="note" id="zoneNote">Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau.</p>
   <h3>Navigation</h3>
   <label class="opt mer-only"><input type="checkbox" id="track" checked><div>Trace du bateau</div></label>
   <label class="opt"><input type="checkbox" id="night"><div>Mode nuit<small>Rouge, préserve la vision nocturne</small></div></label>
@@ -700,6 +717,14 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
 
 <div id="toast" hidden></div>
 <div id="rtPill" hidden><button id="rtPillOpen">Routage · arrivée <b id="rtPillT"></b></button><button id="rtPillX" aria-label="Effacer le routage">✕</button></div>
+<div id="dlFrame" hidden></div>
+<div id="dlBar" hidden>
+  <div class="dl-t" id="dlTitle">Cadrez la zone à emporter</div>
+  <div class="dl-s" id="dlEst">…</div>
+  <div class="dl-q" id="dlQ"><button data-q="0" class="on">Détail maximal</button><button data-q="1">Plus léger</button></div>
+  <div class="dl-p" id="dlP" hidden><i id="dlProg"></i></div>
+  <div class="dl-b"><button class="pill" id="dlCancel">Annuler</button><button class="pill primary" id="dlGo">Télécharger</button></div>
+</div>
 <div id="pickBar" hidden><span id="pickTxt"></span><button id="pickCancel">Annuler</button></div>
 <div id="runHud" hidden>
   <div class="rh-main"><div><b>Distance</b><span id="rhDist">0,00</span><i>km</i></div><div class="rh-pace"><b>Allure</b><span id="rhPace">–:––</span><i>min/km</i></div></div>
@@ -2107,7 +2132,7 @@ function swapBase(k){ if(k===curBase) return; map.removeLayer(bases[curBase]); c
   const rb=document.querySelector(`input[name=base][value=${k}]`); if(rb) rb.checked=true; if(typeof markSelMaps==="function") markSelMaps(); setShade(store.get("shade",true)); scaleWarn(); }
 function autoSatCheck(){
   const lim=(bases.scan25.options.maxNativeZoom||16);
-  if(R() && store.get("autoSat",true) && !autoSatOn && curBase==="scan25" && map.getZoom()>lim){ autoSatOn=true; swapBase("ortho"); toast("Zoom maximal : photos aériennes (le 1:25 000 n'a pas plus de détail)",4000); }
+  if(R() && navigator.onLine && store.get("autoSat",true) && !autoSatOn && curBase==="scan25" && map.getZoom()>lim){ autoSatOn=true; swapBase("ortho"); toast("Zoom maximal : photos aériennes (le 1:25 000 n'a pas plus de détail)",4000); }
   else if(autoSatOn && (map.getZoom()<=lim || !R() || !store.get("autoSat",true))){ autoSatOn=false; if(curBase==="ortho") swapBase("scan25"); }
 }
 map.on("zoomend", autoSatCheck);
@@ -2344,24 +2369,89 @@ document.addEventListener("click",wake,{once:true}); wake();
 function tileRange(b,z){ const n=2**z, x=lng=>Math.floor((lng+180)/360*n),
   y=lat=>{ const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n); };
   return {x0:x(b.getWest()),x1:x(b.getEast()),y0:y(b.getNorth()),y1:y(b.getSouth())}; }
-$("bCache").onclick = async () => {
-  if(!("caches" in window)) return toast("Hors ligne non supporté par ce navigateur");
-  const layer=bases[curBase], z0=map.getZoom(), urls=[];
-  for(let z=z0; z<=Math.min(z0+3,17); z++){
-    const A=AREA(), vb=map.getBounds(), cb=L.latLngBounds([Math.max(vb.getSouth(),A.getSouth()),Math.max(vb.getWest(),A.getWest())],[Math.min(vb.getNorth(),A.getNorth()),Math.min(vb.getEast(),A.getEast())]);
-    const r=tileRange(cb,z);
-    for(let x=r.x0;x<=r.x1;x++) for(let y=r.y0;y<=r.y1;y++){ urls.push(L.Util.template(layer._url,{z,x,y,s:"a",r:""})); if($("seamarks").checked) urls.push(L.Util.template(seamarks._url,{z,x,y})); }
-  }
-  if(urls.length>4000) return toast("Zone trop grande ("+urls.length+" tuiles). Zoomez davantage.");
-  const cache=await caches.open("navshom-tiles"); let done=0, fail=0; const info=$("cacheinfo"), btn=$("bCache"); btn.disabled=true;
-  const worker=async()=>{ while(urls.length){ const u=urls.pop();
-    try{ if(!(await cache.match(u))){ const r=await fetch(u,{mode:"no-cors"}); await cache.put(u,r); } done++; }catch(e){ fail++; }
-    info.textContent="Téléchargement… "+done+" tuiles"+(fail?" ("+fail+" échecs)":""); } };
-  await Promise.all([worker(),worker(),worker(),worker()]);
-  info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
-};
+/* Zones téléchargées : on enregistre toutes les tuiles des couches affichées, du zoom 6 au détail maximal du fond */
+const TILE_KB={litto:30,scan25:38,ign:22,ortho:30,emod:12,shom:30,gebco:10,shade:14,slopes:6,seamarks:2}, DL_MAX=9000;
+const OVL={shade, slopes, seamarks};
+let zones=store.get("zones",[]), dl=null, dlQ=0;
+const lyOf=k=>bases[k]||OVL[k];
+function dlKeys(){ const k=(autoSatOn&&curBase==="ortho")?"scan25":curBase, ks=[k];
+  if(R()){ if(store.get("shade",true) && k!=="ortho") ks.push("shade"); if(map.hasLayer(slopes)) ks.push("slopes"); }
+  else if($("seamarks").checked) ks.push("seamarks");
+  return ks; }
+function dlZooms(k,q){ const o=lyOf(k).options, zx=Math.min(o.maxNativeZoom??o.maxZoom??18, 17)-q; return [Math.max(6,o.minNativeZoom||0), zx]; }
+function tilesIn(b,k,q,cb){ const [z0,z1]=dlZooms(k,q); let n=0;
+  for(let z=z0; z<=z1; z++){ const r=tileRange(b,z); n+=(r.x1-r.x0+1)*(r.y1-r.y0+1);
+    if(cb) for(let x=r.x0;x<=r.x1;x++) for(let y=r.y0;y<=r.y1;y++) cb(L.Util.template(lyOf(k)._url, L.extend({},lyOf(k).options,{z,x,y,s:"a",r:""}))); }
+  return n; }
+function zoneUrls(zn){ const b=L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]), out=[]; zn.keys.forEach(k=>{ if(lyOf(k)) tilesIn(b,k,zn.q||0,u=>out.push(u)); }); return out; }
+function dlBounds(){ const f=$("dlFrame").getBoundingClientRect(), m=map.getContainer().getBoundingClientRect();
+  const nw=map.containerPointToLatLng([f.left-m.left,f.top-m.top]), se=map.containerPointToLatLng([f.right-m.left,f.bottom-m.top]);
+  const b=L.latLngBounds(se,nw), A=FRANCE;
+  return L.latLngBounds([Math.max(b.getSouth(),A.getSouth()),Math.max(b.getWest(),A.getWest())],[Math.min(b.getNorth(),A.getNorth()),Math.min(b.getEast(),A.getEast())]); }
+function dlLayout(){ const top=$("colTL").getBoundingClientRect().bottom+14, bot=$("dlBar").getBoundingClientRect().top-14, f=$("dlFrame").style;
+  const side=Math.max(18, innerWidth>700 ? innerWidth*0.12 : 18), rt=innerWidth>700?side:Math.max(side,$("colTR").getBoundingClientRect().width+26);
+  f.top=top+"px"; f.left=side+"px"; f.right=rt+"px"; f.height=Math.max(80,bot-top)+"px"; }
+const NAMES={litto:"carte marine",scan25:"IGN 1:25 000",ign:"plan IGN",ortho:"photos aériennes",emod:"profondeurs",shom:"cartes SHOM",gebco:"GEBCO",shade:"relief",slopes:"pentes",seamarks:"balisage"};
+function dlEstimate(){ if(!dl || dl.running) return; const b=dlBounds(), ks=dlKeys(), e=$("dlEst"), go=$("dlGo");
+  if(curBase==="osm"){ e.className="dl-s warn"; e.textContent="OpenStreetMap interdit le téléchargement en masse : choisissez un autre fond (bouton Cartes)."; go.disabled=true; return; }
+  let n=0, kb=0; ks.forEach(k=>{ const c=tilesIn(b,k,dlQ); n+=c; kb+=c*(TILE_KB[k]||20); });
+  const mo=Math.max(1,Math.round(kb/1024)), zx=dlZooms(ks[0],dlQ)[1];
+  if(n>DL_MAX){ e.className="dl-s warn"; e.innerHTML="Zone trop grande ("+n.toLocaleString("fr-FR")+" tuiles). Rapprochez-vous ou choisissez « Plus léger »."; go.disabled=true; return; }
+  e.className="dl-s"; e.innerHTML="<b>≈ "+mo+" Mo</b> · "+n.toLocaleString("fr-FR")+" tuiles · "+ks.map(k=>NAMES[k]||k).join(" + ")+" · détail jusqu'au 1:"+Math.round(591658711/2**zx/1000)+" 000";
+  go.disabled=false; dl.n=n; dl.keys=ks; dl.b=b; }
+function dlStart(){ if(!("caches" in window)) return toast("Ce navigateur ne permet pas le hors ligne");
+  closeSheets(); if(measuring) stopMeasure();
+  dl={running:false}; document.body.classList.add("dlmode"); $("dlFrame").hidden=false; $("dlBar").hidden=false;
+  $("dlTitle").textContent="Cadrez la zone à emporter"; $("dlQ").hidden=false; $("dlP").hidden=true; $("dlGo").hidden=false; $("dlCancel").textContent="Annuler";
+  requestAnimationFrame(()=>{ dlLayout(); dlEstimate(); }); }
+function dlEnd(){ dl=null; document.body.classList.remove("dlmode"); $("dlFrame").hidden=true; $("dlBar").hidden=true; }
+map.on("moveend zoomend", ()=>{ if(dl) dlEstimate(); }); addEventListener("resize", ()=>{ if(dl){ dlLayout(); dlEstimate(); } });
+$("dlQ").onclick=e=>{ const q=e.target.dataset.q; if(q==null) return; dlQ=+q; $("dlQ").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===e.target)); dlEstimate(); };
+$("dlCancel").onclick=()=>{ if(dl && dl.running){ dl.stop=true; return; } dlEnd(); };
+async function zoneName(c){ for(const ix of ["poi","address"]) try{ const r=await fetch("https://data.geopf.fr/geocodage/reverse?lon="+c.lng.toFixed(4)+"&lat="+c.lat.toFixed(4)+"&limit=1&index="+ix); const j=await r.json(); const p=j.features[0].properties, n=p.toponym||p.city; if(n) return n; }catch(e){}
+  return "Zone du "+new Date().toLocaleDateString("fr-FR"); }
+$("dlGo").onclick=async()=>{ if(!dl || dl.running || !dl.b) return;
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+  const q=dlQ, zn={id:Date.now(), b:[dl.b.getSouth(),dl.b.getWest(),dl.b.getNorth(),dl.b.getEast()], keys:dl.keys, q, mode:MODE, d:new Date().toISOString()};
+  const urls=zoneUrls(zn), total=urls.length; dl.running=true;
+  $("dlTitle").textContent="Téléchargement…"; $("dlQ").hidden=true; $("dlP").hidden=false; $("dlGo").hidden=true; $("dlCancel").textContent="Arrêter";
+  const cache=await caches.open("navshom-tiles"); let done=0, fail=0, bytes=0; const t0=Date.now();
+  const show=()=>{ $("dlProg").style.width=(100*done/total).toFixed(1)+"%"; const left=done>20? Math.round((Date.now()-t0)/done*(total-done)/1000):null;
+    $("dlEst").className="dl-s"; $("dlEst").innerHTML="<b>"+Math.round(100*done/total)+" %</b> · "+done.toLocaleString("fr-FR")+" / "+total.toLocaleString("fr-FR")+" tuiles · "+(bytes/1048576).toFixed(0)+" Mo"+(left!=null?" · encore ≈ "+(left>90?Math.round(left/60)+" min":left+" s"):"")+(fail?" · "+fail+" échecs":""); };
+  const worker=async()=>{ while(urls.length && !dl.stop){ const u=urls.pop();
+    try{ if(!(await cache.match(u))){ let r;
+        try{ r=await fetch(u,{mode:"cors"}); }catch(e){ r=await fetch(u,{mode:"no-cors"}); }
+        if(r.type==="opaque") await cache.put(u,r);
+        else if(r.ok){ const bl=await r.blob(); bytes+=bl.size; await cache.put(u,new Response(bl,{headers:{"Content-Type":r.headers.get("Content-Type")||"image/png"}})); }
+        else if(r.status!==404) fail++; }
+    }catch(e){ fail++; }
+    done++; if(done%10===0||done===total) show(); } };
+  show(); await Promise.all([worker(),worker(),worker(),worker(),worker()]);
+  const stopped=dl.stop; dlEnd();
+  if(stopped && done<total*0.98){ toast("Téléchargement arrêté ("+done+" / "+total+" tuiles déjà enregistrées)",4000); return; }
+  zn.n=total; zn.mb=Math.max(1,Math.round(bytes/1048576)); zn.fail=fail; zn.name=await zoneName(L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]).getCenter());
+  zones.push(zn); store.set("zones",zones); renderZones();
+  toast("« "+zn.name+" » disponible hors ligne"+(fail?" ("+fail+" tuiles manquantes, relancez pour compléter)":""),5000); };
+$("bCache").onclick=dlStart; $("bCache2").onclick=dlStart;
+function renderZones(){ const el=$("zoneList"); el.innerHTML="";
+  if(!zones.length){ el.innerHTML='<p class="note" style="margin:4px 0">Aucune zone téléchargée pour l\'instant.</p>'; }
+  zones.slice().reverse().forEach(zn=>{ const row=document.createElement("div");
+    row.innerHTML='<span style="flex:1;min-width:0"><b></b><small style="display:block;color:var(--muted);font-size:12px"></small></span><button data-a="see">Voir</button><button data-a="del" style="color:#C62828">Supprimer</button>';
+    row.querySelector("b").textContent=zn.name+(zn.mode==="rando"?" · Rando":" · Mer");
+    row.querySelector("small").textContent=(zn.mb?zn.mb+" Mo · ":"")+zn.keys.map(k=>NAMES[k]||k).join(" + ")+" · "+new Date(zn.d).toLocaleDateString("fr-FR");
+    row.querySelector('[data-a=see]').onclick=()=>{ closeSheets(); if(zn.mode!==MODE) setMode(zn.mode); const b=L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]);
+      setFollow(false); map.fitBounds(b); const r=L.rectangle(b,{color:"#FF7A00",weight:2,dashArray:"6 6",fill:false,interactive:false}).addTo(map); setTimeout(()=>map.removeLayer(r),4000); };
+    row.querySelector('[data-a=del]').onclick=async()=>{ if(!confirm("Supprimer « "+zn.name+" » du téléphone ?")) return;
+      zones=zones.filter(z=>z.id!==zn.id); store.set("zones",zones); renderZones();
+      const keep=new Set(); zones.forEach(z=>zoneUrls(z).forEach(u=>keep.add(u)));
+      try{ const c=await caches.open("navshom-tiles"); await Promise.all(zoneUrls(zn).filter(u=>!keep.has(u)).map(u=>c.delete(u))); }catch(e){}
+      toast("Zone supprimée"); usageNote(); };
+    el.appendChild(row); });
+  usageNote(); }
+async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
+renderZones();
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-k"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-l"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
