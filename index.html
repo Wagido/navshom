@@ -406,6 +406,12 @@ body.night{--glass:rgba(42,18,16,.92)}
 .tbl .ar svg path{fill:var(--navy)}
 .tbl tr.lay th{color:#FF7A00;font-weight:700} .tbl tr.lay td{background:rgba(255,122,0,.06)}
 body.night #tbar{background:#2a1210;color:#ff8a7a}
+
+/* Panneau météo : deux tailles de texte seulement (13 px et 11 px), une seule graisse d'accent */
+#tbar,#tbar button,#tbar select{font-family:var(--sans)}
+#tbar .big{font:700 14px var(--sans)} #tbar .here{font:500 13px var(--sans)} #tbar .lbl{font:500 11px var(--sans)}
+.chips button,.trow select,.tog,.tlbtns button{font:500 13px var(--sans)} .chips button.on{font-weight:600}
+.tbl table{font:500 12px var(--sans)} .tbl th{font:500 11px var(--sans)} .tbl tr.hh td,.tbl tr.dayr td span{font-size:11px}
 </style>
 </head>
 <body>
@@ -2324,7 +2330,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-f"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-g"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
