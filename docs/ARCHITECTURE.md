@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.17-d · Dernière mise à jour : 16 novembre 2026
+> Statut : version 2026.11.17-e · Dernière mise à jour : 16 novembre 2026
 
 ## 1. Résumé
 
@@ -179,12 +179,13 @@ Au toucher de la carte en Mer, une requête **Overpass** cherche les objets `sea
 
 Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour revenir à la carte (ou Échap).
 
-- **Zone** : carré centré sur le centre de la carte, de côté égal à la largeur affichée, borné entre 6 et 10 km (arrondi à 500 m). Calculé en EPSG:3857 (côté divisé par cos(latitude) pour des mètres vrais). France seulement, réseau nécessaire.
+- **Zone** : carré centré sur le centre de la carte, de côté égal à la largeur affichée (arrondi à 500 m), entre 6 et 10 km, ou **jusqu'à 30 km quand le relief est déjà sur le téléphone** (massif installé ou zone téléchargée avec l'option 3D : `v3Local`). La grille garde sa taille : sur 30 km, elle est moins fine (≈ 120 m entre points sur téléphone).
+- **Recentrer** : quand on s'éloigne du centre de plus d'un quart de la zone, un bouton « Recentrer la 3D ici » recalcule la vue autour du point regardé, avec la même taille, le même angle et le même fond. La carte 2D suit. Avec des données locales, ça prend environ 1 à 2 s, sans réseau. Calculé en EPSG:3857 (côté divisé par cos(latitude) pour des mètres vrais). France seulement, réseau nécessaire.
 - **Relief** : WMS Géoplateforme `ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES`, `image/x-bil;bits=32` (flottants 32 bits), demandé directement depuis le navigateur (CORS ouvert), **en tuiles fixes** : grille Web Mercator au zoom 13, 128 × 128 pixels (≈ 27 m à 45° N, 64 Ko par tuile). La vue assemble les tuiles qui couvrent la zone puis rééchantillonne sur sa grille. Valeurs aberrantes (hors −500…9 000 m) remplacées par la moyenne ; zone refusée si moins de 10 % de valeurs valides.
 - **Taille de la grille** : 256 × 256 sommets sur téléphone (écran tactile), 400 × 400 sur ordinateur, 192 si l'appareil annonce 2 Go de mémoire ou moins. Texture 2048 px (1024 sur petite mémoire). Rendu à la demande (seulement quand la vue bouge), densité de pixels limitée à 1,5 sur téléphone.
 - **Fond choisi tout seul à chaque ouverture** (`v3AutoBg`) : la carte IGN 1:25 000 (ou la photo) si le centre de la vue est dans une zone téléchargée, puisqu'elle est déjà sur le téléphone ; sinon « Relief », sans aucune donnée. Un toucher sur un autre fond vaut pour la vue en cours seulement. Un petit message indique le fond choisi.
 - **Fonds** : « Relief » (couleurs d'altitude calculées sur le téléphone à partir du relief : **aucune donnée** à télécharger), « Photo », « Carte » (1:25 000), et « Pentes » en superposition.
-- **Texture** : un canvas 2D composé à partir des **mêmes tuiles WMTS que la carte** (photo, 1:25 000, pentes à 60 %), puis les lignes. Zoom 14 sur téléphone (≈ 10 m/pixel), 15 au plus sur ordinateur, un de moins en mode économe (réglage « Vue 3D économe en données », ou économiseur de données / réseau 2G-3G signalé par le navigateur). Tuile absente : la tuile parente (1 ou 2 niveaux) est agrandie. Fond indisponible : on essaie l'autre, puis les couleurs d'altitude (message « Pas de photo ici hors ligne »). Hors ligne, les tuiles sont lues directement dans le cache, sans attendre le réseau ; en ligne, 20 s au plus par requête.
+- **Texture** : un canvas 2D composé à partir des **mêmes tuiles WMTS que la carte** (photo, 1:25 000, pentes à 60 %), puis les lignes. Zoom 14 sur téléphone (≈ 10 m/pixel), 15 au plus sur ordinateur, un de moins en mode économe (réglage « Vue 3D économe en données », ou économiseur de données / réseau 2G-3G signalé par le navigateur). Tuile absente du cache : d'abord les tuiles plus détaillées déjà enregistrées (zoom +1 ou +2, assemblées si 75 % sont là), puis le réseau, puis la tuile parente (1 ou 2 niveaux) agrandie. Une vue de 30 km se compose ainsi de la photo z14 d'une zone téléchargée, sans réseau. Fond indisponible : on essaie l'autre, puis les couleurs d'altitude (message « Pas de photo ici hors ligne »). Hors ligne, les tuiles sont lues directement dans le cache, sans attendre le réseau ; en ligne, 20 s au plus par requête.
 - **Drapé** : la trace en cours (rose), la trace enregistrée affichée (violet, départ vert, arrivée rouge) et l'itinéraire mesuré sont **peints dans la texture** : ils épousent exactement le relief, sans calcul 3D. La trace en cours est repeinte toutes les 15 s. Les repères et la position GPS (« Vous », mise à jour en direct) sont des étiquettes HTML projetées ; elles s'estompent quand une crête les cache (test de la ligne de visée sur la grille d'altitudes).
 - **Gestes** : un doigt pour tourner, pincer pour zoomer, deux doigts pour déplacer (souris : clic gauche, molette, clic droit). Toucher le relief donne l'altitude. Le bouton boussole remet le nord en haut.
 - **Réglages** (mémorisés dans `nav_v3`) : pentes, exagération du relief (1 à 3×), direction du soleil (lumière directionnelle, élévation fixe).
@@ -314,6 +315,7 @@ Autres points :
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.17-e** : vue 3D jusqu'à 30 km quand le relief est sur le téléphone, bouton « Recentrer la 3D ici », cadrage entre le titre et le panneau.
 - **2026.11.17-d** : fond de la vue 3D choisi tout seul (carte de la zone téléchargée, sinon Relief).
 - **2026.11.17-c** : tuiles en cache en CORS (fin de l'espace utilisé gonflé, 3D réutilisant la carte déjà vue sans réseau) ; la vue 3D lit d'abord le cache.
 - **2026.11.17-b** : zone hors ligne possible avec OpenStreetMap affiché (carte IGN emportée à la place) ; option 3D limitée aux zones raisonnables.

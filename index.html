@@ -607,6 +607,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 #v3Status{position:absolute;z-index:2;left:50%;top:45%;transform:translate(-50%,-50%);max-width:calc(100% - 40px);background:#fff;border-radius:14px;box-shadow:0 4px 18px rgba(11,47,91,.2);padding:14px 18px;font:500 14px/1.4 var(--sans);color:var(--navy);text-align:center}
 #v3Status button{margin-top:10px;border:0;border-radius:10px;background:var(--sapin);color:#fff;font:600 14px var(--sans);padding:9px 16px;cursor:pointer}
 #v3Tip{position:absolute;z-index:2;left:50%;top:calc(var(--st) + 66px);transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:12px;padding:7px 12px;font:600 13px var(--sans);white-space:nowrap;pointer-events:none}
+#v3Here{position:absolute;z-index:2;left:50%;transform:translateX(-50%);bottom:calc(var(--v3card,190px) + 18px);border:0;border-radius:20px;background:var(--sapin);color:#fff;font:600 14px var(--sans);padding:10px 16px;box-shadow:0 4px 14px rgba(11,47,91,.25);cursor:pointer;white-space:nowrap}
 .v3-card{position:absolute;z-index:2;left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 10px);max-width:460px;margin:0 auto;background:rgba(255,255,255,.96);border-radius:18px;box-shadow:0 6px 20px rgba(11,47,91,.18);padding:10px 12px 8px}
 .v3-seg{display:flex;gap:6px}
 .v3-seg button{flex:1 1 0;min-width:0;height:34px;border-radius:17px;border:1px solid var(--line);background:#fff;color:var(--navy);font:600 12.5px var(--sans);cursor:pointer;padding:0 6px;white-space:nowrap}
@@ -1029,6 +1030,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <button class="v3-n" id="v3North" aria-label="Remettre le nord en haut" title="Nord en haut"><svg viewBox="0 0 24 24" id="v3Needle"><path d="M12 2 15.5 12h-7z" fill="#E5372B"/><path d="M12 22 8.5 12h7z" fill="#9AA8B8"/><circle cx="12" cy="12" r="1.6" fill="#fff"/></svg></button>
   </div>
   <div id="v3Tip" hidden></div>
+  <button id="v3Here" hidden>⟳ Recentrer la 3D ici</button>
   <div id="v3Status" hidden></div>
   <div class="v3-card">
     <div class="v3-seg" role="group" aria-label="Fond de la vue 3D">
@@ -3339,7 +3341,14 @@ async function v3Img(key, sig){
   let ok = 0, done = 0; const what = key==="slope" ? "pentes" : key==="scan" ? "carte" : "photo";
   await v3Pool(list, 6, async ([x, y]) => {
     const dx = (-V3O+x*r.ts-bb[0])*k, dy = (bb[3]-(V3O-y*r.ts))*k, ds = r.ts*k; let im = null;
-    try{ im = await v3Bitmap(v3TileUrl(ly, z, x, y), sig); }catch(e){ if(e.name==="AbortError") throw e; }
+    const local = async u => { const h = await v3Cached(u); return h && h.type !== "opaque" ? createImageBitmap(await h.blob()).catch(() => null) : null; };
+    im = await local(v3TileUrl(ly, z, x, y));
+    if(!im) for(let dn=1; dn<=2 && !im; dn++){ // tuiles filles (zoom +1 ou +2) déjà enregistrées : on les assemble
+      const n = 1<<dn, kids = []; for(let j=0;j<n;j++) for(let i=0;i<n;i++) kids.push([i, j, local(v3TileUrl(ly, z+dn, x*n+i, y*n+j))]);
+      let got = 0; for(const [i, j, pr] of kids){ const ci = await pr; if(ci){ g.drawImage(ci, dx+i*ds/n, dy+j*ds/n, ds/n, ds/n); ci.close && ci.close(); got++; } }
+      if(got >= n*n*.75){ im = true; ok++; } }
+    if(im === true){ v3Prog(what, ++done, list.length); return; }
+    if(!im){ try{ im = await v3Bitmap(v3TileUrl(ly, z, x, y), sig); }catch(e){ if(e.name==="AbortError") throw e; } }
     if(im){ g.drawImage(im, dx, dy, ds, ds); im.close && im.close(); ok++; }
     else for(let up=1; up<=2; up++){ const pi = await parent(z-up, x>>up, y>>up); if(pi){ const n = 1<<up, s = 256/n; g.drawImage(pi, (x%n)*s, (y%n)*s, s, s, dx, dy, ds, ds); ok++; break; } }
     v3Prog(what, ++done, list.length); });
@@ -3348,10 +3357,17 @@ async function v3Img(key, sig){
   return V3.img[key] = cv;
 }
 // Zone : centre de la carte, côté = largeur affichée bornée entre 6 et 10 km, carré en mètres vrais
-function v3Zone(){
-  const b = map.getBounds(), c = map.getCenter();
+// Relief déjà sur le téléphone au point c (massif installé ou zone téléchargée avec l'option 3D) ?
+function v3Local(c){ const P = L.CRS.EPSG3857.project(c), ts = v3TS(V3DZ), x = Math.floor((P.x+V3O)/ts), y = Math.floor((V3O-P.y)/ts);
+  return Object.values(mInst).some(m => x >= m.x0 && x < m.x0+m.nx && y >= m.y0 && y < m.y0+m.ny)
+    || zones.some(z => z.d3 && L.latLngBounds([z.b[0],z.b[1]],[z.b[2],z.b[3]]).contains(c)); }
+// Zone : centrée sur la carte, côté = largeur affichée, de 6 à 10 km (données du réseau) ou jusqu'à 30 km quand
+// le relief est déjà sur le téléphone (rien à télécharger : seule la finesse baisse, la grille garde sa taille)
+const V3MAX = c => v3Local(c) ? 30000 : 10000;
+function v3Zone(c0, side0){
+  const b = map.getBounds(), c = c0 || map.getCenter();
   const w = map.distance([c.lat,b.getWest()],[c.lat,b.getEast()]), h = map.distance([b.getSouth(),c.lng],[b.getNorth(),c.lng]);
-  const side = Math.round(Math.min(10000, Math.max(6000, Math.max(w, h))) / 500) * 500;
+  const side = side0 || Math.round(Math.min(V3MAX(c), Math.max(6000, Math.max(w, h))) / 500) * 500;
   const P = L.CRS.EPSG3857.project(c), half = side/2 / Math.cos(c.lat*Math.PI/180);
   return { c, side, bb:[P.x-half, P.y-half, P.x+half, P.y+half] };
 }
@@ -3364,11 +3380,11 @@ function v3H(u, v){ // altitude (m), interpolation bilinéaire dans la grille
 }
 const v3X = u => (u-.5)*V3.S, v3Z = v => (v-.5)*V3.S, v3Y = m => (m-V3.h0)/1000*V3.pref.exag;
 
-async function open3D(){
-  if(V3.open) return;
-  if(!FRANCE.contains(map.getCenter())){ toast("Vue 3D : France seulement (relief IGN)"); return; }
-  V3.open = true; V3.bg = v3AutoBg(); $("b3d").classList.add("on"); $("v3d").hidden = false; v3Prefs();
-  const z = v3Zone(); Object.assign(V3, z, { S: z.side/1000, img:{}, labels:[], abort:new AbortController() });
+async function open3D(opt){
+  if(V3.open) return; opt = opt && opt.c ? opt : null;
+  if(!FRANCE.contains(opt ? opt.c : map.getCenter())){ toast("Vue 3D : France seulement (relief IGN)"); return; }
+  V3.open = true; V3.bg = opt ? opt.bg : v3AutoBg(); V3.camKeep = opt && opt.cam; $("b3d").classList.add("on"); $("v3d").hidden = false; v3Prefs();
+  const z = opt ? v3Zone(opt.c, opt.side) : v3Zone(); Object.assign(V3, z, { S: z.side/1000, img:{}, labels:[], abort:new AbortController() });
   $("v3Info").textContent = (z.side/1000).toLocaleString("fr-FR")+" × "+(z.side/1000).toLocaleString("fr-FR")+" km · chargement…";
   v3Status("Chargement du relief IGN…");
   try{
@@ -3416,8 +3432,8 @@ function v3Build(){
   V3.tex = new THREE.CanvasTexture(V3.cv); V3.tex.encoding = THREE.sRGBEncoding; V3.tex.anisotropy = Math.min(8, R3.capabilities.getMaxAnisotropy());
   V3.mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({map: V3.tex})); sc.add(V3.mesh);
   v3ApplyH(); v3Paint(); v3MakeLabels();
-  const d = S*1.05, pol = 55*Math.PI/180, ty = v3Y(v3H(.5,.5));
-  ctl.target.set(0, ty, 0); cam.position.set(0, ty + d*Math.cos(pol), d*Math.sin(pol)); ctl.update();
+  const k = V3.camKeep, d = k ? k.d : S*.9, pol = k ? k.pol : 55*Math.PI/180, az = k ? k.az : 0, ty = v3Y(v3H(.5,.5));
+  ctl.target.set(0, ty, 0); cam.position.set(d*Math.sin(pol)*Math.sin(az), ty + d*Math.cos(pol), d*Math.sin(pol)*Math.cos(az)); ctl.update();
   // toucher le relief : altitude du point
   let down = null;
   R3.domElement.addEventListener("pointerdown", e => { down = [e.clientX, e.clientY, Date.now()]; });
@@ -3436,7 +3452,9 @@ function v3ApplyH(){
   pos.needsUpdate = true; V3.mesh.geometry.computeVertexNormals(); V3.mesh.geometry.computeBoundingSphere(); V3.dirty = true;
 }
 function v3Resize(){ if(!V3.renderer) return; const host = $("v3dScene"), w = host.clientWidth, h = host.clientHeight;
-  V3.renderer.setSize(w, h, false); V3.cam.aspect = w/h; V3.cam.updateProjectionMatrix(); V3.dirty = true; }
+  V3.renderer.setSize(w, h, false); V3.cam.aspect = w/h;
+  const off = Math.max(0, (document.querySelector(".v3-card").offsetHeight - 64)/2); V3.cam.setViewOffset(w, h, 0, off, w, h);
+  V3.cam.updateProjectionMatrix(); V3.dirty = true; }
 function v3Tip(t){ const el = $("v3Tip"); el.textContent = t; el.hidden = false; clearTimeout(v3Tip._t); v3Tip._t = setTimeout(() => el.hidden = true, 2600); }
 
 // Texture : fond (photo ou carte), pentes, puis traces, itinéraire mesuré peints dessus (drapé exact sur le relief)
@@ -3508,6 +3526,7 @@ function v3Loop(){
   if(rec && rec.on && Date.now()-V3.lastRec > 15000){ V3.lastRec = Date.now(); if(rec.pts.length > 1) v3Paint(); }
   V3.ctl.update();
   const az = V3.ctl.getAzimuthalAngle()*180/Math.PI; $("v3Needle").style.transform = `rotate(${az}deg)`;
+  const t = V3.ctl.target, far = Math.hypot(t.x, t.z) > V3.S*.25; if(far === $("v3Here").hidden){ $("v3Here").hidden = !far; $("v3d").style.setProperty("--v3card", document.querySelector(".v3-card").offsetHeight+"px"); }
   if(!V3.dirty) return; V3.dirty = false;
   V3.renderer.render(V3.scene, V3.cam);
   const now = Date.now(), slow = now-(V3.lastOcc||0) > 250; if(slow) V3.lastOcc = now; else V3.dirty = true;  // repasse pour l'estompage
@@ -3515,7 +3534,7 @@ function v3Loop(){
 }
 function close3D(){
   V3.open = false; cancelAnimationFrame(V3.raf); if(V3.abort) V3.abort.abort();
-  $("v3d").hidden = true; $("b3d").classList.remove("on"); $("v3Labels").innerHTML = ""; $("v3Status").hidden = true; removeEventListener("resize", v3Resize);
+  $("v3d").hidden = true; $("v3Here").hidden = true; $("b3d").classList.remove("on"); $("v3Labels").innerHTML = ""; $("v3Status").hidden = true; removeEventListener("resize", v3Resize);
   if(V3.renderer){ V3.ctl.dispose(); V3.mesh.geometry.dispose(); V3.mesh.material.dispose(); V3.tex.dispose(); V3.renderer.dispose(); V3.renderer.forceContextLoss(); V3.renderer.domElement.remove(); }
   for(const k in (V3.img||{})) V3.img[k].width = 0;  // libère la mémoire des canvas
   Object.assign(V3, {bg:null, renderer:null, sun:null, ctl:null, scene:null, mesh:null, tex:null, cv:null, h:null, img:{}, labels:[]});
@@ -3545,11 +3564,16 @@ $("v3Sun").onchange = () => store.set("v3", V3.pref);
 $("v3North").onclick = () => { if(!V3.ctl) return; const t = V3.ctl.target, c = V3.cam.position, d = c.distanceTo(t), pol = V3.ctl.getPolarAngle();
   c.set(t.x, t.y + d*Math.cos(pol), t.z + d*Math.sin(pol)); V3.ctl.update(); V3.dirty = true; };
 $("v3Close").onclick = close3D;
+// Recentrer : nouvelle zone autour du point regardé, même taille, même angle de vue ; la carte suit
+$("v3Here").onclick = () => { if(!V3.ctl) return; const t = V3.ctl.target, bb = V3.bb, u = t.x/V3.S+.5, v = t.z/V3.S+.5;
+  const c = L.CRS.EPSG3857.unproject(L.point(bb[0]+u*(bb[2]-bb[0]), bb[3]-v*(bb[3]-bb[1])));
+  const cam = {d: V3.cam.position.distanceTo(t), pol: V3.ctl.getPolarAngle(), az: V3.ctl.getAzimuthalAngle()}, bg = V3.bg, side = Math.min(V3.side, V3MAX(c));
+  $("v3Here").hidden = true; close3D(); setFollow(false); map.setView(c, map.getZoom(), {animate:false}); open3D({c, side, cam, bg}); };
 $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store.set("v3eco", e.target.checked);
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-d"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-e"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
