@@ -363,6 +363,8 @@ body.measuring #colBL, body.measuring #colBR, body.measuring #bMode, body.measur
 .g-b+.g-b::before{content:"";position:absolute;left:10px;right:10px;top:0;height:1px;background:#E3E9EF}
 .g-b svg{width:20px;height:20px}
 .g-b.on{color:var(--merc)} body.rando .g-b.on{color:var(--sapin)}
+#bSlope.on{background:#FFF3E0;color:#E65100!important}
+#chip .gpsv{white-space:nowrap} #chip div{white-space:nowrap}
 #scale{font:600 11px var(--sans);background:rgba(255,255,255,.85);box-shadow:none;padding:3px 7px}
 #colBL{left:calc(var(--sl) + 10px);bottom:calc(var(--sb) + 88px + var(--tl))}
 .mob{height:40px;padding:0 15px;border:0;border-radius:20px;background:var(--red);color:#fff;font:700 12px var(--sans);letter-spacing:.04em;box-shadow:0 6px 16px rgba(229,55,43,.35);cursor:pointer}
@@ -448,10 +450,10 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
     <button class="g-b" id="bZin" aria-label="Zoomer">+</button>
     <button class="g-b" id="bZout" aria-label="Dézoomer">−</button>
     <button class="g-b" id="bLayers" aria-label="Cartes et couches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg></button>
+    <button class="g-b rando-only" id="bSlope" aria-label="Pentes de plus de 30°" title="Pentes > 30°"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20h18L3 6z"/><path d="M8 20a6 6 0 0 0-1.5-4"/></svg></button>
     <button class="g-b on" id="bFollow" aria-label="Centrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small id="followLbl" hidden>Bateau</small></button>
   </div>
   <div id="scale">—</div>
-  <button class="fab" id="bSlope" hidden aria-label="Carte des pentes"></button>
   <button class="fab" id="bSat" hidden aria-label="Vue satellite"></button>
 </div>
 <div class="col" id="colBL">
@@ -925,6 +927,7 @@ drawWps();
 /* ================= MOB ================= */
 let mob=store.get("mob",null), mobMk=null, mobArmed=false;
 function drawMob(){ if(mobMk){ map.removeLayer(mobMk); mobMk=null; } if(!mob) return;
+  if(R()) { mobMk=L.circleMarker(mob,{radius:11,color:"#fff",weight:3,fillColor:"#e5372b",fillOpacity:1}).bindTooltip("MOB",{permanent:true,direction:"right",className:"mlabel"}); return; }
   mobMk=L.circleMarker(mob,{radius:11,color:"#fff",weight:3,fillColor:"#e5372b",fillOpacity:1}).addTo(map).bindTooltip("MOB",{permanent:true,direction:"right",className:"mlabel"}); }
 function updateMob(){ if(!mob||!last||!mobMk) return; mobMk.setTooltipContent("MOB "+fmtNM(map.distance(last.ll,mob))+" · "+pad3(bearing(last.ll,L.latLng(mob)))+"°"); }
 $("bMob").onclick = () => {
@@ -1576,6 +1579,8 @@ function setMode(m, quiet){
   const rb=document.querySelector(`input[name=base][value=${curBase}]`); if(rb) rb.checked=true;
   if(ov.type && ((OVT[ov.type].api==="mar" && R()) || (OVT[ov.type].rando && !R()))) setOverlay(null);
   $("mSpeed").value = store.get("mspeed_"+MODE, R()?4:5);
+  try{ if(mobMk){ R()?map.removeLayer(mobMk):mobMk.addTo(map); } }catch(e){}
+  try{ R()?map.removeLayer(anchorLayer):anchorLayer.addTo(map); }catch(e){}
   chipLabels(); if(measuring) drawMeasure(); if(typeof setSlopes==="function") setSlopes(store.get("slopes",false)); try{ autoSatCheck(); setShade(store.get("shade",true)); }catch(e){ /* pas encore initialisé au démarrage */ }
   if(!AREA().contains(map.getCenter())) map.setView(R()?[46.6,2.4]:[48.4,-3.4], R()?6:8);
   if(!quiet) toast(R()?"Mode Rando : cartes IGN, traces, dénivelé":"Mode Mer : cartes marines, courants, marée");
@@ -1848,7 +1853,8 @@ function geoStart(){
 setInterval(geoStart, 2000);
 
 /* ---------- Alarme de mouillage ---------- */
-let anchor = store.get("anchor", null), anchorLayer=L.layerGroup().addTo(map), anchorAlarmOn=false, anchorSnooze=0, lastFixT=Date.now();
+let anchor = store.get("anchor", null), anchorLayer=L.layerGroup(), anchorAlarmOn=false, anchorSnooze=0, lastFixT=Date.now();
+if(!R()) anchorLayer.addTo(map);
 const anchorIcon = L.divIcon({className:"", iconSize:[30,30], iconAnchor:[15,15], html:'<svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="11" fill="#0b2f5b" stroke="#fff" stroke-width="2"/><path d="M12 6v11M8.5 9h7M7 13.5a5 5 0 0 0 10 0" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="12" cy="5.5" r="1.4" fill="#fff"/></svg>'});
 function drawAnchor(){
   anchorLayer.clearLayers(); $("bAnchor").classList.toggle("on", !!anchor);
@@ -2355,7 +2361,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-j"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-k"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
