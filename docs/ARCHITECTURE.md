@@ -1,27 +1,41 @@
-# Balise — Note d'architecture
+# Balise — Note de conception
 
-> Anciennement « Nav SHOM ». Application de Capitaine BoBo.
+> « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.14 · Auteur : Capitaine BoBo · Dernière mise à jour : 14 novembre 2026
+> Statut : version 2026.11.16-f · Dernière mise à jour : 16 novembre 2026
 
 ## 1. Résumé
 
-Balise est une application de navigation pour téléphone, avec deux modes :
+Balise est une application de navigation gratuite pour téléphone, avec deux modes :
 
-- **Mer** : cartes marines SHOM (via la carte littorale IGN-SHOM), position GPS du bateau, courants, marée, vagues, météo marine, mesure de route, homme à la mer.
-- **Rando** : cartes IGN au 1:25 000 sur toute la France, recherche de lieux, enregistrement de traces, profil altimétrique, import et export GPX.
+- **Mer** (le cœur du produit) :
+  - carte marine (carte littorale IGN-SHOM) et position GPS du bateau ;
+  - vent, courant, vagues et houle animés sur la carte, avec une barre de temps ;
+  - marées officielles du SHOM ;
+  - routage météo avec la polaire de son bateau (604 modèles ORC, avec ou sans spi) ;
+  - écran instruments avec performance polaire ;
+  - alarmes : mouillage, écart de route, collision AIS ;
+  - infos des bouées et des feux ;
+  - bulletins officiels ;
+  - cartes et météo hors ligne.
+- **Rando** :
+  - cartes IGN au 1:25 000, ombrage du relief, carte des pentes de plus de 30° ;
+  - neige et iso 0 °C ;
+  - itinéraires sur sentiers, traces, profils et mode course ;
+  - import et export GPX.
 
-C'est une **application web installable** (PWA) : un seul code HTML/JS, publié sur GitHub Pages, qui tourne dans le navigateur, s'installe sur l'écran d'accueil, ou s'emballe dans un **APK Android** (Capacitor). **Il n'y a pas de serveur à nous** : le téléphone interroge directement des services publics gratuits (IGN, Open-Meteo, EMODnet, OpenSeaMap).
+C'est une **application web installable** (PWA) : un seul code HTML/JS publié sur GitHub Pages. Elle tourne dans le navigateur, s'installe sur l'écran d'accueil, ou s'emballe dans un **APK Android** (Capacitor). **Il n'y a pas de serveur à nous** : le téléphone interroge directement des services publics gratuits.
 
 ## 2. Objectifs et contraintes
 
 | Objectif | Conséquence technique |
 |---|---|
-| Gratuit, sans abonnement | Uniquement des données ouvertes ; aucun backend payant |
-| Utilisable en mer sans réseau | Service worker + cache des tuiles + téléchargement de zone |
-| Mise à jour sans repasser par un store | L'APK charge le site en ligne ; le site est la source unique |
+| Gratuit, sans abonnement ni pub | Uniquement des données ouvertes ; aucun backend |
+| Utilisable en mer sans réseau | Service worker, cache des tuiles, zones téléchargées avec 3 jours de météo |
+| Mise à jour sans passer par un store | L'APK charge le site en ligne ; le site est la source unique |
 | Un seul développeur, itérations rapides | Un seul fichier applicatif, aucune étape de build côté web |
-| Respect des fournisseurs de données | Pas de contournement d'accès (refus d'usurper le *referer* SHOM) ; quotas Open-Meteo respectés |
+| Respect des fournisseurs de données | Pas de contournement d'accès (refus d'usurper le *referer* SHOM) ; quotas Open-Meteo économisés ; pas de téléchargement en masse des tuiles OpenStreetMap |
+| Lisible en mer, au soleil, en mouvement | Style « Clarté » : fond blanc, gros chiffres, peu de boutons, mode nuit rouge |
 
 ## 3. Pile technique
 
@@ -29,48 +43,54 @@ C'est une **application web installable** (PWA) : un seul code HTML/JS, publié 
 |---|---|---|
 | Carte | **Leaflet 1.9.4** (embarqué dans `lib/`) | Léger, éprouvé, fonctionne hors ligne |
 | Interface | HTML + CSS + JavaScript « vanilla » | Pas de framework, pas de build, démarrage instantané |
-| Rendu météo | **Canvas 2D** (dégradé, particules, chiffres) | Fluide sur mobile, pas de dépendance |
+| Rendu météo | **Canvas 2D** (dégradé, particules, chiffres) | Fluide sur mobile, sans dépendance |
 | Police | **Inter** (embarquée, licence OFL) | Lisible, chiffres tabulaires, identique partout |
 | Hors ligne | **Service worker** (`sw.js`) + Cache API | Standard web |
 | Hébergement | **GitHub Pages** | Gratuit, HTTPS (obligatoire pour le GPS) |
-| App Android | **Capacitor 6** (WebView) construit par **GitHub Actions** | APK sans installer Android Studio |
+| App Android | **Capacitor 6** (WebView), construit par **GitHub Actions** | APK sans Android Studio |
 
 ## 4. Organisation du dépôt
 
 ```
 navshom/
-├── index.html              # toute l'application (≈ 1 500 lignes : HTML, CSS, JS)
+├── index.html              # toute l'application (≈ 2 900 lignes : HTML, CSS, JS)
 ├── sw.js                   # service worker : cache de l'app et des tuiles
 ├── manifest.webmanifest    # métadonnées PWA (nom, icônes, couleurs)
 ├── icon.svg, icon-*.png    # icônes
 ├── lib/
 │   ├── leaflet.js / .css   # bibliothèque de carte
-│   ├── landmask.png        # masque terre/mer France (GLOBE ~1 km, 9 Ko)
+│   ├── landmask.png        # masque terre/mer France (GLOBE ~1 km)
+│   ├── polars-orc.json     # 604 polaires de série (certificats ORC), chargé à la demande
 │   └── fonts/              # police Inter (woff2) + licence
+├── tools-check.js          # contrôle automatique de mise en page (Playwright)
+├── android-debug.keystore  # clé fixe de signature de l'APK
 ├── .github/workflows/
 │   └── android.yml         # construction et publication de l'APK
 └── docs/ARCHITECTURE.md    # ce document
 ```
 
-Choix assumé : **un seul `index.html`**. À cette taille, c'est plus simple à déployer et à faire évoluer. Si l'app grossit, le découpage naturel suit les modules du §5.
+Choix assumé : **un seul `index.html`**. Si l'app grossit encore, le découpage naturel suit les modules du §5.
 
 ## 5. Architecture applicative
 
 ```mermaid
 flowchart LR
   subgraph Téléphone
-    UI[Interface<br/>boutons, panneaux, frise] --> Core
+    UI[Interface Clarté<br/>barre du bas, panneaux, menu Plus] --> Core
     GPS[GPS du téléphone] --> Core[Cœur<br/>état, modes Mer/Rando]
     Core --> Map[Carte Leaflet<br/>fonds de carte]
-    Core --> Ovl[Calques météo/mer<br/>canvas : dégradé, particules, chiffres]
+    Core --> Ovl[Calques météo et mer<br/>canvas : dégradé, particules, chiffres]
+    Core --> Nav[Navigation<br/>routes, routage, instruments, alarmes]
     Core --> Rando[Rando<br/>traces, profils, GPX]
-    Core --> Store[(localStorage<br/>réglages, repères, traces)]
-    SW[Service worker] --> Cache[(Cache API<br/>app + tuiles)]
+    Core --> Store[(localStorage<br/>réglages, repères, routes, traces)]
+    SW[Service worker] --> Cache[(Cache API<br/>app, tuiles, météo hors ligne)]
   end
-  Map -->|tuiles| IGN[IGN Géoplateforme<br/>carte littorale SHOM, 1:25 000, Plan, photos]
-  Map --> OSM[OpenStreetMap / OpenSeaMap / EMODnet]
+  Map -->|tuiles| IGN[IGN Géoplateforme<br/>carte littorale, 1:25 000, Plan, photos, pentes, relief]
+  Map --> OSM[OpenSeaMap / EMODnet / OSM]
   Ovl -->|prévisions| OM[Open-Meteo<br/>AROME, ARPEGE, ECMWF, ICON, GFS<br/>Mercator : courant, vagues, marée]
-  Rando -->|altitudes, recherche| IGN
+  Nav -->|balisage| OV[Overpass / OpenStreetMap]
+  Nav -->|navires| AIS[aisstream.io]
+  Rando -->|altitudes, recherche, itinéraires| IGN
   Map -.passe par.-> SW
 ```
 
@@ -78,105 +98,190 @@ flowchart LR
 
 | Module | Rôle | Points clés |
 |---|---|---|
-| **Carte** | Fonds de carte, zoom, échelle | Un fond par mode, mémorisé ; bascule automatique si un fond ne répond pas |
-| **GPS** | Position, vitesse, cap, trace du bateau | `watchPosition` ; vitesse/cap recalculés si le GPS ne les donne pas ; filtre anti-saut |
-| **Point / repères / MOB** | Toucher la carte, repères, « Aller ici », homme à la mer | Distances en milles (Mer) ou km (Rando) |
-| **Mesure** | Route multi-segments | Mer : milles + temps à vitesse donnée ; Rando : km + profil IGN + temps de marche (4 km/h + 300 m D+/h) |
-| **Calques** | Vent, rafales, température, pression, pluie, nuages, visibilité, vagues, houle, courant | Grille de points → interpolation bilinéaire → dégradé continu (canvas) ; particules animées ; chiffres ; masque terre/mer pour les calques marins |
-| **Frise et tableau** | Choix de l'heure, tableau heure par heure façon Windy | Curseur, boutons ±1 h/±3 h, tableau repliable synchronisé avec la carte |
-| **Courant et marée** | Courbe au point touché | Marée lissée + PM/BM interpolées ; courant en barres colorées |
-| **Météo** | Panneau prévisions 48 h + 7 jours | Choix du modèle ; comparaison des 5 modèles |
-| **Rando** | Mode, recherche, traces, profils, GPX | Enregistrement repris après redémarrage de l'app ; altitudes IGN |
-| **Hors ligne** | Téléchargement de zone | Tuiles du zoom courant à +3, limité à 4 000 tuiles |
+| **Carte** | Fonds de carte, zoom, échelle, calage | Un fond par mode, mémorisé ; contrôle du calage par photo aérienne ; échelle orange au-delà du détail natif |
+| **GPS** | Position, vitesse, cap, trace | `watchPosition` (navigateur) ou géolocalisation native en arrière-plan (APK) ; vitesse et cap recalculés si absents |
+| **Point / repères / MOB** | Toucher la carte, repères, « Aller ici », homme à la mer | En Mer, le panneau du point affiche aussi le **balisage à proximité** |
+| **Mesure** | Route multi-segments | Mer : milles et temps ; Rando : km, profil IGN, temps de marche, suivi des sentiers |
+| **Panneau Météo** | Calque animé + barre de temps + tableau | Voir « Panneau Météo » ci-dessous |
+| **7 jours** | Prévision quotidienne et comparaison des 5 modèles | Volet séparé, ouvert par le bouton « 7 jours » |
+| **Courant et marée** | Courbe marée + courant au point touché ; vignette SHOM du port | Marée officielle SHOM pour 60 ports |
+| **Routes** | Waypoints, navigation, écart de route, heure d'arrivée | Alarme si écart de route supérieur à 0,1 mille |
+| **Routage** | Route la plus rapide | Grille et Dijkstra dépendant du temps sur les cellules de mer ; vent et courant prévus ; polaire (§5.3) |
+| **Instruments** | Écran plein de gros chiffres | Voir §5.4 |
+| **Mouillage** | Cercle d'évitage et alarme | Sirène deux tons, son débloqué au premier contact, notification Android prioritaire répétée, bouton « Tester » |
+| **AIS** | Navires autour (internet) | WebSocket aisstream.io, clé gratuite de l'utilisateur ; point de rapprochement (CPA/TCPA) et alerte à moins de 0,5 mille dans les 15 min |
+| **Hors ligne** | Zones téléchargées | Voir §7 |
+| **Rando** | Traces, profils, itinéraires IGN, GPX, mode course | Pentes, neige, iso 0 °C, ombrage, photos aériennes au zoom maximal |
+| **Menu Plus** | Tuiles d'accès rapide + rubriques repliables | Instruments, Routage, Hors ligne, AIS, Bulletins, Mode nuit ; Routes, Repères, Réglages, Sauvegarde, À propos |
+| **Mise à jour** | Bandeau « Nouvelle version disponible » | §8 |
 
-### Rendu des calques (le cœur visuel)
+### 5.1 Panneau Météo (bouton Météo, et Courant en Mer)
 
-1. `gridPts()` répartit 50 à 80 points sur l'écran.
-2. **Une seule requête** Open-Meteo multi-points récupère 3 jours de prévisions horaires pour tous les points.
-3. `buildGrid()` convertit l'heure choisie en grille écran (valeur + composantes u/v).
-4. `drawField()` calcule chaque pixel (tous les 5 px) par interpolation bilinéaire, applique la palette continue et, pour les calques marins, le masque terre/mer, puis lisse l'image.
-5. `startParticles()` anime environ 1 000 particules dans le champ u/v (vent, courant).
-6. Le canvas est placé dans un *pane* Leaflet : il suit la carte pendant les déplacements, sous les marqueurs.
+- **Replié** : titre (couche, heure, valeur au bateau ou au centre de la carte) et **barre de temps** façon Windy, qu'on fait glisser pour animer la carte heure par heure.
+- **Déplié** :
+  - en Mer, **pastilles de couche** (vent, rafales, courant, vagues, houle, température, pression…) ;
+  - modèle météo, chiffres, animation, « 7 jours » ;
+  - lever et coucher du soleil ;
+  - **tableau heure par heure**. Sa hauteur est limitée à environ 30 % de l'écran et la ligne des heures reste fixe. En Mer, le vent, les vagues et le courant sont en tête. Toucher le nom d'une ligne affiche cette couche sur la carte, ce qui est la seule façon de choisir la couche en Rando.
+- « Météo ici » (toucher un point) charge le tableau à ce point.
+- En Mer, la couche Courant affiche l'avertissement « modèle de 8 km : goulets et raz très sous-estimés ».
+
+### 5.2 Rendu des calques (le cœur visuel)
+
+1. `gridPts()` place une grille **fixe** de points calés sur des degrés « ronds » (pas de 0,01° à 5° selon le zoom). En déplaçant la carte, on réutilise les points déjà connus.
+2. **Cache par point** `PTC` (1 h, aussi dans `localStorage`) : seuls les points manquants sont demandés à Open-Meteo, en **une requête multi-points** de 3 jours horaires. C'est environ 5 fois moins d'appels qu'au départ.
+3. `buildGrid()` convertit l'heure choisie en grille écran (valeur et composantes u/v).
+4. `drawField()` calcule l'image par interpolation bilinéaire, applique la palette continue et, pour les calques marins, le masque terre/mer.
+5. `startParticles()` anime les particules dans le champ u/v (vent, et courant plus lentement).
+6. Les chiffres sont en bleu nuit avec un halo blanc, affichés par défaut.
+7. **Sans réseau**, `loadOverlay()` se rabat sur la météo enregistrée des zones (point le plus proche à moins d'environ 20 km), avec la mention « hors ligne · prévision du… ».
+
+### 5.3 Polaires et routage
+
+- **Modèles génériques** (croiseurs 7 à 13 m, course 12 m, catamaran 12 m) : une table de base ajustée à la vitesse de carène `1,34 × √(LWL en pieds)`.
+- **Modèles de série ORC** (`lib/polars-orc.json`, environ 410 Ko, chargé seulement à la recherche) : 604 séries. Pour chacune, on prend la **médiane** des certificats ORC publics de 10 pays. Les temps alloués (s/mille) sont convertis en vitesses, pour 9 forces de vent et 14 angles. 130 modèles ont aussi un vrai certificat **sans spi**.
+- **Option spi** : sans spi, la vitesse est multipliée par une table `NSR` (rapport sans spi / avec spi). Elle est calculée sur les bateaux qui ont les deux certificats, par exemple −15 % à 135° du vent par 8 nœuds.
+- **Polaire importée** : fichiers .pol ou .csv (vents en première ligne, puis une ligne par angle).
+- Ordre de priorité : polaire importée, puis modèle ORC, puis modèle générique.
+
+### 5.4 Écran Instruments
+
+Il s'ouvre en touchant Vitesse / Cap (Mer) ou par Plus › Instruments.
+
+- **Vitesse et cap** en très gros, heure et position en haut.
+- **Pendant une navigation** :
+  - waypoint, distance, relèvement, vitesse utile (VMG), heure d'arrivée, écart de route ;
+  - **cap à suivre corrigé du courant** : `CTS = BTW − asin(C·sin(dc − BTW) / V)`.
+- **Vent prévu** au point du tableau météo.
+- **Polaire** du bateau choisi au vent prévu :
+  - vitesse sur l'eau = vitesse fond moins le courant prévu (vecteurs) ;
+  - angle au vent et amures ;
+  - cible, **% de la cible** (vert ≥ 95 %, orange ≥ 80 %, rouge en dessous) ;
+  - meilleurs angles de VMG au près et au portant, et un conseil (lofer / abattre).
+
+  Limite assumée : le vent est une prévision, faute d'anémomètre.
+
+### 5.5 Balisage (bouées et feux)
+
+Au toucher de la carte en Mer, une requête **Overpass** cherche les objets `seamark:*` d'OpenStreetMap dans un rayon d'environ 40 pixels. L'appli affiche les 4 plus proches : nom, type en français (cardinale Ouest, latérale bâbord…) et rythme du feu reconstitué (`Q(9) W 15s`, `Fl(2) R 6s 7M`, secteurs compris).
 
 ## 6. Sources de données
 
 | Donnée | Fournisseur | Accès | Remarques |
 |---|---|---|---|
-| **Carte marine** (carte littorale) | IGN Géoplateforme, couche `GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS` | Libre, sans clé | Cartes SHOM + IGN, zooms 6 à 16. « Non destinée à la navigation » |
-| Carte IGN 1:25 000 | IGN, `GEOGRAPHICALGRIDSYSTEMS.MAPS` | Clé **transitoire** publique `ign_scan_ws` | Peut disparaître → bascule auto sur Plan IGN |
-| Plan IGN, photos aériennes | IGN | Libre | |
-| Altitudes | IGN, service altimétrie (RGE ALTI) | Libre | Profils et dénivelés |
-| Recherche de lieux | IGN, géocodage (adresses + lieux-dits/sommets) | Libre | |
-| Cartes SHOM directes | data.shom.fr | **Clé sous convention** | Prévu : champ « Ma clé SHOM » ; refus « Wrong referer » sans clé |
-| Vent, météo | Open-Meteo (modèles Météo-France, ECMWF, DWD, NOAA) | Libre, non commercial | ≈ 10 000 points/jour/appareil |
-| Courant, vagues, houle, hauteur d'eau | Open-Meteo Marine (Copernicus Mercator, MF-WAM…) | Libre | Maille ≈ 8 km ; courant marée incluse ; hauteur au niveau moyen |
-| Balisage | OpenSeaMap | Libre | Surimpression optionnelle |
+| **Carte marine** (carte littorale) | IGN Géoplateforme, `GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS` | Libre, sans clé | Cartes SHOM + IGN, zooms 6 à 16. « Non destinée à la navigation » |
+| Carte IGN 1:25 000 | IGN, `GEOGRAPHICALGRIDSYSTEMS.MAPS` | Clé **transitoire** publique `ign_scan_ws` | Peut disparaître → bascule sur Plan IGN |
+| Plan IGN, photos, pentes, ombrage | IGN | Libre | Pentes `SLOPES.MOUNTAIN`, relief `ELEVATION…SHADOW` |
+| Altitudes, recherche, itinéraires | IGN (altimétrie, géocodage, itinéraire piéton) | Libre | Le géocodage inverse nomme aussi les zones hors ligne |
+| Cartes SHOM directes | data.shom.fr | **Clé sous convention** | Champ « Ma clé SHOM » ; refus « Wrong referer » sans clé |
+| Marées officielles | SHOM, vignette publique (60 ports) | Libre | Affichée dans un cadre isolé |
+| Vent, météo | Open-Meteo (Météo-France, ECMWF, DWD, NOAA) | Libre, non commercial | Quota par appareil ; cache par point |
+| Courant, vagues, houle, hauteur d'eau | Open-Meteo Marine (Copernicus/Mercator, MF-WAM) | Libre | Maille ≈ 8 km (comme la couche courants de Windy) |
+| **Polaires** | ORC, certificats publics (data.orc.org) | Données publiques | Médianes par série ; préparées une fois, embarquées |
+| **Balisage (infos)** | OpenStreetMap / OpenSeaMap via Overpass | Libre (ODbL) | Réseau nécessaire |
+| Balisage (tuiles) | OpenSeaMap | Libre | Surimpression |
+| **AIS** | aisstream.io | Clé gratuite de l'utilisateur | Stations bénévoles, couverture variable |
+| Bulletins, vigilance | Météo-France (liens) | Libre | meteofrance.com/meteo-marine, vigilance.meteofrance.fr |
 | Bathymétrie | EMODnet | Libre | Fond alternatif |
-| Masque terre/mer | NOAA GLOBE via `global-land-mask` | Embarqué | Généré une fois en PNG 1 bit |
+| Masque terre/mer | NOAA GLOBE | Embarqué | PNG 1 bit |
 
-## 7. Données et stockage
+## 7. Données, stockage et hors ligne
 
 | Où | Quoi | Durée |
 |---|---|---|
-| **Réseau (serveurs publics)** | Toutes les cartes et prévisions | — |
-| **Cache API** (`navshom-tiles`) | Chaque tuile vue + zones téléchargées | Jusqu'à effacement des données de l'app |
-| **Cache API** (`navshom-app-vN`) | Fichiers de l'app pour démarrer hors ligne | Remplacé à chaque version |
-| **Mémoire** (30 min) | Réponses Open-Meteo et IGN déjà reçues | Session |
-| **localStorage** (préfixe `nav_`) | Réglages, mode, vue, repères, MOB, trace du bateau, enregistrement en cours, traces rando, dernière météo | Permanent sur l'appareil |
+| **Cache API** `navshom-tiles` | Chaque tuile vue + tuiles des zones téléchargées | Jusqu'à suppression de la zone ou des données |
+| **Cache API** `navshom-wx` | Météo 3 jours de chaque zone : grille d'au plus 11 × 11 points par couche, tableau sur 9 points | Jusqu'à mise à jour ou suppression |
+| **Cache API** `navshom-app-vN` | Fichiers de l'app pour démarrer hors ligne | Remplacé à chaque version |
+| **Mémoire** | Réponses Open-Meteo et IGN (30 min), `PTC` (1 h) | Session |
+| **localStorage** (préfixe `nav_`) | Réglages, mode, repères, MOB, ancre, routes, traces, zones, bateau choisi (`rtOrc`, `rtSpi`), clé AIS, cache `PTC` | Permanent sur l'appareil |
 
-**Les cartes ne sont pas embarquées dans l'app** : elles sont demandées en tuiles et mises en cache au fil de l'usage. Aucune donnée ne quitte le téléphone vers un serveur à nous : il n'y en a pas.
+**Télécharger une zone** (Plus › Hors ligne) :
+- l'utilisateur cadre la zone dans un rectangle et voit l'estimation de taille en direct ;
+- l'appli enregistre les tuiles des couches affichées, du zoom 6 au détail maximal du fond (option « Plus léger » : un niveau de moins), avec une limite de 9 000 tuiles ;
+- l'option cochée par défaut ajoute **la météo des 3 jours** ;
+- le bouton « Météo » d'une zone la rafraîchit avant de partir ;
+- supprimer une zone retire ses tuiles, sauf celles partagées avec une autre zone.
+
+Les cartes ne sont pas embarquées dans l'app : elles arrivent en tuiles et sont mises en cache. Aucune donnée ne part vers un serveur à nous : il n'y en a pas.
 
 ## 8. Distribution et mises à jour
 
 ```mermaid
 flowchart LR
   Dev[Commit sur main] --> Pages[GitHub Pages<br/>wagido.github.io/navshom]
-  Dev --> CI[GitHub Actions<br/>android.yml]
-  CI --> APK[Release apk-latest<br/>NavSHOM.apk]
+  Dev --> CI[GitHub Actions<br/>android.yml, si partie native modifiée]
+  CI --> APK[Release apk-latest<br/>Balise.apk]
   Pages --> PWA[Navigateur / PWA installée]
-  Pages --> APKrun[APK : charge le site en ligne<br/>copie locale si pas de réseau]
+  Pages --> APKrun[APK : charge le site en ligne]
 ```
 
-- **Web / PWA** : chaque `git push` sur `main` publie le site. Le service worker (stratégie *réseau d'abord* pour l'app) récupère la nouvelle version au lancement suivant.
-- **APK** : Capacitor charge `https://wagido.github.io/navshom/` (mises à jour automatiques) ; si le réseau manque, il affiche la copie embarquée (`errorPath`). Il ne faut réinstaller l'APK que si la partie native change, par exemple la taille de texte fixe (`MainActivity`).
-- **Versionnement** : `APP_VERSION` (affichée dans le Menu) et nom du cache `navshom-app-vN` dans `sw.js`, à incrémenter ensemble à chaque publication.
+Trois étages se trouvent entre le serveur et l'écran :
+
+1. **GitHub Pages** republie le site à chaque `git push`, avec une copie autorisée de 10 minutes dans le navigateur.
+2. **Service worker** (`sw.js`) :
+   - pour l'app, *réseau d'abord*, avec `fetch(…, {cache:"no-cache"})` pour passer outre la copie de 10 minutes ; la copie locale ne sert que sans réseau ;
+   - pour les tuiles, *cache d'abord* ;
+   - l'enregistrement se fait avec `updateViaCache:"none"`.
+3. **La page déjà ouverte** : un onglet resté en mémoire ne redemande rien. `checkUpdate()` relit `index.html` sur le serveur au retour sur l'appli et toutes les 30 minutes, compare `APP_VERSION`, puis affiche le bandeau « Nouvelle version disponible · Mettre à jour ».
+
+Autres points :
+- **APK** : Capacitor charge `https://wagido.github.io/navshom/`, donc les mises à jour sont automatiques. Il est signé avec une clé fixe, ce qui permet de l'installer par-dessus l'ancien. On ne le reconstruit que si la partie native change (icône, manifeste, plugins).
+- **Versionnement** : `APP_VERSION` dans `index.html` et `navshom-app-vN` dans `sw.js`, à incrémenter ensemble à chaque publication.
 
 ## 9. Tests
 
-- **Navigateur automatisé (Playwright)**, profils téléphone (Pixel 7) et grand écran : parcours carte, calques, frise, tableau, courbe, météo, mesure, mode Rando, import GPX ; vérification des erreurs JavaScript.
-- **Données simulées** pour les cas hors réseau, **données réelles** une fois les hôtes autorisés.
-- **Vérification des fonds de carte depuis le téléphone** : Menu → « Tester les fonds de carte ».
+- **Playwright**, profil Pixel 7 et grand écran :
+  - parcours carte, panneau Météo, tableau, barre de temps, 7 jours, mesure, routage et polaires ORC, instruments, mouillage, zones hors ligne, menu Plus, Rando ;
+  - vérification des erreurs JavaScript.
+- **`tools-check.js`** : 5 tailles d'écran × 6 états × 2 modes, vérifie qu'aucun élément ne se chevauche ou ne déborde.
+- **Données simulées** :
+  - Open-Meteo répond souvent « quota atteint » depuis le serveur de test ;
+  - réponses Overpass et AIS factices ;
+  - coupure réseau pour le hors ligne ;
+  - fausse nouvelle version pour le bandeau de mise à jour.
 
 ## 10. Limites connues et risques
 
 | Sujet | Limite | Piste |
 |---|---|---|
-| Usage réglementaire | Pas une aide à la navigation certifiée ; carte littorale « non destinée à la navigation » | Mention affichée ; garder cartes officielles et veille |
-| GPS écran éteint | Le WebView ne reçoit plus le GPS en veille → trace interrompue | Plugin natif de géolocalisation en arrière-plan |
-| IGN 1:25 000 | Clé transitoire susceptible de fermer | Bascule auto sur Plan IGN ; clé personnelle IGN |
-| Précision côtière | Courant/vagues à maille ≈ 8 km ; masque à ≈ 1 km | Données SHOM de courant si convention |
-| Marée | Hauteur modélisée au niveau moyen, pas au zéro des cartes | Annuaire des marées SHOM (sous convention) |
-| Quotas | Open-Meteo gratuit ≈ 10 000 points/jour/appareil | Grille réduite + cache 30 min ; offre payante si usage pro |
-| Export GPX dans l'APK | Le WebView peut ignorer les téléchargements | Plugins Capacitor Share/Filesystem |
-| iPhone | Pas d'APK ; PWA uniquement | Compte développeur Apple si app native voulue |
+| Usage réglementaire | Pas une aide à la navigation certifiée ; carte « non destinée à la navigation » | Mentions affichées ; garder cartes officielles et veille |
+| **Courants côtiers** | Modèle de 8 km : goulets et raz (Port-Navalo, Raz de Sein) très sous-estimés | **Ifremer** : atlas des composantes harmoniques de courants de marée (modèles MARS2D, 250 m), calculables sur le téléphone, hors ligne et sans quota. Demande de licence en cours |
+| Marée | Hauteur modélisée au niveau moyen | Vignettes SHOM (60 ports) ; annuaire SHOM sous convention |
+| Performance polaire | Vent prévu, pas mesuré | Anémomètre via Signal K (Wi-Fi du bord, APK seulement) |
+| AIS | Internet seulement, couverture variable | Récepteur AIS de bord via Signal K |
+| Balisage | Dépend d'Overpass (serveur public parfois lent) et de l'exhaustivité d'OSM | Mise en cache des réponses par zone |
+| IGN 1:25 000 | Clé transitoire | Bascule sur Plan IGN ; clé personnelle IGN |
+| Quotas | Open-Meteo gratuit, non commercial | Grille fixe + cache ; offre payante si usage pro |
+| GPS écran éteint | Navigateur : coupé en veille | APK : géolocalisation native en arrière-plan |
+| iPhone | Pas d'app native ; PWA seulement | Compte développeur Apple |
 
-## 11. Feuille de route possible
+## 11. Feuille de route
 
-1. Géolocalisation en arrière-plan (APK) pour les longues randonnées et nav de nuit.
-2. Partage natif des GPX dans l'APK.
-3. Routes enregistrables (waypoints nommés) et navigation vers un waypoint avec XTE.
-4. AIS (trafic des navires) si une source ouverte convient.
-5. Découpage de `index.html` en modules si l'équipe grandit.
+1. **Courants de marée haute résolution** (Ifremer, 250 m), en commençant par le Sud Bretagne.
+2. Détection des bascules de vent et laylines sur la carte.
+3. Signal K (anémomètre, sondeur, AIS de bord) dans l'APK.
+4. Mise en cache du balisage par zone pour le hors ligne.
+5. Journal de bord automatique.
+6. Publication sur le Play Store, puis réflexion iPhone.
 
-## 12. Ajouts de la version 2026.11.14
+## 12. Historique des grandes versions
 
-- **Identité « Balise »** : icône (voyant de bouée cardinale = deux sommets), orange balise `#FF7A00`, bleu nuit `#0B2F5B`, vert sapin `#2E7D32` en Rando, page de démarrage.
-- **Alarme de mouillage**, **routes et waypoints** (écart de route, heures d'arrivée), **sauvegarde/restauration** en un fichier JSON.
-- **GPS en arrière-plan** dans l'APK : plugin `@capacitor-community/background-geolocation`, démarré seulement pendant une trace, un mouillage ou une route ; notifications (`@capacitor/local-notifications`), partage de fichiers (`@capacitor/filesystem`, `@capacitor/share`).
-- **Marées officielles** : vignette publique du SHOM (60 ports) dans un cadre isolé (`data:`), le modèle Open-Meteo restant « indicatif ».
-- **Rando** : itinéraires sur sentiers (service d'itinéraire IGN, profil piéton), carte des pentes IGN (`GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN`), neige au sol, chute de neige, iso 0 °C, pente et exposition au point touché.
-- **Panneau Cartes** par mode, avec aperçus.
+- **2026.11.14** :
+  - identité Balise (icône, couleurs, page de démarrage) ;
+  - alarme de mouillage, routes et waypoints, sauvegarde ;
+  - GPS en arrière-plan dans l'APK, marées SHOM ;
+  - Rando : itinéraires, pentes, neige, iso 0 °C.
+- **2026.11.15** :
+  - style « Clarté » (fond blanc, barre du bas, chiffres lisibles), panneau Météo repliable, cache par point Open-Meteo ;
+  - routage météo, contrôle du calage, photos aériennes au zoom maximal, ombrage ;
+  - mode course, téléchargement de zone, polaires ORC et option spi.
+- **2026.11.16** :
+  - tableau météo lisible avec choix de la couche par ligne, barre de temps toujours visible, volet 7 jours ;
+  - **météo hors ligne**, infos balisage, écran **Instruments** avec polaire et cap corrigé du courant ;
+  - **AIS**, bulletins officiels ;
+  - alarme de mouillage renforcée, alarme d'écart de route ;
+  - **menu Plus en tuiles**, bandeau de nouvelle version.
 
 ## 13. Licences et attributions
 
-Cartes © IGN / SHOM, © OpenStreetMap contributors, © OpenSeaMap, © EMODnet Bathymetry ; prévisions Open-Meteo (CC BY 4.0) ; Leaflet (BSD-2) ; police Inter (SIL OFL 1.1) ; masque GLOBE (NOAA, domaine public).
+Cartes © IGN / SHOM, © OpenStreetMap contributors (ODbL), © OpenSeaMap, © EMODnet Bathymetry ; prévisions Open-Meteo (CC BY 4.0) ; polaires dérivées des certificats publics ORC ; AIS aisstream.io ; Leaflet (BSD-2) ; police Inter (SIL OFL 1.1) ; masque GLOBE (NOAA, domaine public).
