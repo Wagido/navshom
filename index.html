@@ -3261,7 +3261,12 @@ refSet(store.get("refuges",false));
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
 /* ---------- Vue 3D (Rando) : relief IGN, photo ou carte drapée, traces et repères ---------- */
 // Three.js (lib/three.min.js + lib/three-orbit.js) n'est chargé qu'à la première ouverture.
-const V3 = { open:false, raf:0, pref: Object.assign({tex:"ortho", slope:false, exag:1.3, sun:135}, store.get("v3", {})) };
+const V3 = { open:false, raf:0, pref: Object.assign({slope:false, exag:1.3, sun:135}, store.get("v3", {})) };
+delete V3.pref.tex; // le fond n'est plus mémorisé : il est choisi à chaque ouverture (v3AutoBg)
+// Fond choisi tout seul : la carte IGN (ou la photo) si le centre est dans une zone téléchargée, déjà sur le téléphone ;
+// sinon « Relief », calculé sur place, sans aucune donnée. Photo et Carte restent à un toucher.
+function v3AutoBg(){ const c = map.getCenter(), z = zones.find(z => z.keys && L.latLngBounds([z.b[0],z.b[1]],[z.b[2],z.b[3]]).contains(c) && (z.keys.includes("scan25") || z.keys.includes("ortho")));
+  return z ? (z.keys.includes("scan25") ? "scan" : "ortho") : "relief"; }
 const v3Low = matchMedia("(pointer:coarse)").matches, v3Mem = navigator.deviceMemory || 4;
 const V3N = v3Mem <= 2 ? 192 : v3Low ? 256 : 400;       // côté de la grille du relief (sommets)
 const V3T = v3Mem <= 2 ? 1024 : 2048;                    // côté de la texture drapée (pixels)
@@ -3362,7 +3367,7 @@ const v3X = u => (u-.5)*V3.S, v3Z = v => (v-.5)*V3.S, v3Y = m => (m-V3.h0)/1000*
 async function open3D(){
   if(V3.open) return;
   if(!FRANCE.contains(map.getCenter())){ toast("Vue 3D : France seulement (relief IGN)"); return; }
-  V3.open = true; $("b3d").classList.add("on"); $("v3d").hidden = false; v3Prefs();
+  V3.open = true; V3.bg = v3AutoBg(); $("b3d").classList.add("on"); $("v3d").hidden = false; v3Prefs();
   const z = v3Zone(); Object.assign(V3, z, { S: z.side/1000, img:{}, labels:[], abort:new AbortController() });
   $("v3Info").textContent = (z.side/1000).toLocaleString("fr-FR")+" × "+(z.side/1000).toLocaleString("fr-FR")+" km · chargement…";
   v3Status("Chargement du relief IGN…");
@@ -3370,13 +3375,14 @@ async function open3D(){
     const sig = V3.abort.signal;
     const [h] = await Promise.all([v3Dem(sig), v3Lib()]);
     // fond indisponible (ex. hors ligne hors zone téléchargée) : on essaie l'autre, sinon couleurs d'altitude
-    V3.bg = V3.pref.tex;
+    const auto = V3.bg;
     if(V3.bg !== "relief"){ const alt = V3.bg==="scan" ? "ortho" : "scan";
       await v3Img(V3.bg, sig).catch(e => { if(e.name==="AbortError") throw e; return v3Img(alt, sig).then(() => { V3.bg = alt; }); })
-        .catch(e => { if(e.name==="AbortError") throw e; V3.bg = "relief"; if(V3.pref.tex !== "relief") V3.noTex = true; }); }
+        .catch(e => { if(e.name==="AbortError") throw e; V3.bg = "relief"; if(auto !== "relief") V3.noTex = true; }); }
     if(V3.pref.slope) await v3Img("slope", sig).catch(() => null);
     if(!V3.open) return;
     v3Heights(h); v3Build(); v3Prefs(); v3Status(null); if(V3.noTex){ V3.noTex = false; v3Tip("Pas de photo ici hors ligne : couleurs d'altitude"); }
+    else v3Tip(V3.bg==="relief" ? "Fond Relief : aucune donnée · Photo et Carte à un toucher" : "Fond : "+(V3.bg==="scan"?"carte":"photo")+" de la zone téléchargée");
   }catch(e){
     if(!V3.open || e.name==="AbortError") return;
     v3Status(/relief|Zone|moteur/i.test(e.message) ? (/moteur/.test(e.message) ? "Le moteur 3D n'est pas encore sur le téléphone : ouvrez la vue 3D une fois avec du réseau." : e.message) : "Relief IGN indisponible ("+e.message+").", true);
@@ -3518,7 +3524,7 @@ function close3D(){
 function v3Sun(){ if(!V3.sun) return; const a = V3.pref.sun*Math.PI/180, S = V3.S; V3.sun.position.set(Math.sin(a)*S, S*.8, -Math.cos(a)*S); V3.dirty = true; }
 function v3Prefs(){
   const P = V3.pref; store.set("v3", P);
-  document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t===(V3.bg || P.tex)));
+  document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t===(V3.bg || "relief")));
   $("v3Slope").setAttribute("aria-pressed", P.slope);
   $("v3Exag").value = P.exag; $("v3ExagO").textContent = v3Fmt(P.exag)+"×";
   $("v3Sun").value = P.sun; $("v3SunO").textContent = v3Dir(P.sun);
@@ -3529,7 +3535,7 @@ function v3Prefs(){
 async function v3Need(key){ if(key==="relief" || V3.img[key] || !V3.mesh) return true;
   v3Tip("Chargement…"); try{ await v3Img(key, V3.abort.signal); return true; }catch(e){ if(V3.open) v3Tip(key==="scan" ? "Carte IGN indisponible" : "Image IGN indisponible"); return false; } }
 document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.onclick = async () => {
-  const t = b.dataset.t; if(!(await v3Need(t)) || !V3.open) return; V3.pref.tex = V3.bg = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
+  const t = b.dataset.t; if(!(await v3Need(t)) || !V3.open) return; V3.bg = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
 $("v3Slope").onclick = async () => { const on = !V3.pref.slope; if(on && !(await v3Need("slope"))) return; if(!V3.open) return; V3.pref.slope = on; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; };
 $("v3Exag").oninput = e => { V3.pref.exag = +e.target.value; $("v3ExagO").textContent = v3Fmt(V3.pref.exag)+"×";
   if(V3.mesh && !V3.exT) V3.exT = requestAnimationFrame(() => { V3.exT = 0; const t = V3.ctl.target, y0 = t.y; v3ApplyH(); const ny = v3Y(v3H(t.x/V3.S+.5, t.z/V3.S+.5)); V3.cam.position.y += ny-y0; t.y = ny; }); };
@@ -3543,7 +3549,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-c"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-d"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */

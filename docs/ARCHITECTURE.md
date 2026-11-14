@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.17-c · Dernière mise à jour : 16 novembre 2026
+> Statut : version 2026.11.17-d · Dernière mise à jour : 16 novembre 2026
 
 ## 1. Résumé
 
@@ -182,11 +182,12 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 - **Zone** : carré centré sur le centre de la carte, de côté égal à la largeur affichée, borné entre 6 et 10 km (arrondi à 500 m). Calculé en EPSG:3857 (côté divisé par cos(latitude) pour des mètres vrais). France seulement, réseau nécessaire.
 - **Relief** : WMS Géoplateforme `ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES`, `image/x-bil;bits=32` (flottants 32 bits), demandé directement depuis le navigateur (CORS ouvert), **en tuiles fixes** : grille Web Mercator au zoom 13, 128 × 128 pixels (≈ 27 m à 45° N, 64 Ko par tuile). La vue assemble les tuiles qui couvrent la zone puis rééchantillonne sur sa grille. Valeurs aberrantes (hors −500…9 000 m) remplacées par la moyenne ; zone refusée si moins de 10 % de valeurs valides.
 - **Taille de la grille** : 256 × 256 sommets sur téléphone (écran tactile), 400 × 400 sur ordinateur, 192 si l'appareil annonce 2 Go de mémoire ou moins. Texture 2048 px (1024 sur petite mémoire). Rendu à la demande (seulement quand la vue bouge), densité de pixels limitée à 1,5 sur téléphone.
+- **Fond choisi tout seul à chaque ouverture** (`v3AutoBg`) : la carte IGN 1:25 000 (ou la photo) si le centre de la vue est dans une zone téléchargée, puisqu'elle est déjà sur le téléphone ; sinon « Relief », sans aucune donnée. Un toucher sur un autre fond vaut pour la vue en cours seulement. Un petit message indique le fond choisi.
 - **Fonds** : « Relief » (couleurs d'altitude calculées sur le téléphone à partir du relief : **aucune donnée** à télécharger), « Photo », « Carte » (1:25 000), et « Pentes » en superposition.
 - **Texture** : un canvas 2D composé à partir des **mêmes tuiles WMTS que la carte** (photo, 1:25 000, pentes à 60 %), puis les lignes. Zoom 14 sur téléphone (≈ 10 m/pixel), 15 au plus sur ordinateur, un de moins en mode économe (réglage « Vue 3D économe en données », ou économiseur de données / réseau 2G-3G signalé par le navigateur). Tuile absente : la tuile parente (1 ou 2 niveaux) est agrandie. Fond indisponible : on essaie l'autre, puis les couleurs d'altitude (message « Pas de photo ici hors ligne »). Hors ligne, les tuiles sont lues directement dans le cache, sans attendre le réseau ; en ligne, 20 s au plus par requête.
 - **Drapé** : la trace en cours (rose), la trace enregistrée affichée (violet, départ vert, arrivée rouge) et l'itinéraire mesuré sont **peints dans la texture** : ils épousent exactement le relief, sans calcul 3D. La trace en cours est repeinte toutes les 15 s. Les repères et la position GPS (« Vous », mise à jour en direct) sont des étiquettes HTML projetées ; elles s'estompent quand une crête les cache (test de la ligne de visée sur la grille d'altitudes).
 - **Gestes** : un doigt pour tourner, pincer pour zoomer, deux doigts pour déplacer (souris : clic gauche, molette, clic droit). Toucher le relief donne l'altitude. Le bouton boussole remet le nord en haut.
-- **Réglages** (mémorisés dans `nav_v3`) : fond, pentes, exagération du relief (1 à 3×), direction du soleil (lumière directionnelle, élévation fixe).
+- **Réglages** (mémorisés dans `nav_v3`) : pentes, exagération du relief (1 à 3×), direction du soleil (lumière directionnelle, élévation fixe).
 - **Cache et hors ligne** : adresses fixes, donc le service worker garde chaque tuile vue (`navshom-tiles`, cache d'abord) : rouvrir une zone ne coûte plus rien, et une zone voisine réutilise les tuiles communes. Au téléchargement d'une zone en Rando, l'option « Vue 3D » (cochée par défaut, taille affichée) ajoute le relief de la zone avec 5 km de marge et la photo au zoom 14. Hors ligne, la 3D s'ouvre dans ces zones ; ailleurs, un message l'explique. Three.js est gardé dans un cache à part, `navshom-lib`, conservé d'une version à l'autre : rempli à la première ouverture de la 3D, à l'installation d'un massif et au téléchargement d'une zone avec l'option 3D.
 - **Paquets de relief par massif** (Plus › Hors ligne › Relief 3D par massif, en Rando) : 15 massifs (Alpes, Pyrénées, Auvergne, Jura, Vosges, Corse), de 1,2 à 4,1 Mo à télécharger chacun, 11 à 30 Mo sur le téléphone. Préparés une fois par `tools-relief.js` à partir du WMS IGN (blocs de 8 × 8 tuiles, une requête par seconde au plus) et publiés avec l'appli. Format : en-tête `BRL1` + emprise en tuiles z13, puis par tuile un octet (vide / pleine) et 128 × 128 entiers 16 bits (altitude au mètre, en écart avec le pixel précédent de la ligne), le tout en gzip. Sur le téléphone, `DecompressionStream` décompresse le paquet et chaque tuile est rangée dans `navshom-tiles` **sous son adresse WMS** : la vue 3D la trouve comme si elle venait du réseau. Supprimer un massif ou une zone garde les tuiles encore utilisées par l'autre. Le service worker ne copie pas les paquets dans le cache de l'app.
 - **Libération** : à la fermeture, géométrie, texture, images et contexte WebGL sont libérés.
@@ -313,6 +314,7 @@ Autres points :
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.17-d** : fond de la vue 3D choisi tout seul (carte de la zone téléchargée, sinon Relief).
 - **2026.11.17-c** : tuiles en cache en CORS (fin de l'espace utilisé gonflé, 3D réutilisant la carte déjà vue sans réseau) ; la vue 3D lit d'abord le cache.
 - **2026.11.17-b** : zone hors ligne possible avec OpenStreetMap affiché (carte IGN emportée à la place) ; option 3D limitée aux zones raisonnables.
 - **2026.11.17-a** : paquets de relief par massif (vue 3D hors ligne), fond « Relief » en couleurs d'altitude.
