@@ -428,7 +428,7 @@ body.night{--glass:rgba(42,18,16,.92)}
 #rtPill b{color:#FF7A00} #rtPillX{border-left:1px solid #E3E9EF!important;font-size:15px!important}
 #tFold{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;border:0;background:transparent;padding:0 0 6px;margin-top:-4px;cursor:pointer;color:var(--slate);font:600 11px var(--sans)}
 #tFold .fold-bar{width:38px;height:4px;border-radius:2px;background:#D5DEE8}
-#tbar.mini #tLegend, #tbar.mini .trow, #tbar.mini .tl, #tbar.mini #tTbl{display:none!important}
+#tbar.mini #tLegend, #tbar.mini .trow, #tbar.mini #tTbl{display:none!important}
 /* Panneau météo « Clarté » : blanc, compact */
 #tbar{background:rgba(255,255,255,.97);color:var(--navy);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.22);padding:10px 12px 10px;backdrop-filter:blur(12px)}
 #tbar .big{color:var(--navy);font:700 15px var(--sans)} #tbar .lbl{color:var(--slate)} #tbar .here{color:var(--navy);font:500 13px var(--sans)}
@@ -514,6 +514,15 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 .tog{background:#fff;color:#4A5D73;border:1px solid #DCE4EC} .tog.on{background:#E8F0FB;color:#0B2F5B;border-color:#1D6FB8}
 .trow select{border:1px solid #DCE4EC;background:#fff}
 #sMeteo{overflow-x:hidden}
+#sMeteo #mtSun, #sMeteo .hwrap, #sMeteo .maps{display:none!important}
+#sMeteo .days{border-top:1px solid #E8EDF2}
+#tClose{position:absolute;top:6px;right:8px;width:34px;height:34px;border-radius:50%;border:0;background:#EEF2F6;color:#4A5D73;font:600 15px var(--sans);z-index:2}
+#tbar{position:fixed}
+/* barre de temps façon Windy : toujours visible, même panneau replié */
+#tbar.mini .tl{display:block!important;height:46px} #tbar.tblopen .tl{display:block;height:46px}
+#tbar.mini .tlbtns{display:none}
+#tbar .tnote{font:500 11.5px var(--sans);color:#B45309;background:#FFF4E5;border-radius:8px;padding:5px 8px;margin:4px 0}
+#tbar.mini .tnote{display:none}
 </style>
 </head>
 <body>
@@ -585,12 +594,14 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 
 <!-- Frise temps vent / courant -->
 <div id="tbar" hidden class="mini">
+  <button id="tClose" aria-label="Fermer la météo sur la carte">✕</button>
   <button id="tFold" aria-expanded="false"><span class="fold-bar"></span><span id="tFoldTxt">Détails ︿</span></button>
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
-  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">✕</button></div>
+  <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button></div>
   <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
   <div class="here" id="tHere">—</div>
+  <div class="tnote" id="tNote" hidden>⚠ Modèle de 8 km : courants des goulets et des raz très sous-estimés (Port-Navalo, Raz de Sein…).</div>
   <div class="sunl" id="tSun"></div>
   <div class="tbl" id="tTbl" hidden></div>
   <div class="tl"><canvas id="tGraph"></canvas><input type="range" id="tSlider" min="0" max="47" value="0" aria-label="Heure, faire glisser"></div>
@@ -1039,7 +1050,8 @@ map.on("click", e => { if(RT.picking){ RT[RT.picking]=e.latlng; RT.picking=null;
   if(ov.data) return showPicker(e.latlng); showPoint(e.latlng); });
 $("aPin").onclick = () => { if(pointLL) addWp(pointLL); closeSheets(); };
 $("aDelWp").onclick = () => { if(!pointWp) return; wps=wps.filter(w=>w!==pointWp); store.set("wps",wps); drawWps(); toast(pointWp.n+" supprimé"); pointWp=null; closeSheets(); };
-$("aMeteo").onclick = () => { if(pointLL) openMeteo(pointLL); };
+function meteoHere(ll){ closeSheets(); tbl.force=ll; markTmp(ll); if(!ov.type) setOverlay("wind"); setFold(true); loadTable(true); }
+$("aMeteo").onclick = () => { if(pointLL) meteoHere(pointLL); };
 $("aCurve").onclick = () => { const p = pointLL || map.getCenter(); showCurve(p); };
 $("aMeasure").onclick = () => { const p=pointLL; closeSheets(); startMeasure(); if(p) addMeasure(p); };
 
@@ -1290,6 +1302,7 @@ function setOverlay(type){
   $("bCur").classList.toggle("on",type==="cur"); $("bWind").classList.toggle("on",!!type && type!=="cur");
   $("mapCur").classList.toggle("on",type==="cur"); $("mapWind").classList.toggle("on",type==="wind");
   document.querySelectorAll("#tChips button[data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t===type));
+  $("tNote").hidden = type!=="cur";
   $("tAnim").hidden = !(type && OVT[type].anim); $("tAnim").classList.toggle("on", ov.anim);
   $("tModel").disabled = !type || OVT[type].api!=="fc";
   $("tbar").hidden=!type; document.documentElement.style.setProperty("--tl", type ? ($("tbar").offsetHeight+8)+"px" : "0px"); setTimeout(crowdCheck,260);
@@ -1306,12 +1319,12 @@ function setModel(m){ model=m; store.set("model",m); $("tModel").value=m; $("men
   if(ov.type && OVT[ov.type].api==="fc") loadOverlay(ov.idx); if(tbl.open) loadTable(true); toast("Modèle : "+modelName(m)); }
 $("tModel").onchange=e=>setModel(e.target.value); $("menuModel").onchange=e=>setModel(e.target.value);
 $("tAnim").onclick=()=>{ ov.anim=!ov.anim; store.set("anim",ov.anim); $("tAnim").classList.toggle("on",ov.anim); drawOverlay(); if(!ov.anim) stopParticles(); };
-$("tClose").onclick=()=>setOverlay(null);
+$("tClose").onclick=()=>{ tbl.force=null; setOverlay(null); };
 function setFold(open){ store.set("tbarOpen",open); $("tbar").classList.toggle("mini",!open); $("tFold").setAttribute("aria-expanded",open);
   $("tFoldTxt").textContent = open ? "Réduire ﹀" : "Détails ︿"; if(open && tbl.open) loadTable(); fixTl(); setTimeout(()=>{ drawLegend(); drawTimeline(); },30); }
 $("tFold").onclick=()=>setFold($("tbar").classList.contains("mini"));
 setTimeout(()=>setFold(store.get("tbarOpen",false)));
-$("tFcst").onclick=()=>openMeteo(null);
+$("tFcst").onclick=()=>openMeteo(tbl.force||null);
 /* ---- Tableau heure par heure, repliable ---- */
 const tbl={ll:null,f:null,m:null,model:null,open:true,loading:false}; // le tableau est toujours affiché quand le panneau est déplié
 function crowdCheck(){ // un panneau haut ne doit pas recouvrir le groupe de commandes : on le réduit au zoom
@@ -1323,8 +1336,8 @@ function crowdCheck(){ // un panneau haut ne doit pas recouvrir le groupe de com
 const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); };
 $("tTblBtn").onclick=()=>{ tbl.open=!tbl.open; store.set("tblOpen",tbl.open); if(tbl.open) loadTable(); renderTable(); if(!tbl.open) drawTimeline(); };
 async function loadTable(force){
-  const useGps = last && map.getBounds().contains(last.ll) && (R() || landFrac(last.ll.lat,last.ll.lng)<0.5);
-  const ll = useGps ? last.ll : map.getCenter(); tbl.gps=!!useGps;
+  const useGps = !tbl.force && last && map.getBounds().contains(last.ll) && (R() || landFrac(last.ll.lat,last.ll.lng)<0.5);
+  const ll = tbl.force || (useGps ? last.ll : map.getCenter()); tbl.gps=!!useGps;
   if(!force && tbl.f && tbl.ll && map.distance(tbl.ll,ll)<8000 && tbl.model===model) return renderTable();
   if(tbl.loading) return; tbl.loading=true; tbl.ll=ll; tbl.model=model;
   const la=ll.lat.toFixed(3), lo=ll.lng.toFixed(3);
@@ -1346,7 +1359,7 @@ function renderTable(){
   const mi=t=>hm?hm.time.indexOf(t):-1, cell=(i,inner,extra="")=>{ const t=h.time[i], hr=+t.slice(11,13);
     return `<td data-t="${t}" class="${t===sel?"sel ":""}${i===i0?"now ":""}${hr>=21||hr<7?"night ":""}${hr===0?"d0 ":""}${extra}">${inner}</td>`; };
   const bg=(sc,v,a=.75)=>{ const c=colorAt(sc,v); return `background:rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a*c[3]/255})`; };
-  const mname=tbl.gps?(R()?"Ma position":"Au bateau"):"Centre carte";
+  const mname=tbl.force?"Point choisi":tbl.gps?(R()?"Ma position":"Au bateau"):"Centre carte";
   let days='<tr class="dayr"><th>'+mname+'</th>'+cols.map((i,n)=>{ const t=h.time[i], hr=+t.slice(11,13);
     const lab=(n===0||hr===0)?new Date(t.slice(0,10)+"T12:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}):"";
     return `<td class="${hr===0?"d0":""}">${lab?`<span>${lab}</span>`:""}</td>`; }).join("")+'</tr>';
@@ -1505,7 +1518,7 @@ function updatePicker(){
       extra = ov.type==="cur" ? "porte au "+pad3(to)+"°" : "du "+pad3(from)+"° "+compass(from); } }
     el.innerHTML=`<b>${v.toFixed(t.dec)} <span>${t.unit}</span></b><small>${extra}</small>`; }
   const btn=document.createElement("button"); btn.textContent = ov.type==="cur" ? "Courbe et marée ›" : "Prévisions ici ›";
-  btn.onclick=()=>{ map.closePopup(); pick=null; ov.type==="cur" ? showCurve(L.latLng(pick0)) : openMeteo(L.latLng(pick0)); };
+  btn.onclick=()=>{ map.closePopup(); pick=null; ov.type==="cur" ? showCurve(L.latLng(pick0)) : meteoHere(L.latLng(pick0)); };
   const pick0=pick; el.appendChild(btn);
   L.popup({className:"pick",closeButton:false,autoPan:false,offset:[0,-4]}).setLatLng(pick).setContent(el).openOn(map);
 }
@@ -1643,7 +1656,7 @@ async function openMeteo(ll){
   meteoLL = ll || (last?last.ll:map.getCenter());
   if(ll) markTmp(ll); else if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; }
   openSheet("sMeteo"); $("meteoBody").hidden=true; $("meteoMsg").hidden=false; $("meteoMsg").textContent="Chargement de la météo…";
-  $("mtPlace").textContent = (ll ? "Point " : last ? "Au bateau " : "Centre carte ") + dm(meteoLL.lat,"N","S").replace(/\.\d+'/,"'")+" "+dm(meteoLL.lng,"E","W").replace(/\.\d+'/,"'");
+  $("mtPlace").textContent = "7 jours · "+(ll ? "Point " : last ? "Au bateau " : "Centre carte ") + dm(meteoLL.lat,"N","S").replace(/\.\d+'/,"'")+" "+dm(meteoLL.lng,"E","W").replace(/\.\d+'/,"'");
   const la=meteoLL.lat.toFixed(3), lo=meteoLL.lng.toFixed(3);
   try{
     const [f,m] = await Promise.all([
@@ -2741,7 +2754,7 @@ function wxTableNearest(p){ let best=null, bd=1e9; for(const id in WXOFF){ (WXOF
 wxLoadAll();
 
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-a"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-b"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
