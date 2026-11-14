@@ -350,6 +350,8 @@ body.night #inst{background:#000;color:#ff5a4a} body.night #inst .i-t,body.night
 .seainfo .sm strong{display:block;font:600 14px var(--sans)} .seainfo .sm small{display:block;font:500 12px var(--sans);color:var(--muted)}
 .seainfo .lc{font:700 14px var(--mono);color:#B45309;text-align:right;white-space:nowrap}
 #dlBar .dl-wx{display:flex;gap:8px;align-items:center;font:500 13px var(--sans);color:#0B2F5B} #dlBar .dl-wx input{width:18px;height:18px;accent-color:#FF7A00;flex:none}
+#updBar{position:fixed;z-index:2100;left:50%;transform:translateX(-50%);top:calc(var(--st) + 70px);display:flex;gap:10px;align-items:center;background:#0B2F5B;color:#fff;border-radius:16px;padding:8px 8px 8px 14px;font:500 13px var(--sans);box-shadow:0 6px 20px rgba(11,47,91,.3);white-space:nowrap}
+#updBar[hidden]{display:none} #updBar button{border:0;border-radius:12px;background:#FF7A00;color:#fff;font:600 13px var(--sans);padding:7px 12px}
 #dlFrame{position:fixed;z-index:900;pointer-events:none;border:2.5px dashed #FF7A00;border-radius:14px;box-shadow:0 0 0 9999px rgba(11,47,91,.28)}
 #dlBar{position:fixed;z-index:1300;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 16px);
   background:rgba(255,255,255,.97);color:var(--navy,#0B2F5B);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.25);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-family:var(--sans)}
@@ -852,6 +854,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <p class="i-hint" id="iNoNav">Pas de route en cours : Plus › Routes › Naviguer, ou touchez un point › Aller ici.</p>
   <div class="i-w"><b>Vent prévu ici</b><span id="iWind">—</span></div>
 </div>
+<div id="updBar" hidden role="status"><span>Nouvelle version <b id="updVer"></b> disponible</span><button id="updGo">Mettre à jour</button></div>
 <div id="dlFrame" hidden></div>
 <div id="dlBar" hidden>
   <div class="dl-t" id="dlTitle">Cadrez la zone à emporter</div>
@@ -2754,9 +2757,16 @@ function wxTableNearest(p){ let best=null, bd=1e9; for(const id in WXOFF){ (WXOF
 wxLoadAll();
 
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-b"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-c"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
+/* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
+async function checkUpdate(){ if(!location.protocol.startsWith("http") || !navigator.onLine) return;
+  try{ const t=await (await fetch("./?check="+Date.now(),{cache:"no-store"})).text(), m=t.match(/APP_VERSION\s*=\s*"([^"]+)"/);
+    if(m && m[1]!==APP_VERSION && $("updBar").hidden){ $("updVer").textContent=m[1]; $("updBar").hidden=false; } }catch(e){} }
+$("updGo").onclick=()=>location.reload();
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checkUpdate(); });
+setInterval(checkUpdate, 30*60e3); setTimeout(checkUpdate, 8000);
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
 </script>
 </body>
