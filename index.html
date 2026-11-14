@@ -389,6 +389,9 @@ body.night{--glass:rgba(42,18,16,.92)}
 #rtPill{position:fixed;z-index:1001;left:50%;transform:translateX(-50%);top:calc(var(--st) + 66px);display:flex;align-items:center;background:var(--glass);border-radius:20px;box-shadow:var(--sh);backdrop-filter:blur(12px);overflow:hidden}
 #rtPill button{border:0;background:transparent;color:var(--navy);font:500 13px var(--sans);height:38px;padding:0 12px;cursor:pointer;white-space:nowrap}
 #rtPill b{color:#FF7A00} #rtPillX{border-left:1px solid #E3E9EF!important;font-size:15px!important}
+#tFold{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;border:0;background:transparent;padding:0 0 6px;margin-top:-4px;cursor:pointer;color:var(--slate);font:600 11px var(--sans)}
+#tFold .fold-bar{width:38px;height:4px;border-radius:2px;background:#D5DEE8}
+#tbar.mini #tLegend, #tbar.mini .trow, #tbar.mini .tl, #tbar.mini #tTbl{display:none!important}
 /* Panneau météo « Clarté » : blanc, compact */
 #tbar{background:rgba(255,255,255,.97);color:var(--navy);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.22);padding:10px 12px 10px;backdrop-filter:blur(12px)}
 #tbar .big{color:var(--navy);font:700 15px var(--sans)} #tbar .lbl{color:var(--slate)} #tbar .here{color:var(--navy);font:500 13px var(--sans)}
@@ -482,7 +485,8 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
 </div>
 
 <!-- Frise temps vent / courant -->
-<div id="tbar" hidden>
+<div id="tbar" hidden class="mini">
+  <button id="tFold" aria-expanded="false"><span class="fold-bar"></span><span id="tFoldTxt">Détails ︿</span></button>
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
   <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">Prévisions</button><button id="tClose" class="tog" aria-label="Fermer la météo sur la carte">✕</button></div>
@@ -1065,7 +1069,7 @@ function drawOverlay(){
   document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px");
   drawTimeline(); if(!$("sCurve").hidden && cv.data) drawCurve();
   drawField(); drawLegend(); updatePicker(); startParticles();
-  if(tbl.open){ if(!tbl.f) loadTable(); else { $("tTbl").querySelectorAll("td.sel").forEach(x=>x.classList.remove("sel")); const st=ov.data[0].time[i]; $("tTbl").querySelectorAll(`td[data-t="${st}"]`).forEach(x=>x.classList.add("sel")); } }
+  if(tbl.open && !$("tbar").classList.contains("mini")){ if(!tbl.f) loadTable(); else { $("tTbl").querySelectorAll("td.sel").forEach(x=>x.classList.remove("sel")); const st=ov.data[0].time[i]; $("tTbl").querySelectorAll(`td[data-t="${st}"]`).forEach(x=>x.classList.add("sel")); } }
 }
 const boatInView=()=>!!(last && map.getBounds().contains(last.ll) && (R() || landFrac(last.ll.lat,last.ll.lng)<0.5));
 function refIdx(){ if(!ov.data) return -1; const ref=boatInView()?last.ll:map.getCenter(); let bi=-1,bd=1e12;
@@ -1129,6 +1133,10 @@ function setModel(m){ model=m; store.set("model",m); $("tModel").value=m; $("men
 $("tModel").onchange=e=>setModel(e.target.value); $("menuModel").onchange=e=>setModel(e.target.value);
 $("tAnim").onclick=()=>{ ov.anim=!ov.anim; store.set("anim",ov.anim); $("tAnim").classList.toggle("on",ov.anim); drawOverlay(); if(!ov.anim) stopParticles(); };
 $("tClose").onclick=()=>setOverlay(null);
+function setFold(open){ store.set("tbarOpen",open); $("tbar").classList.toggle("mini",!open); $("tFold").setAttribute("aria-expanded",open);
+  $("tFoldTxt").textContent = open ? "Réduire ﹀" : "Détails ︿"; if(open && tbl.open) loadTable(); fixTl(); setTimeout(()=>{ drawLegend(); drawTimeline(); },30); }
+$("tFold").onclick=()=>setFold($("tbar").classList.contains("mini"));
+setTimeout(()=>setFold(store.get("tbarOpen",false)));
 $("tFcst").onclick=()=>openMeteo(null);
 /* ---- Tableau heure par heure, repliable ---- */
 const tbl={ll:null,f:null,m:null,model:null,open:store.get("tblOpen",false),loading:false};
@@ -1201,7 +1209,9 @@ $("tNums").classList.toggle("on", ov.nums);
 $("tNums").onclick=()=>{ ov.nums=!ov.nums; store.set("nums",ov.nums); $("tNums").classList.toggle("on",ov.nums); drawField(); };
 
 $("bCur").onclick = () => setOverlay("cur");
-$("bWind").onclick = () => setOverlay(ov.type && ov.type!=="cur" ? ov.type : lastWx);
+// calque météo valable dans le mode courant (neige / iso 0 seulement en Rando, mer seulement en Mer)
+const okLayer = k => OVT[k] && !(OVT[k].rando && !R()) && !(OVT[k].api==="mar" && R());
+$("bWind").onclick = () => setOverlay(ov.type && ov.type!=="cur" ? ov.type : (okLayer(lastWx) ? lastWx : "wind"));
 $("mapSnow").onclick = () => { closeSheets(); if(ov.type!=="snowd") setOverlay("snowd"); };
 $("mapFrz").onclick = () => { closeSheets(); if(ov.type!=="frz") setOverlay("frz"); };
 $("mapCur").onclick = () => { closeSheets(); if(ov.type!=="cur") setOverlay("cur"); };
@@ -2330,7 +2340,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-g"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-i"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
