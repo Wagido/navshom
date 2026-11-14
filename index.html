@@ -384,6 +384,12 @@ body.night #hbNight{outline:2px solid #C62828}
 #sMenu .card .cb{padding:0 14px 12px}
 #sMenu .card .cb .opt:last-child{border-bottom:0}
 body.night #sMenu .card{background:#1a0000;border-color:#3a1010} body.night .hb{background:#1a0000;color:#ff5a4a}
+.forleg{padding:4px 0 10px;font:500 12px var(--sans);color:var(--ink)}
+.forleg b{display:block;font:600 11px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:8px 0 4px}
+.forleg .fl{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px}
+.forleg span{display:flex;align-items:center;gap:6px;line-height:1.2}
+.forleg i{flex:none;width:12px;height:12px;border-radius:3px;border:1px solid rgba(11,47,91,.15)}
+.forleg small{display:block;margin-top:8px;color:var(--muted)}
 #dlFrame{position:fixed;z-index:900;pointer-events:none;border:2.5px dashed #FF7A00;border-radius:14px;box-shadow:0 0 0 9999px rgba(11,47,91,.28)}
 #dlBar{position:fixed;z-index:1300;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 16px);
   background:rgba(255,255,255,.97);color:var(--navy,#0B2F5B);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.25);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-family:var(--sans)}
@@ -805,6 +811,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <label class="opt"><input type="checkbox" class="ovl" data-k="contour"><div>Courbes de niveau (IGN)<small>Utile sur les photos aériennes</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="cadastre"><div>Cadastre (parcelles)<small>Limites de propriété, à partir du zoom 14</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="forest"><div>Forêts (IGN)<small>Types de peuplements</small></div></label>
+    <div class="forleg" id="forLeg" hidden><b>Feuillus</b><div class="fl"><span><i style="background:#008C4D"></i>Feuillus en îlots</span><span><i style="background:#004D2E"></i>Chênes à feuilles caduques</span><span><i style="background:#668040"></i>Chênes verts</span><span><i style="background:#00FF80"></i>Hêtre</span><span><i style="background:#40FF1C"></i>Châtaignier</span><span><i style="background:#915633"></i>Robinier</span><span><i style="background:#AFCA59"></i>Autre feuillu</span><span><i style="background:#00D92F"></i>Mélange de feuillus</span></div><b>Conifères</b><div class="fl"><span><i style="background:#8080FF"></i>Conifères en îlots</span><span><i style="background:#BF26FF"></i>Pin maritime</span><span><i style="background:#9926FF"></i>Pin sylvestre</span><span><i style="background:#4D33FF"></i>Pin laricio ou noir</span><span><i style="background:#FF1AFF"></i>Pin d'Alep</span><span><i style="background:#734DE6"></i>Pin à crochets ou cembro</span><span><i style="background:#A666FF"></i>Autre pin</span><span><i style="background:#D999FF"></i>Mélange de pins</span><span><i style="background:#1AE6E6"></i>Sapin ou épicéa</span><span><i style="background:#4D80FF"></i>Mélèze</span><span><i style="background:#3399FF"></i>Douglas</span><span><i style="background:#00929F"></i>Mélange d'autres conifères</span><span><i style="background:#59FFFF"></i>Autre conifère</span><span><i style="background:#404DFF"></i>Mélange de conifères</span></div><b>Mélanges</b><div class="fl"><span><i style="background:#FF6633"></i>Mixte, feuillus dominants</span><span><i style="background:#FF4033"></i>Mixte, conifères dominants</span></div><b>Forêts ouvertes et autres</b><div class="fl"><span><i style="background:#E5C45D"></i>Fermée, sans arbres (coupe)</span><span><i style="background:#B3B3B3"></i>Ouverte sans arbres</span><span><i style="background:#CCFFBF"></i>Ouverte, feuillus</span><span><i style="background:#99B3CC"></i>Ouverte, conifères</span><span><i style="background:#FFD138"></i>Ouverte, mixte</span><span><i style="background:#FFFF00"></i>Peupleraie</span><span><i style="background:#FFE6BF"></i>Lande</span><span><i style="background:#FFF9A5"></i>Formation herbacée</span></div><small>Forêts « fermées » sauf mention « ouverte ». Source : IGN, BD Forêt V2.</small></div>
     <label class="opt"><input type="checkbox" id="slopeChk"><div>Pentes de plus de 30° (IGN)<small>Ski de rando : relief IGN au pas de 5 m</small></div></label>
     <div class="slopeleg"><span style="background:#f2e600"></span>30–35°<span style="background:#f39200"></span>35–40°<span style="background:#e3000f"></span>40–45°<span style="background:#a3007d"></span>&gt; 45°</div>
   </div>
@@ -2926,11 +2933,11 @@ const RANDO_OVL={
   cadastre:L.tileLayer(geopf("CADASTRALPARCELS.PARCELLAIRE_EXPRESS","image/png"), {minZoom:14, maxZoom:19, maxNativeZoom:19, zIndex:415, bounds:FRANCE, attribution:"Cadastre © IGN/DGFiP"}),
   forest:  L.tileLayer(geopf("LANDCOVER.FORESTINVENTORY.V2","image/png"), {maxZoom:19, maxNativeZoom:16, zIndex:405, opacity:.55, bounds:FRANCE, attribution:"Forêts © IGN"})};
 function randoOvlApply(){ document.querySelectorAll("input.ovl").forEach(cb=>{ const ly=RANDO_OVL[cb.dataset.k]; cb.checked=store.get("ovl_"+cb.dataset.k,false);
-  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); }); }
+  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); if(cb.dataset.k==="forest") $("forLeg").hidden=!cb.checked; }); }
 document.querySelectorAll("input.ovl").forEach(cb=>cb.onchange=()=>{ store.set("ovl_"+cb.dataset.k,cb.checked); randoOvlApply(); });
 randoOvlApply();
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-k"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-l"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
