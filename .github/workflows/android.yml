@@ -3,6 +3,14 @@ name: APK Android
 on:
   push:
     branches: [main]
+    # L'APK charge l'app en ligne : on ne le refabrique que si la partie Android change
+    paths:
+      - ".github/workflows/android.yml"
+      - "android-debug.keystore"
+      - "icon.svg"
+      - "icon-192.png"
+      - "icon-512.png"
+      - "manifest.webmanifest"
   workflow_dispatch:
 
 permissions:
