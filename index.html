@@ -115,7 +115,9 @@ h3{font:700 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color
 #measure .m-ic svg{width:17px;height:17px}
 #measure .m-chip{display:flex;align-items:center;gap:4px;height:34px;padding:0 7px;flex:none;border:1px solid var(--line);border-radius:17px;font:500 12px var(--sans);color:var(--muted);white-space:nowrap}
 #measure .m-chip input[type=checkbox]{width:14px;height:14px;margin:0;accent-color:var(--blue)}
-#measure .m-spd input{width:34px;border:0;background:transparent;font:600 13px var(--sans);color:var(--ink);text-align:right;padding:0}
+#measure .m-sub{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#measure .m-spd{font:500 12px var(--sans);color:var(--muted);white-space:nowrap}
+#measure .m-spd input{width:38px;border:1px solid var(--line);border-radius:7px;background:var(--white);font:600 13px var(--sans);color:var(--ink);text-align:center;padding:3px 2px}
 #measure .m-save{margin-left:auto;height:34px;border:0;border-radius:17px;padding:0 12px;background:var(--blue);color:#fff;font:600 12px var(--sans);white-space:nowrap;cursor:pointer}
 .mlabel{background:var(--navy);color:#fff;border:0;border-radius:6px;font:600 11px var(--mono);padding:2px 6px;box-shadow:none}
 .mlabel::before{display:none}
@@ -460,7 +462,7 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
 <!-- Mesure -->
 <div id="measure" hidden>
   <div class="m-top"><span class="tot" id="mTot">0,00 M</span><button class="m-x" id="mDone" aria-label="Terminer la mesure">✕</button></div>
-  <div class="sub" id="mEta">—</div>
+  <div class="m-sub"><span class="sub" id="mEta">—</span><label class="m-spd" for="mSpeed">à <input id="mSpeed" type="number" inputmode="decimal" min="0.5" max="40" step="0.5" value="5"> <span id="mUnit">nd</span></label></div>
   <div id="mProfWrap" class="prof sm" hidden><canvas id="mProf"></canvas></div>
   <div class="hint" id="mHint">Touchez la carte pour poser les points de la route.</div>
   <div class="m-bar">
@@ -468,7 +470,6 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
     <button class="m-ic" id="mClear" aria-label="Tout effacer" title="Effacer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
     <button class="m-ic" id="mBoat" aria-label="Partir de ma position" title="Depuis ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg></button>
     <label class="m-chip rando-only" title="Suivre les sentiers"><input type="checkbox" id="mTrail" checked>Sentiers</label>
-    <label class="m-chip m-spd" for="mSpeed"><input id="mSpeed" type="number" inputmode="decimal" min="0.5" max="40" step="0.5" value="5"><span id="mUnit">nd</span></label>
     <button class="m-save" id="mSaveRoute" aria-label="Créer la route">＋ Route</button>
   </div>
 </div>
@@ -1577,7 +1578,7 @@ function drawProfile(canvas, prof, onHover){
   g.font="500 10px Inter,system-ui,sans-serif"; g.fillStyle="#5d6e80"; g.strokeStyle="rgba(13,27,42,.08)";
   const step = (hi-lo)>800?200:(hi-lo)>300?100:(hi-lo)>120?50:20;
   g.textAlign="right"; for(let z=Math.ceil(lo/step)*step; z<=hi; z+=step){ g.beginPath(); g.moveTo(L0,Y(z)); g.lineTo(R0,Y(z)); g.stroke(); g.fillText(z+" m",L0-4,Y(z)+3); }
-  g.textAlign="center"; const ks = tot>20000?5000:tot>8000?2000:tot>3000?1000:500;
+  g.textAlign="center"; const steps=[100,200,250,500,1000,2000,2500,5000,10000,20000,50000]; const ks = steps.find(st=> st/tot*(R0-L0) >= 60) || 100000;
   for(let d=0; d<=tot; d+=ks) g.fillText(d>=1000?(d/1000)+" km":d+" m", X(d), H-4);
   const P=[]; prof.z.forEach((z,i)=>{ if(z!=null) P.push([X(prof.d[i]),Y(z)]); });
   g.beginPath(); g.moveTo(P[0][0],B); P.forEach(p=>g.lineTo(p[0],p[1])); g.lineTo(P[P.length-1][0],B); g.closePath();
@@ -1895,10 +1896,10 @@ $("ncStop").onclick=()=>{ navR=null; store.set("navR",null); drawRoute(); toast(
 function saveRouteFromMeasure(){
   if(mPts.length<2) return toast("Posez au moins deux points");
   const def=(R()?"Itinéraire":"Route")+" du "+new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
-  let name=def; try{ const n=window.prompt("Nom de la route", def); if(n===null) return; name=n.trim()||def; }catch(e){}
+  const name=def+" ("+fmtD(mPts.reduce((a,p,i)=>i?a+map.distance(mPts[i-1],p):0,0))+")";
   const geom = R() && $("mTrail").checked ? measureGeom() : null;
   routes.unshift({id:Date.now(), name, pts:mPts.map((p,i)=>[+p.lat.toFixed(6),+p.lng.toFixed(6),"WP"+(i+1)]), geom: geom?geom.map(p=>[+p[0].toFixed(5),+p[1].toFixed(5)]):null});
-  store.set("routes",routes); renderRoutes(); toast("Route « "+name+" » enregistrée : Menu › Routes");
+  store.set("routes",routes); renderRoutes(); toast("Route « "+name+" » enregistrée : Plus › Routes");
 }
 $("mSaveRoute").onclick = saveRouteFromMeasure;
 function renderRoutes(){
@@ -2313,7 +2314,7 @@ $("bCache").onclick = async () => {
   info.textContent="Zone enregistrée : "+done+" tuiles hors ligne"+(fail?" ("+fail+" échecs)":"")+"."; btn.disabled=false;
 };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-d"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-e"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(()=>{});
