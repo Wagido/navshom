@@ -668,7 +668,7 @@ body:not(.rando) .offcard{background:#EAF2FB}
 .mapc.noimg::before{content:"Aperçu indisponible";position:absolute;left:0;right:0;top:0;aspect-ratio:16/10;display:grid;place-items:center;font:500 12px var(--sans);color:var(--muted);background:repeating-linear-gradient(135deg,#eef2f6 0 10px,#e6ebf1 10px 20px)}
 .v3-card{padding:8px!important;border-radius:26px!important}
 .v3-row{display:flex;align-items:center;gap:8px}
-.v3-seg{flex:1;min-width:0;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));background:#EEF2F6;border-radius:21px;padding:3px;gap:0!important}
+.v3-seg{flex:1;min-width:0;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));background:#EEF2F6;border-radius:21px;padding:3px;gap:0!important}
 .v3-seg button{height:40px!important;border:0!important;border-radius:18px!important;background:transparent!important;color:var(--navy)!important}
 .v3-seg button[aria-pressed="true"]{background:var(--sapin)!important;color:#fff!important}
 .v3-ic{width:46px;height:46px;flex:none;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--navy);display:grid;place-items:center;cursor:pointer;padding:0}
@@ -996,7 +996,7 @@ body:not(.rando) .offcard{background:#EAF2FB}
       <div class="wplist" id="zoneList"></div>
       <p class="note" id="zoneNote">Sans réseau, les cartes des zones téléchargées s'affichent normalement.</p>
       <div class="rando-only"><h3>Relief 3D par massif</h3>
-      <p class="note" style="margin:0 0 4px">Vue 3D sans réseau dans tout le massif, en couleurs d'altitude (relief IGN au pas de 25 m environ). La photo et la carte restent à télécharger par zone.</p>
+      <p class="note" style="margin:0 0 4px">Relief IGN du massif (pas de 25 m environ) pour ouvrir la vue 3D sans réseau. La photo et la carte s'ajoutent en téléchargeant une zone.</p>
       <div class="wplist" id="massifList"></div></div>
     </div></details>
   <details class="card mer-only" id="cAis"><summary><span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 18 20 12 16 6 20Z"/></svg></span><span class="ct">AIS · navires autour<small>Clé gratuite aisstream.io</small></span><span class="chev">›</span></summary>
@@ -1105,7 +1105,6 @@ body:not(.rando) .offcard{background:#EAF2FB}
   <div class="v3-card">
     <div class="v3-row">
       <div class="v3-seg" role="group" aria-label="Fond de la vue 3D">
-        <button data-t="relief" aria-pressed="false" title="Couleurs d'altitude, sans données à télécharger">Relief</button>
         <button data-t="ortho" aria-pressed="true" title="Photo aérienne IGN">Photo</button>
         <button data-t="scan" aria-pressed="false" title="Carte IGN 1:25 000">Carte</button>
       </div>
@@ -3413,7 +3412,7 @@ delete V3.pref.tex; // le fond n'est plus mémorisé : il est choisi à chaque o
 // Fond choisi tout seul : la carte IGN (ou la photo) si le centre est dans une zone téléchargée, déjà sur le téléphone ;
 // sinon « Relief », calculé sur place, sans aucune donnée. Photo et Carte restent à un toucher.
 function v3AutoBg(){ const c = map.getCenter(), z = zones.find(z => z.keys && L.latLngBounds([z.b[0],z.b[1]],[z.b[2],z.b[3]]).contains(c) && (z.keys.includes("scan25") || z.keys.includes("ortho")));
-  return z ? (z.keys.includes("scan25") ? "scan" : "ortho") : "relief"; }
+  const last = store.get("v3bg", "ortho"); return z ? (z.keys.includes("scan25") ? "scan" : "ortho") : (last==="scan" ? "scan" : "ortho"); }
 const v3Low = matchMedia("(pointer:coarse)").matches, v3Mem = navigator.deviceMemory || 4;
 const V3N = v3Mem <= 2 ? 192 : v3Low ? 256 : 400;       // côté de la grille du relief (sommets)
 const V3T = v3Mem <= 2 ? 1024 : 2048;                    // côté de la texture drapée (pixels)
@@ -3457,7 +3456,7 @@ async function v3Fetch(url, sig){ // ce qui est déjà sur le téléphone (zones
   const r = await Promise.race([fetch(url, {signal:sig}), new Promise((_, rej) => setTimeout(() => rej(new Error("délai dépassé")), 20000))]);
   if(!r.ok) throw new Error("IGN "+r.status); return r; }
 async function v3Bitmap(url, sig){ const b = await (await v3Fetch(url, sig)).blob(); if(!/^image\//.test(b.type)) throw new Error("image"); return createImageBitmap(b); }
-function v3Prog(what, done, n){ const t = what+" "+Math.round(100*done/n)+" %"; if(V3.mesh) v3Tip(t); else if(V3.open) $("v3Status").textContent = "Chargement · "+t; }
+function v3Prog(what, done, n, sig){ if(sig && V3.abort && sig !== V3.abort.signal) return; const t = what+" "+Math.round(100*done/n)+" %"; if(V3.mesh) v3Tip(t); else if(V3.open) $("v3Status").textContent = "Chargement · "+t; }
 // Relief : mosaïque des tuiles z13, puis grille N×N par interpolation bilinéaire (centres des pixels)
 async function v3Dem(sig){
   const r = v3Tiles(V3.bb, V3DZ), P = V3DP, nx = r.x1-r.x0+1, ny = r.y1-r.y0+1, W = nx*P, H = ny*P, M = new Float32Array(W*H).fill(NaN), list = [];
@@ -3467,7 +3466,7 @@ async function v3Dem(sig){
     try{ const a = new Float32Array(await (await v3Fetch(v3DemUrl(x, y), sig)).arrayBuffer());
       if(a.length >= P*P){ got++; const ox = (x-r.x0)*P, oy = (y-r.y0)*P; for(let j=0;j<P;j++) M.set(a.subarray(j*P, j*P+P), (oy+j)*W+ox); }
     }catch(e){ if(e.name==="AbortError") throw e; }
-    v3Prog("relief", ++done, list.length); });
+    v3Prog("relief", ++done, list.length, sig); });
   if(got < list.length*.5) throw new Error(navigator.onLine ? "Relief IGN indisponible. Vérifiez le réseau." : "Pas de relief enregistré ici. Hors ligne, la vue 3D marche dans les zones téléchargées avec l'option « Vue 3D » (Plus › Hors ligne).");
   const N = V3N, h = new Float32Array(N*N), ps = r.ts/P, mx = -V3O+r.x0*r.ts, my = V3O-r.y0*r.ts, bb = V3.bb;
   const px = (x, y) => M[Math.max(0, Math.min(H-1, y))*W + Math.max(0, Math.min(W-1, x))];
@@ -3492,11 +3491,11 @@ async function v3Img(key, sig){
       const n = 1<<dn, kids = []; for(let j=0;j<n;j++) for(let i=0;i<n;i++) kids.push([i, j, local(v3TileUrl(ly, z+dn, x*n+i, y*n+j))]);
       let got = 0; for(const [i, j, pr] of kids){ const ci = await pr; if(ci){ g.drawImage(ci, dx+i*ds/n, dy+j*ds/n, ds/n, ds/n); ci.close && ci.close(); got++; } }
       if(got >= n*n*.75){ im = true; ok++; } }
-    if(im === true){ v3Prog(what, ++done, list.length); return; }
+    if(im === true){ v3Prog(what, ++done, list.length, sig); return; }
     if(!im){ try{ im = await v3Bitmap(v3TileUrl(ly, z, x, y), sig); }catch(e){ if(e.name==="AbortError") throw e; } }
     if(im){ g.drawImage(im, dx, dy, ds, ds); im.close && im.close(); ok++; }
     else for(let up=1; up<=2; up++){ const pi = await parent(z-up, x>>up, y>>up); if(pi){ const n = 1<<up, s = 256/n; g.drawImage(pi, (x%n)*s, (y%n)*s, s, s, dx, dy, ds, ds); ok++; break; } }
-    v3Prog(what, ++done, list.length); });
+    v3Prog(what, ++done, list.length, sig); });
   for(const p of par.values()){ const im = await p; if(im && im.close) im.close(); }
   if(!ok){ cv.width = 0; throw new Error(what+" indisponible"); }
   return V3.img[key] = cv;
@@ -3545,8 +3544,8 @@ async function open3D(opt){
     if(!V3.open) return;
     v3Heights(h);
     if(!store.get("v3exUser", false)){ const rg = V3.h1-V3.h0; V3.pref.exag = rg<250 ? 3 : rg<600 ? 2.2 : rg<1200 ? 1.6 : 1.3; }
-    v3Build(); v3Prefs(); v3Status(null); if(V3.noTex){ V3.noTex = false; v3Tip("Pas de photo ici hors ligne : couleurs d'altitude"); }
-    else v3Tip(V3.bg==="relief" ? "Relief : courbes tous les "+(V3.step||"")+" m · relief exagéré "+v3Fmt(V3.pref.exag)+"×" : "Fond : "+(V3.bg==="scan"?"carte":"photo")+" de la zone téléchargée");
+    v3Build(); v3Prefs(); v3Status(null); if(V3.noTex){ V3.noTex = false; v3Tip("Ni photo ni carte ici sans réseau : relief ombré seul"); }
+    else if(v3AutoBg() && zones.some(z => L.latLngBounds([z.b[0],z.b[1]],[z.b[2],z.b[3]]).contains(V3.c))) v3Tip("Fond : "+(V3.bg==="scan"?"carte":"photo")+" de la zone téléchargée");
   }catch(e){
     if(!V3.open || e.name==="AbortError") return;
     v3Status(/relief|Zone|moteur/i.test(e.message) ? (/moteur/.test(e.message) ? "Le moteur 3D n'est pas encore sur le téléphone : ouvrez la vue 3D une fois avec du réseau." : e.message) : "Relief IGN indisponible ("+e.message+").", true);
@@ -3719,7 +3718,7 @@ function v3Prefs(){
 async function v3Need(key){ if(key==="relief" || V3.img[key] || !V3.mesh) return true;
   v3Tip("Chargement…"); try{ await v3Img(key, V3.abort.signal); return true; }catch(e){ if(V3.open) v3Tip(key==="scan" ? "Carte IGN indisponible" : "Image IGN indisponible"); return false; } }
 document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.onclick = async () => {
-  const t = b.dataset.t; if(!(await v3Need(t)) || !V3.open) return; V3.bg = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
+  const t = b.dataset.t; store.set("v3bg", t); if(!(await v3Need(t)) || !V3.open) return; V3.bg = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
 $("v3Slope").onclick = async () => { const on = !V3.pref.slope; if(on && !(await v3Need("slope"))) return; if(!V3.open) return; V3.pref.slope = on; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; };
 $("v3Exag").oninput = e => { V3.pref.exag = +e.target.value; $("v3ExagO").textContent = v3Fmt(V3.pref.exag)+"×";
   if(V3.mesh && !V3.exT) V3.exT = requestAnimationFrame(() => { V3.exT = 0; const t = V3.ctl.target, y0 = t.y; v3ApplyH(); const ny = v3Y(v3H(t.x/V3.S+.5, t.z/V3.S+.5)); V3.cam.position.y += ny-y0; t.y = ny; }); };
@@ -3742,7 +3741,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-h"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-i"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
