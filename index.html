@@ -404,6 +404,7 @@ body:has(#tbar:not([hidden])) #forFloat, body.dlmode #forFloat, body.measuring #
 .lw{display:flex;flex-direction:column;align-items:center} .lw .lwb{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);display:grid;place-items:center}
 .lw .lwb svg{width:18px;height:18px} .lw span{font:700 11px var(--sans);color:#0B2F5B;text-shadow:0 0 3px #fff,0 0 3px #fff;margin-top:1px}
 .refi b{display:grid;place-items:center;width:24px;height:24px;border-radius:7px;border:2px solid #fff;color:#fff;font:700 12px var(--sans);box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.tgi b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#1D6FB8;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
 #dlFrame{position:fixed;z-index:900;pointer-events:none;border:2.5px dashed #FF7A00;border-radius:14px;box-shadow:0 0 0 9999px rgba(11,47,91,.28)}
 #dlBar{position:fixed;z-index:1300;left:calc(var(--sl) + 12px);right:calc(var(--sr) + 12px);max-width:520px;margin:0 auto;bottom:calc(var(--sb) + 16px);
   background:rgba(255,255,255,.97);color:var(--navy,#0B2F5B);border-radius:22px;box-shadow:0 8px 26px rgba(11,47,91,.25);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-family:var(--sans)}
@@ -552,6 +553,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 #tbar .thd .t{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} #tbar .thd .lbl{display:none}
 #tbar .thd .here{font:600 14px var(--sans)!important;color:#0B2F5B;white-space:nowrap}
 #tbar .train{padding:5px 9px!important}
+#tbar.raining .thd{display:none}
 #tbar .sunl{display:flex;gap:20px;padding:4px 2px 6px;font:500 13px var(--sans);color:#4A5D73}
 #tbar .sunl span{display:flex;align-items:center;gap:6px} #tbar .sunl b{color:#0B2F5B;font-weight:700} #tbar .sunl svg{width:18px;height:18px}
 #tbar .tbl table{font:600 14px var(--sans);font-variant-numeric:tabular-nums;color:#0B2F5B}
@@ -838,6 +840,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   </div>
   <h3>En direct</h3>
   <label class="opt"><input type="checkbox" id="liveWind"><div>Vent mesuré en direct<small>Balises OpenWindMap (Pioupiou) : côtes, cols, sites de vol libre</small></div></label>
+  <label class="opt mer-only"><input type="checkbox" id="tgChk"><div>Marégraphes du SHOM<small>Hauteur d'eau mesurée en direct dans 100 ports</small></div></label>
   <label class="opt rando-only"><input type="checkbox" id="refChk"><div>Refuges, cabanes, points d'eau<small>Base communautaire refuges.info</small></div></label>
   <h3>Hors ligne</h3>
   <div class="btnrow" style="margin-top:4px"><button class="pill primary" id="bCache">Télécharger une zone</button></div>
@@ -1870,7 +1873,7 @@ function setMode(m, quiet){
   try{ if(mobMk){ R()?map.removeLayer(mobMk):mobMk.addTo(map); } }catch(e){}
   try{ (R() || !$("track").checked) ? map.removeLayer(trackLine) : trackLine.addTo(map); }catch(e){}
   try{ randoOvlApply(); }catch(e){}
-  try{ refSet(store.get("refuges",false)); if(map.hasLayer(LW.layer)) lwDraw(); }catch(e){}
+  try{ tgSet(store.get("tg",false)); refSet(store.get("refuges",false)); if(map.hasLayer(LW.layer)) lwDraw(); }catch(e){}
   try{ if(R()){ aisStop(); map.removeLayer(AIS.layer); } else if(AIS.on) aisStart(); }catch(e){}
   try{ R()?map.removeLayer(anchorLayer):anchorLayer.addTo(map); }catch(e){}
   chipLabels(); if(measuring) drawMeasure(); if(typeof setSlopes==="function") setSlopes(store.get("slopes",false)); try{ autoSatCheck(); setShade(store.get("shade",true)); }catch(e){ /* pas encore initialisé au démarrage */ }
@@ -2946,13 +2949,13 @@ function rainSummary(){ const h=tbl.f&&tbl.f.hourly; if(!h||!h.precipitation) re
   let end=first; while(end+1<n && wet(end+1)) end++; let tot=0; for(let i=first;i<=end;i++) tot+=h.precipitation[i]||0;
   const mm=tot<1?tot.toFixed(1).replace(".",","):Math.round(tot);
   return first===k0 ? "🌧️ <b>Pluie jusqu'à "+hh(end+1)+"</b> · "+mm+" mm" : "🌦️ <b>Pluie de "+hh(first)+" à "+hh(end+1)+"</b> · "+mm+" mm"; }
-async function rainOn(){ RAIN.on=true; $("tRadar").classList.add("on");
+async function rainOn(){ RAIN.on=true; $("tRadar").classList.add("on"); $("tbar").classList.add("raining");
   if(ov.type!=="rain") setOverlay("rain"); setFold(true);
   for(let k=0;k<40 && !ov.data;k++) await new Promise(r=>setTimeout(r,250));
   if(!tbl.f) await loadTable(); const t=rainSummary(); $("tRain").innerHTML=t||""; $("tRain").hidden=!t;
   if(!ov.data||!RAIN.on) return; const start=ov.now, stop=Math.min(ov.data[0].time.length-1, ov.now+12); let i=start;
   clearInterval(RAIN.timer); RAIN.timer=setInterval(()=>{ if(ov.type!=="rain"){ return rainOff(); } setHour(i); i = i>=stop ? start : i+1; }, 800); }
-function rainOff(){ clearInterval(RAIN.timer); RAIN.on=false; $("tRadar").classList.remove("on"); $("tRain").hidden=true; }
+function rainOff(){ clearInterval(RAIN.timer); RAIN.on=false; $("tbar").classList.remove("raining"); $("tRadar").classList.remove("on"); $("tRain").hidden=true; }
 function radarOff(){ rainOff(); }
 $("tRadar").onclick=()=>RAIN.on ? rainOff() : rainOn();
 $("tSlider").addEventListener("pointerdown", ()=>{ if(RAIN.on){ clearInterval(RAIN.timer); } });
@@ -3086,6 +3089,27 @@ function lwSet(on){ store.set("liveWind",on); $("liveWind").checked=on; clearInt
 $("liveWind").onchange=e=>lwSet(e.target.checked); map.on("moveend", ()=>{ if(map.hasLayer(LW.layer)) lwDraw(); });
 map.attributionControl.addAttribution('<a href="https://www.openwindmap.org" target="_blank" rel="noopener">OpenWindMap</a>');
 lwSet(store.get("liveWind",false));
+/* ================= Marégraphes du SHOM (hauteur d'eau mesurée, temps réel) ================= */
+const TG={layer:L.layerGroup(), list:null};
+async function tgLoad(){ if(!TG.list){ const c=store.get("tgList",null); if(c && Date.now()-c.t<7*864e5) TG.list=c.d;
+    else try{ const d=await (await fetch("https://services.data.shom.fr/maregraphie/service/tidegauges")).json(); TG.list=d.filter(x=>x.state==="OK").map(x=>({id:x.shom_id,n:x.name,la:x.latitude,lo:x.longitude})); store.set("tgList",{t:Date.now(),d:TG.list}); }catch(e){ toast("Marégraphes indisponibles (réseau ?)"); return; } }
+  TG.layer.clearLayers();
+  TG.list.forEach(st=>{ const m=L.marker([st.la,st.lo],{icon:L.divIcon({className:"tgi",iconSize:[26,26],iconAnchor:[13,13],html:'<b><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v18M8 7h8M3 15c3-3 6 3 9 0s6 3 9 0"/></svg></b>'}),zIndexOffset:640}).addTo(TG.layer);
+    m.bindPopup("Chargement…"); m.on("popupopen", ()=>tgShow(st, m)); }); }
+async function tgShow(st, m){ const end=new Date(), start=new Date(end-6*3600e3), iso=d=>d.toISOString().slice(0,19)+"Z", nm=st.n.replace(/_/g," ").toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+  try{ const j=await (await fetch(`https://services.data.shom.fr/maregraphie/observation/json/${st.id}?sources=1&dtStart=${iso(start)}&dtEnd=${iso(end)}`)).json(); const d=(j.data||[]).filter(x=>x.value!=null);
+    if(!d.length) return m.setPopupContent(`<b>${nm}</b><br>Pas de mesure récente`);
+    const t=x=>new Date(x.timestamp.replace(/\//g,"-").replace(" ","T")+"Z").getTime(), lastP=d[d.length-1], v=lastP.value;
+    const ref=d.find(x=>t(x)>=t(lastP)-30*60e3)||d[0], dh=(t(lastP)-t(ref))/3600e3, rate=dh>0.1?(v-ref.value)/dh:0;
+    const vs=d.map(x=>x.value), mn=Math.min(...vs), mx=Math.max(...vs), W=220, H=56, t0=t(d[0]), t1=t(lastP);
+    const path=d.filter((x,i)=>i%3===0||i===d.length-1).map((x,i)=>(i?"L":"M")+((t(x)-t0)/(t1-t0||1)*W).toFixed(1)+" "+(H-4-(x.value-mn)/((mx-mn)||1)*(H-8)).toFixed(1)).join(" ");
+    const age=Math.round((Date.now()-t(lastP))/60e3);
+    m.setPopupContent(`<b>${nm}</b><br><span style="font:700 20px Inter,sans-serif">${v.toFixed(2).replace(".",",")} m</span> ${Math.abs(rate)<0.03?"· étale":rate>0?"↗ monte":"↘ descend"} (${rate>0?"+":""}${Math.round(rate*100)} cm/h)<br>
+      <svg width="${W}" height="${H}" style="display:block;margin:6px 0;background:#EEF4FA;border-radius:6px"><path d="${path}" fill="none" stroke="#1D6FB8" stroke-width="2"/></svg>
+      <small>6 dernières heures · mesure d'il y a ${age} min · référence SHOM (zéro hydrographique)</small><br><a href="https://data.shom.fr/donnees/refmar/${st.id}" target="_blank" rel="noopener">Fiche du marégraphe</a>`); }
+  catch(e){ m.setPopupContent(`<b>${nm}</b><br>Mesure indisponible (réseau ?)`); } }
+function tgSet(on){ store.set("tg",on); $("tgChk").checked=on; if(on && !R()){ TG.layer.addTo(map); tgLoad(); } else map.removeLayer(TG.layer); }
+$("tgChk").onchange=e=>tgSet(e.target.checked); tgSet(store.get("tg",false));
 /* ================= Refuges, cabanes, points d'eau (refuges.info) ================= */
 const REF={layer:L.layerGroup(), key:""};
 const REF_T={"refuge gardé":["R","#2E7D32"],"cabane non gardée":["C","#8D6E63"],"gîte d'étape":["G","#6A1B9A"],"point d'eau":["💧","#1E88E5"],"bivouac":["B","#00897B"],"abri sommaire":["A","#8D6E63"]};
@@ -3100,7 +3124,7 @@ $("refChk").onchange=e=>refSet(e.target.checked); map.on("moveend", ()=>{ clearT
 map.attributionControl.addAttribution('<a href="https://www.refuges.info" target="_blank" rel="noopener">refuges.info</a>');
 refSet(store.get("refuges",false));
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-v"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-w"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
