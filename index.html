@@ -2581,9 +2581,18 @@ function clearRouting(){ RT.result=null; RT.layer.clearLayers(); $("rtRes").hidd
 $("rtClear").onclick=clearRouting;
 $("rtPillX").onclick=()=>{ clearRouting(); toast("Routage effacé"); };
 $("rtPillOpen").onclick=()=>{ openSheet("sRouting"); renderRouteParams(); $("rtRes").hidden=!RT.result; };
-$("rtNav").onclick=()=>{ const r=RT.result; if(!r) return; const P=r.path, wp=[];
-  P.forEach((p,i)=>{ if(i===0) return; const nx=P[i+1]; if(!nx || (nx.twa!=null && p.twa!=null && Math.sign(nx.twa)!==Math.sign(p.twa))) wp.push(p); });
-  const rt={id:Date.now(), name:"Routage "+fmtT(r.dep), pts:wp.map((p,i)=>[+p.lat.toFixed(6),+p.lng.toFixed(6), i===wp.length-1?"Arrivée":"Manœuvre "+(i+1)])};
+$("rtNav").onclick=()=>{ const r=RT.result; if(!r) return; const P=r.path;
+  // Waypoints qui suivent la route calculée : virements/empannages + simplification (écart max 0,3 mille)
+  const keep=new Set([0,P.length-1]), tack=new Set();
+  P.forEach((p,i)=>{ const nx=P[i+1]; if(i>0 && nx && nx.twa!=null && p.twa!=null && Math.sign(nx.twa)!==Math.sign(p.twa)){ keep.add(i); tack.add(i); } });
+  const xt=(a,b,c)=>{ const k=Math.cos(P[a].lat*Math.PI/180), ax=P[a].lng*k*60, ay=P[a].lat*60, bx=P[b].lng*k*60-ax, by=P[b].lat*60-ay, cx=P[c].lng*k*60-ax, cy=P[c].lat*60-ay, L2=bx*bx+by*by;
+    const t=L2?Math.max(0,Math.min(1,(cx*bx+cy*by)/L2)):0; return Math.hypot(cx-bx*t, cy-by*t); };
+  const dp=(a,b)=>{ let m=0, mi=-1; for(let i=a+1;i<b;i++){ const d=xt(a,b,i); if(d>m){ m=d; mi=i; } } if(m>0.3){ keep.add(mi); dp(a,mi); dp(mi,b); } };
+  const ks=[...keep].sort((x,y)=>x-y); for(let k=0;k<ks.length-1;k++) dp(ks[k],ks[k+1]);
+  const idx=[...keep].sort((x,y)=>x-y).filter(i=>i>0); let n=0;
+  const rt={id:Date.now(), name:"Routage "+fmtT(r.dep), pts:idx.map((i,j)=>{ const p=P[i];
+    const nm = j===idx.length-1 ? "Arrivée" : tack.has(i) ? (Math.abs(p.twa)<90?"Virement ":"Empannage ")+(++n) : "WP "+(j+1);
+    return [+p.lat.toFixed(6),+p.lng.toFixed(6), nm+(p.t?" · "+hhmm(p.t):"")]; })};
   routes.unshift(rt); store.set("routes",routes); renderRoutes(); startNav(rt.id); };
 
 /* ---- Test des fonds de carte depuis le téléphone ---- */
@@ -2889,7 +2898,7 @@ function radarShow(){ RADAR.layers.forEach((l,k)=>l.setOpacity(k===RADAR.i?.75:0
 function radarOff(){ clearInterval(RADAR.timer); RADAR.layers.forEach(l=>map.removeLayer(l)); RADAR.layers=[]; RADAR.on=false; $("tRadar").classList.remove("on"); $("tRadar").textContent="Radar"; }
 $("tRadar").onclick=()=>{ if(RADAR.on) return radarOff(); RADAR.on=true; $("tRadar").classList.add("on"); radarOn(); };
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-g"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-h"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
