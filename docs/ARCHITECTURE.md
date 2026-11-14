@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.16-f · Dernière mise à jour : 16 novembre 2026
+> Statut : version 2026.11.16-y · Dernière mise à jour : 16 novembre 2026
 
 ## 1. Résumé
 
@@ -22,7 +22,8 @@ Balise est une application de navigation gratuite pour téléphone, avec deux mo
   - cartes IGN au 1:25 000, ombrage du relief, carte des pentes de plus de 30° ;
   - neige et iso 0 °C ;
   - itinéraires sur sentiers, traces, profils et mode course ;
-  - import et export GPX.
+  - import et export GPX ;
+  - **vue 3D** du relief (photo, carte IGN ou pentes drapées, traces et repères).
 
 C'est une **application web installable** (PWA) : un seul code HTML/JS publié sur GitHub Pages. Elle tourne dans le navigateur, s'installe sur l'écran d'accueil, ou s'emballe dans un **APK Android** (Capacitor). **Il n'y a pas de serveur à nous** : le téléphone interroge directement des services publics gratuits.
 
@@ -43,6 +44,7 @@ C'est une **application web installable** (PWA) : un seul code HTML/JS publié s
 |---|---|---|
 | Carte | **Leaflet 1.9.4** (embarqué dans `lib/`) | Léger, éprouvé, fonctionne hors ligne |
 | Interface | HTML + CSS + JavaScript « vanilla » | Pas de framework, pas de build, démarrage instantané |
+| Vue 3D (Rando) | **Three.js r147** (embarqué dans `lib/`, chargé à la demande) | Version non-module : pas de build ; OrbitControls pour les gestes |
 | Rendu météo | **Canvas 2D** (dégradé, particules, chiffres) | Fluide sur mobile, sans dépendance |
 | Police | **Inter** (embarquée, licence OFL) | Lisible, chiffres tabulaires, identique partout |
 | Hors ligne | **Service worker** (`sw.js`) + Cache API | Standard web |
@@ -61,6 +63,9 @@ navshom/
 │   ├── leaflet.js / .css   # bibliothèque de carte
 │   ├── landmask.png        # masque terre/mer France (GLOBE ~1 km)
 │   ├── polars-orc.json     # 604 polaires de série (certificats ORC), chargé à la demande
+│   ├── three.min.js        # Three.js r147 (MIT), chargé à l'ouverture de la vue 3D
+│   ├── three-orbit.js      # OrbitControls (gestes de la vue 3D)
+│   ├── LICENSE-three.txt
 │   └── fonts/              # police Inter (woff2) + licence
 ├── tools-check.js          # contrôle automatique de mise en page (Playwright)
 ├── android-debug.keystore  # clé fixe de signature de l'APK
@@ -112,6 +117,7 @@ flowchart LR
 | **AIS** | Navires autour (internet) | WebSocket aisstream.io, clé gratuite de l'utilisateur ; point de rapprochement (CPA/TCPA) et alerte à moins de 0,5 mille dans les 15 min |
 | **Hors ligne** | Zones téléchargées | Voir §7 |
 | **Rando** | Traces, profils, itinéraires IGN, GPX, mode course | Pentes, neige, iso 0 °C, ombrage, photos aériennes au zoom maximal |
+| **Vue 3D** | Relief plein écran (bouton « 3D », Rando) | Voir §5.6 |
 | **Menu Plus** | Tuiles d'accès rapide + rubriques repliables | Instruments, Routage, Hors ligne, AIS, Bulletins, Mode nuit ; Routes, Repères, Réglages, Sauvegarde, À propos |
 | **Mise à jour** | Bandeau « Nouvelle version disponible » | §8 |
 
@@ -165,6 +171,21 @@ Il s'ouvre en touchant Vitesse / Cap (Mer) ou par Plus › Instruments.
 
 Au toucher de la carte en Mer, une requête **Overpass** cherche les objets `seamark:*` d'OpenStreetMap dans un rayon d'environ 40 pixels. L'appli affiche les 4 plus proches : nom, type en français (cardinale Ouest, latérale bâbord…) et rythme du feu reconstitué (`Q(9) W 15s`, `Fl(2) R 6s 7M`, secteurs compris).
 
+### 5.6 Vue 3D (Rando)
+
+Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour revenir à la carte (ou Échap).
+
+- **Zone** : carré centré sur le centre de la carte, de côté égal à la largeur affichée, borné entre 6 et 10 km (arrondi à 500 m). Calculé en EPSG:3857 (côté divisé par cos(latitude) pour des mètres vrais). France seulement, réseau nécessaire.
+- **Relief** : WMS Géoplateforme `ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES`, `image/x-bil;bits=32` (flottants 32 bits), demandé directement depuis le navigateur (CORS ouvert). La zone est élargie d'un demi-pixel pour que les centres des pixels tombent sur les bords du maillage. Valeurs aberrantes (hors −500…9 000 m) remplacées par la moyenne ; zone refusée si moins de 10 % de valeurs valides.
+- **Taille de la grille** : 256 × 256 sommets sur téléphone (écran tactile), 400 × 400 sur ordinateur, 192 si l'appareil annonce 2 Go de mémoire ou moins. Texture 2048 px (1024 sur petite mémoire). Rendu à la demande (seulement quand la vue bouge), densité de pixels limitée à 1,5 sur téléphone.
+- **Texture** : un canvas 2D composé puis plaqué sur le relief : fond (photo `ORTHOIMAGERY.ORTHOPHOTOS` ou carte `GEOGRAPHICALGRIDSYSTEMS.MAPS` avec la clé publique `ign_scan_ws`), pentes `GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN` à 60 % si demandées, puis les lignes. Si la carte IGN échoue au départ, on retombe sur la photo.
+- **Drapé** : la trace en cours (rose), la trace enregistrée affichée (violet, départ vert, arrivée rouge) et l'itinéraire mesuré sont **peints dans la texture** : ils épousent exactement le relief, sans calcul 3D. La trace en cours est repeinte toutes les 15 s. Les repères et la position GPS (« Vous », mise à jour en direct) sont des étiquettes HTML projetées ; elles s'estompent quand une crête les cache (test de la ligne de visée sur la grille d'altitudes).
+- **Gestes** : un doigt pour tourner, pincer pour zoomer, deux doigts pour déplacer (souris : clic gauche, molette, clic droit). Toucher le relief donne l'altitude. Le bouton boussole remet le nord en haut.
+- **Réglages** (mémorisés dans `nav_v3`) : fond, pentes, exagération du relief (1 à 3×), direction du soleil (lumière directionnelle, élévation fixe).
+- **Cache** : le service worker laisse passer les requêtes WMS (`wms-r`) sans les stocker dans `navshom-tiles` ; seul le cache HTTP du navigateur les garde (21 jours annoncés par l'IGN). Three.js n'est pas dans la liste de démarrage hors ligne ; il est mis en cache après la première ouverture.
+- **Libération** : à la fermeture, géométrie, texture, images et contexte WebGL sont libérés.
+- **Pas de Camptocamp** : leur API refuse les requêtes d'autres origines ; on ne contourne pas ce refus.
+
 ## 6. Sources de données
 
 | Donnée | Fournisseur | Accès | Remarques |
@@ -172,6 +193,7 @@ Au toucher de la carte en Mer, une requête **Overpass** cherche les objets `sea
 | **Carte marine** (carte littorale) | IGN Géoplateforme, `GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS` | Libre, sans clé | Cartes SHOM + IGN, zooms 6 à 16. « Non destinée à la navigation » |
 | Carte IGN 1:25 000 | IGN, `GEOGRAPHICALGRIDSYSTEMS.MAPS` | Clé **transitoire** publique `ign_scan_ws` | Peut disparaître → bascule sur Plan IGN |
 | Plan IGN, photos, pentes, ombrage | IGN | Libre | Pentes `SLOPES.MOUNTAIN`, relief `ELEVATION…SHADOW` |
+| Relief 3D | IGN, WMS `ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES` (BIL 32 bits) | Libre | Vue 3D ; requêtes directes depuis le navigateur |
 | Altitudes, recherche, itinéraires | IGN (altimétrie, géocodage, itinéraire piéton) | Libre | Le géocodage inverse nomme aussi les zones hors ligne |
 | Cartes SHOM directes | data.shom.fr | **Clé sous convention** | Champ « Ma clé SHOM » ; refus « Wrong referer » sans clé |
 | Marées officielles | SHOM, vignette publique (60 ports) | Libre | Affichée dans un cadre isolé |
@@ -253,6 +275,7 @@ Autres points :
 | IGN 1:25 000 | Clé transitoire | Bascule sur Plan IGN ; clé personnelle IGN |
 | Quotas | Open-Meteo gratuit, non commercial | Grille fixe + cache ; offre payante si usage pro |
 | GPS écran éteint | Navigateur : coupé en veille | APK : géolocalisation native en arrière-plan |
+| Vue 3D | Réseau obligatoire ; zone de 10 km au plus ; pas d'itinéraires Camptocamp (API fermée aux autres origines) ; lignes peintes dans la texture, donc un peu floues en très gros plan | Mise en cache des zones 3D ; demander un accès à Camptocamp |
 | iPhone | Pas d'app native ; PWA seulement | Compte développeur Apple |
 
 ## 11. Feuille de route
@@ -282,6 +305,8 @@ Autres points :
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.16-y** : **vue 3D** en Rando (relief IGN, photo, carte ou pentes drapées, traces, itinéraire mesuré, repères et position).
+
 ## 13. Licences et attributions
 
-Cartes © IGN / SHOM, © OpenStreetMap contributors (ODbL), © OpenSeaMap, © EMODnet Bathymetry ; prévisions Open-Meteo (CC BY 4.0) ; polaires dérivées des certificats publics ORC ; AIS aisstream.io ; Leaflet (BSD-2) ; police Inter (SIL OFL 1.1) ; masque GLOBE (NOAA, domaine public).
+Cartes © IGN / SHOM, © OpenStreetMap contributors (ODbL), © OpenSeaMap, © EMODnet Bathymetry ; prévisions Open-Meteo (CC BY 4.0) ; polaires dérivées des certificats publics ORC ; AIS aisstream.io ; Leaflet (BSD-2) ; Three.js (MIT) ; police Inter (SIL OFL 1.1) ; masque GLOBE (NOAA, domaine public).

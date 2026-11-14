@@ -585,6 +585,38 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 #tbar .train{font:500 13.5px var(--sans);color:#0B2F5B;background:#E3F0FF;border-radius:8px;padding:6px 9px;margin:4px 0}
 #tbar .tnote{font:500 11.5px var(--sans);color:#B45309;background:#FFF4E5;border-radius:8px;padding:5px 8px;margin:4px 0}
 #tbar.mini .tnote{display:none}
+
+/* Vue 3D (Rando) : plein écran, relief IGN drapé */
+#b3d{font:700 13px/1 var(--sans);letter-spacing:-.01em} #b3d.on{color:var(--sapin)}
+#v3d{position:fixed;inset:0;z-index:5000;background:#F4F7FA;color:var(--navy);font-family:var(--sans);overflow:hidden;touch-action:none}
+#v3dScene{position:absolute;inset:0} #v3dScene canvas{display:block;width:100%;height:100%;touch-action:none}
+#v3Labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.v3-lb{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;white-space:nowrap;transition:opacity .2s}
+.v3-lb b{font:600 12px/1.15 var(--sans);background:rgba(255,255,255,.94);color:var(--navy);padding:3px 7px;border-radius:8px;box-shadow:0 1px 4px rgba(11,47,91,.25)}
+.v3-lb svg{width:24px;height:24px;margin-top:2px}
+.v3-lb.me b{background:#FF7A00;color:#fff}
+.v3-lb.me i{width:16px;height:16px;border-radius:50%;background:#FF7A00;border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);margin-top:3px}
+.v3-lb.hid{opacity:.35}
+.v3-top{position:absolute;z-index:2;top:calc(var(--st) + 10px);left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);display:flex;align-items:center;gap:8px;pointer-events:none}
+.v3-top>*{pointer-events:auto}
+.v3-x,.v3-n{width:44px;height:44px;flex:none;border-radius:50%;border:0;background:rgba(255,255,255,.95);color:var(--navy);box-shadow:0 2px 8px rgba(11,47,91,.22);font:600 20px/1 var(--sans);display:grid;place-items:center;cursor:pointer;padding:0}
+.v3-n svg{width:26px;height:26px;transition:transform .1s linear}
+.v3-title{flex:1;min-width:0;background:rgba(255,255,255,.95);border-radius:22px;box-shadow:0 2px 8px rgba(11,47,91,.22);padding:6px 14px;line-height:1.2}
+.v3-title b{display:block;font:700 15px var(--sans);color:var(--navy)}
+.v3-title span{display:block;font:500 12px var(--sans);color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#v3Status{position:absolute;z-index:2;left:50%;top:45%;transform:translate(-50%,-50%);max-width:calc(100% - 40px);background:#fff;border-radius:14px;box-shadow:0 4px 18px rgba(11,47,91,.2);padding:14px 18px;font:500 14px/1.4 var(--sans);color:var(--navy);text-align:center}
+#v3Status button{margin-top:10px;border:0;border-radius:10px;background:var(--sapin);color:#fff;font:600 14px var(--sans);padding:9px 16px;cursor:pointer}
+#v3Tip{position:absolute;z-index:2;left:50%;top:calc(var(--st) + 66px);transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:12px;padding:7px 12px;font:600 13px var(--sans);white-space:nowrap;pointer-events:none}
+.v3-card{position:absolute;z-index:2;left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 10px);max-width:460px;margin:0 auto;background:rgba(255,255,255,.96);border-radius:18px;box-shadow:0 6px 20px rgba(11,47,91,.18);padding:10px 12px 8px}
+.v3-seg{display:flex;gap:6px}
+.v3-seg button{flex:1 1 0;min-width:0;height:34px;border-radius:17px;border:1px solid var(--line);background:#fff;color:var(--navy);font:600 12.5px var(--sans);cursor:pointer;padding:0 6px;white-space:nowrap}
+.v3-seg button[aria-pressed="true"]{background:var(--sapin);border-color:var(--sapin);color:#fff}
+.v3-seg #v3Slope[aria-pressed="true"]{background:#FFF3E0;border-color:#FF7A00;color:#E65100}
+.v3-ctl{display:grid;grid-template-columns:auto 1fr 44px;align-items:center;gap:2px 10px;margin-top:8px;font:500 13px var(--sans);color:var(--slate)}
+.v3-ctl input{width:100%;accent-color:#FF7A00;margin:6px 0}
+.v3-ctl output{font:600 13px var(--sans);color:var(--navy);text-align:right;font-variant-numeric:tabular-nums}
+.v3-src{margin:4px 0 0;font:400 11px/1.35 var(--sans);color:var(--muted)}
+.v3-src i{font-style:normal;display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin:0 2px 0 6px}
 </style>
 </head>
 <body>
@@ -619,6 +651,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <button class="g-b" id="bZout" aria-label="Dézoomer">−</button>
     <button class="g-b" id="bLayers" aria-label="Cartes et couches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg></button>
     <button class="g-b rando-only" id="bSlope" aria-label="Pentes de plus de 30°" title="Pentes > 30°"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20h18L3 6z"/><path d="M8 20a6 6 0 0 0-1.5-4"/></svg></button>
+    <button class="g-b rando-only" id="b3d" aria-label="Vue 3D du relief" title="Vue 3D">3D</button>
     <button class="g-b" id="bCompass" aria-label="Orienter la carte" title="Nord en haut / carte orientée"><svg viewBox="0 0 24 24" id="compassNeedle"><path d="M12 2 15.5 12h-7z" fill="#E5372B"/><path d="M12 22 8.5 12h7z" fill="#9AA8B8"/><circle cx="12" cy="12" r="1.6" fill="#fff"/></svg></button>
     <button class="g-b on" id="bFollow" aria-label="Centrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small id="followLbl" hidden>Bateau</small></button>
   </div>
@@ -980,6 +1013,31 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="nc2"><span>Écart : <b id="ncXte">—</b></span></div>
   <div class="nc2" id="ncEta">—</div>
   <div class="ncb"><button id="ncPrev">◀ WP</button><button id="ncNext">WP ▶</button><button id="ncStop">■ Arrêter</button></div>
+</div>
+
+<div id="v3d" hidden>
+  <div id="v3dScene"></div>
+  <div id="v3Labels"></div>
+  <div class="v3-top">
+    <button class="v3-x" id="v3Close" aria-label="Revenir à la carte">✕</button>
+    <div class="v3-title"><b>Vue 3D</b><span id="v3Info">Relief IGN</span></div>
+    <button class="v3-n" id="v3North" aria-label="Remettre le nord en haut" title="Nord en haut"><svg viewBox="0 0 24 24" id="v3Needle"><path d="M12 2 15.5 12h-7z" fill="#E5372B"/><path d="M12 22 8.5 12h7z" fill="#9AA8B8"/><circle cx="12" cy="12" r="1.6" fill="#fff"/></svg></button>
+  </div>
+  <div id="v3Tip" hidden></div>
+  <div id="v3Status" hidden></div>
+  <div class="v3-card">
+    <div class="v3-seg" role="group" aria-label="Fond de la vue 3D">
+      <button data-t="ortho" aria-pressed="true">Photo</button>
+      <button data-t="scan" aria-pressed="false">Carte IGN</button>
+      <button id="v3Slope" aria-pressed="false">Pentes &gt; 30°</button>
+    </div>
+    <div class="v3-ctl">
+      <label for="v3Exag">Relief</label><input type="range" id="v3Exag" min="1" max="3" step="0.1" value="1.3"><output id="v3ExagO">1,3×</output>
+      <label for="v3Sun">Soleil</label><input type="range" id="v3Sun" min="0" max="355" step="5" value="135"><output id="v3SunO">SE</output>
+    </div>
+    <p class="v3-src" id="v3Leg">Glisser : tourner · pincer : zoomer · deux doigts : déplacer · toucher : altitude</p>
+    <p class="v3-src">Relief, photo et carte © IGN · aucune aide à la décision en montagne</p>
+  </div>
 </div>
 
 <script src="lib/leaflet.js"></script>
@@ -3127,7 +3185,218 @@ $("refChk").onchange=e=>refSet(e.target.checked); map.on("moveend", ()=>{ clearT
 map.attributionControl.addAttribution('<a href="https://www.refuges.info" target="_blank" rel="noopener">refuges.info</a>');
 refSet(store.get("refuges",false));
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-x"; $("spVer").textContent="Version "+APP_VERSION;
+/* ---------- Vue 3D (Rando) : relief IGN, photo ou carte drapée, traces et repères ---------- */
+// Three.js (lib/three.min.js + lib/three-orbit.js) n'est chargé qu'à la première ouverture.
+const V3 = { open:false, raf:0, pref: Object.assign({tex:"ortho", slope:false, exag:1.3, sun:135}, store.get("v3", {})) };
+const v3Low = matchMedia("(pointer:coarse)").matches, v3Mem = navigator.deviceMemory || 4;
+const V3N = v3Mem <= 2 ? 192 : v3Low ? 256 : 400;       // côté de la grille du relief (sommets)
+const V3T = v3Mem <= 2 ? 1024 : 2048;                    // côté de la texture drapée (pixels)
+function v3Script(src){ return new Promise((res, rej) => { const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("chargement de "+src)); document.head.appendChild(s); }); }
+async function v3Lib(){ if(!window.THREE) await v3Script("lib/three.min.js"); if(!THREE.OrbitControls) await v3Script("lib/three-orbit.js"); }
+const v3Wms = (layer, fmt, n, bb, priv) => `https://data.geopf.fr/${priv?"private/wms-r?apikey=ign_scan_ws&":"wms-r?"}SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=${layer}&STYLES=&CRS=EPSG:3857&BBOX=${bb.map(v=>v.toFixed(1)).join(",")}&WIDTH=${n}&HEIGHT=${n}&FORMAT=${fmt}${fmt==="image/png"?"&TRANSPARENT=TRUE":""}`;
+const V3SRC = { ortho:["ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg",false], scan:["GEOGRAPHICALGRIDSYSTEMS.MAPS","image/jpeg",true], slope:["GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN","image/png",false] };
+const v3Dir = d => ["N","NE","E","SE","S","SO","O","NO"][Math.round(((d%360)+360)%360/45)%8];
+const v3Fmt = v => v.toFixed(1).replace(".", ",");
+
+async function v3Fetch(url, sig){ const r = await fetch(url, {signal:sig}); if(!r.ok) throw new Error("IGN "+r.status); return r; }
+async function v3Img(key, sig){
+  if(V3.img[key]) return V3.img[key];
+  const [layer, fmt, priv] = V3SRC[key], r = await v3Fetch(v3Wms(layer, fmt, V3T, V3.bb, priv), sig), b = await r.blob();
+  if(!/^image\/(jpeg|png)/.test(b.type)) throw new Error("image IGN indisponible");
+  let im; try{ im = await createImageBitmap(b); } catch(e){ im = await new Promise((res, rej) => { const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(b); }); }
+  return V3.img[key] = im;
+}
+// Zone : centre de la carte, côté = largeur affichée bornée entre 6 et 10 km, carré en mètres vrais
+function v3Zone(){
+  const b = map.getBounds(), c = map.getCenter();
+  const w = map.distance([c.lat,b.getWest()],[c.lat,b.getEast()]), h = map.distance([b.getSouth(),c.lng],[b.getNorth(),c.lng]);
+  const side = Math.round(Math.min(10000, Math.max(6000, Math.max(w, h))) / 500) * 500;
+  const P = L.CRS.EPSG3857.project(c), half = side/2 / Math.cos(c.lat*Math.PI/180);
+  return { c, side, bb:[P.x-half, P.y-half, P.x+half, P.y+half] };
+}
+// lat/lng → coordonnées 0..1 dans la zone (u vers l'est, v vers le sud)
+function v3UV(lat, lng){ const P = L.CRS.EPSG3857.project(L.latLng(lat, lng)), bb = V3.bb; return [(P.x-bb[0])/(bb[2]-bb[0]), (bb[3]-P.y)/(bb[3]-bb[1])]; }
+function v3H(u, v){ // altitude (m), interpolation bilinéaire dans la grille
+  const N = V3N, x = Math.min(Math.max(u,0),1)*(N-1), y = Math.min(Math.max(v,0),1)*(N-1);
+  const x0 = Math.floor(x), y0 = Math.floor(y), x1 = Math.min(x0+1,N-1), y1 = Math.min(y0+1,N-1), fx = x-x0, fy = y-y0, H = V3.h;
+  return (H[y0*N+x0]*(1-fx)+H[y0*N+x1]*fx)*(1-fy) + (H[y1*N+x0]*(1-fx)+H[y1*N+x1]*fx)*fy;
+}
+const v3X = u => (u-.5)*V3.S, v3Z = v => (v-.5)*V3.S, v3Y = m => (m-V3.h0)/1000*V3.pref.exag;
+
+async function open3D(){
+  if(V3.open) return;
+  if(!navigator.onLine){ toast("La vue 3D a besoin du réseau (relief IGN)"); return; }
+  if(!FRANCE.contains(map.getCenter())){ toast("Vue 3D : France seulement (relief IGN)"); return; }
+  V3.open = true; $("b3d").classList.add("on"); $("v3d").hidden = false; v3Prefs();
+  const z = v3Zone(); Object.assign(V3, z, { S: z.side/1000, img:{}, labels:[], abort:new AbortController() });
+  $("v3Info").textContent = (z.side/1000).toLocaleString("fr-FR")+" × "+(z.side/1000).toLocaleString("fr-FR")+" km · chargement…";
+  v3Status("Chargement du relief IGN…");
+  try{
+    const sig = V3.abort.signal;
+    // relief : grille élargie d'un demi-pixel pour que les centres des pixels tombent sur les bords de la zone
+    const p = (z.bb[2]-z.bb[0])/(V3N-1), dbb = [z.bb[0]-p/2, z.bb[1]-p/2, z.bb[2]+p/2, z.bb[3]+p/2];
+    const demP = v3Fetch(v3Wms("ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES", "image/x-bil;bits=32", V3N, dbb), sig).then(r => r.arrayBuffer());
+    const texP = v3Img(V3.pref.tex, sig).catch(e => (V3.pref.tex==="scan" ? v3Img("ortho", sig).then(i => { V3.pref.tex="ortho"; return i; }) : Promise.reject(e)));
+    const slP = V3.pref.slope ? v3Img("slope", sig).catch(() => null) : null;
+    const [buf] = await Promise.all([demP, v3Lib(), texP, slP]);
+    if(!V3.open) return;
+    v3Heights(buf); v3Build(); v3Prefs(); v3Status(null);
+  }catch(e){
+    if(!V3.open || e.name==="AbortError") return;
+    v3Status((/hors/.test(e.message) ? e.message : "Relief IGN indisponible ("+e.message+"). Vérifiez le réseau."), true);
+  }
+}
+function v3Status(msg, retry){ const el = $("v3Status"); el.hidden = !msg; if(!msg) return; el.textContent = msg;
+  if(retry){ const b = document.createElement("button"); b.textContent = "Réessayer"; b.onclick = () => { close3D(); open3D(); }; el.append(document.createElement("br"), b); } }
+function v3Heights(buf){
+  const a = new Float32Array(buf), N = V3N; if(a.length < N*N) throw new Error("réponse du relief incomplète");
+  const h = new Float32Array(N*N); let ok = 0, sum = 0;
+  for(let i=0;i<N*N;i++){ const v = a[i]; if(v > -500 && v < 9000){ h[i] = v; ok++; sum += v; } else h[i] = NaN; }
+  if(ok < N*N*.1) throw new Error("Zone hors couverture du relief IGN");
+  const mean = sum/ok; let lo = 1e9, hi = -1e9;
+  for(let i=0;i<N*N;i++){ if(isNaN(h[i])) h[i] = mean; if(h[i]<lo) lo = h[i]; if(h[i]>hi) hi = h[i]; }
+  V3.h = h; V3.h0 = lo; V3.h1 = hi;
+}
+function v3Build(){
+  const N = V3N, S = V3.S, host = $("v3dScene");
+  const R3 = V3.renderer = new THREE.WebGLRenderer({antialias: !v3Low, powerPreference:"high-performance"});
+  R3.setPixelRatio(Math.min(devicePixelRatio, v3Low ? 1.5 : 2)); R3.outputEncoding = THREE.sRGBEncoding; R3.setClearColor(0xF4F7FA);
+  host.appendChild(R3.domElement);
+  const sc = V3.scene = new THREE.Scene(); sc.fog = new THREE.Fog(0xF4F7FA, S*2.2, S*5);
+  const cam = V3.cam = new THREE.PerspectiveCamera(45, 1, S/400, S*12);
+  const ctl = V3.ctl = new THREE.OrbitControls(cam, R3.domElement);
+  ctl.enableDamping = true; ctl.dampingFactor = .12; ctl.maxPolarAngle = Math.PI*.47; ctl.minDistance = S/30; ctl.maxDistance = S*2.6;
+  ctl.screenSpacePanning = false; ctl.touches = {ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN};
+  ctl.addEventListener("change", () => { const t = ctl.target, m = S/2; t.x = Math.max(-m, Math.min(m, t.x)); t.z = Math.max(-m, Math.min(m, t.z)); V3.dirty = true; });
+  sc.add(new THREE.HemisphereLight(0xffffff, 0x51606e, .62));
+  V3.sun = new THREE.DirectionalLight(0xffffff, .72); sc.add(V3.sun);
+  const geo = new THREE.PlaneGeometry(S, S, N-1, N-1); geo.rotateX(-Math.PI/2);
+  V3.cv = document.createElement("canvas"); V3.cv.width = V3.cv.height = V3T;
+  V3.tex = new THREE.CanvasTexture(V3.cv); V3.tex.encoding = THREE.sRGBEncoding; V3.tex.anisotropy = Math.min(8, R3.capabilities.getMaxAnisotropy());
+  V3.mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({map: V3.tex})); sc.add(V3.mesh);
+  v3ApplyH(); v3Paint(); v3MakeLabels();
+  const d = S*1.05, pol = 55*Math.PI/180, ty = v3Y(v3H(.5,.5));
+  ctl.target.set(0, ty, 0); cam.position.set(0, ty + d*Math.cos(pol), d*Math.sin(pol)); ctl.update();
+  // toucher le relief : altitude du point
+  let down = null;
+  R3.domElement.addEventListener("pointerdown", e => { down = [e.clientX, e.clientY, Date.now()]; });
+  R3.domElement.addEventListener("pointerup", e => { if(!down || Math.hypot(e.clientX-down[0], e.clientY-down[1]) > 8 || Date.now()-down[2] > 500) return; down = null;
+    const r = R3.domElement.getBoundingClientRect(), ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1, -(e.clientY-r.top)/r.height*2+1), cam);
+    const hit = ray.intersectObject(V3.mesh)[0]; if(!hit) return;
+    const u = hit.point.x/S+.5, v = hit.point.z/S+.5; v3Tip("Altitude : "+Math.round(v3H(u, v)).toLocaleString("fr-FR")+" m"); });
+  addEventListener("resize", v3Resize); v3Resize();
+  $("v3Info").textContent = (V3.side/1000).toLocaleString("fr-FR")+" × "+(V3.side/1000).toLocaleString("fr-FR")+" km · "+Math.round(V3.h0).toLocaleString("fr-FR")+" – "+Math.round(V3.h1).toLocaleString("fr-FR")+" m";
+  V3.dirty = true; V3.lastGps = null; V3.lastRec = 0; v3Loop();
+}
+function v3ApplyH(){
+  const pos = V3.mesh.geometry.attributes.position, H = V3.h;
+  for(let i=0;i<H.length;i++) pos.setY(i, v3Y(H[i]));
+  pos.needsUpdate = true; V3.mesh.geometry.computeVertexNormals(); V3.mesh.geometry.computeBoundingSphere(); V3.dirty = true;
+}
+function v3Resize(){ if(!V3.renderer) return; const host = $("v3dScene"), w = host.clientWidth, h = host.clientHeight;
+  V3.renderer.setSize(w, h, false); V3.cam.aspect = w/h; V3.cam.updateProjectionMatrix(); V3.dirty = true; }
+function v3Tip(t){ const el = $("v3Tip"); el.textContent = t; el.hidden = false; clearTimeout(v3Tip._t); v3Tip._t = setTimeout(() => el.hidden = true, 2600); }
+
+// Texture : fond (photo ou carte), pentes, puis traces, itinéraire mesuré peints dessus (drapé exact sur le relief)
+function v3Lines(){
+  const out = [];
+  if(R() && measuring && mPts.length > 1) out.push({pts:(trailOn() ? measureGeom() : mPts.map(p => [p.lat,p.lng])), col:trailOn()?"#6a1b9a":"#0b2f5b", dash:!trailOn()});
+  const tr = shownId && tracks.find(t => t.id===shownId); if(tr) out.push({pts:tr.pts, col:"#6a1b9a", ends:true});
+  if(rec && rec.on && rec.pts.length > 1) out.push({pts:rec.pts, col:"#d81b60", ends:false});
+  return out;
+}
+function v3Paint(){
+  const g = V3.cv.getContext("2d"), T = V3T, base = V3.img[V3.pref.tex] || V3.img.ortho || V3.img.scan;
+  g.fillStyle = "#e9edf1"; g.fillRect(0, 0, T, T);
+  if(base) g.drawImage(base, 0, 0, T, T);
+  if(V3.pref.slope && V3.img.slope){ g.globalAlpha = .6; g.drawImage(V3.img.slope, 0, 0, T, T); g.globalAlpha = 1; }
+  const k = T/2048 * Math.max(1, 8/V3.S);  // épaisseur ≈ 25 m sur une zone de 8 km
+  g.lineJoin = g.lineCap = "round";
+  for(const ln of v3Lines()){
+    const xy = ln.pts.map(p => { const [u, v] = v3UV(p[0], p[1]); return [u*T, v*T]; });
+    const path = () => { g.beginPath(); xy.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); };
+    g.setLineDash([]); path(); g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 12*k; g.stroke();
+    g.setLineDash(ln.dash ? [6*k, 9*k] : []); path(); g.strokeStyle = ln.col; g.lineWidth = 7*k; g.stroke(); g.setLineDash([]);
+    if(ln.ends) [[xy[0],"#1c9e47"],[xy[xy.length-1],"#e5372b"]].forEach(([p, c]) => { g.beginPath(); g.arc(p[0], p[1], 7*k, 0, 7); g.fillStyle = c; g.fill(); g.lineWidth = 3*k; g.strokeStyle = "#fff"; g.stroke(); });
+    if(ln.dash) xy.forEach(p => { g.beginPath(); g.arc(p[0], p[1], 5*k, 0, 7); g.fillStyle = "#0b2f5b"; g.fill(); g.lineWidth = 2.5*k; g.strokeStyle = "#fff"; g.stroke(); });
+  }
+  V3.tex.needsUpdate = true; V3.dirty = true;
+}
+// Repères et position GPS : étiquettes HTML posées sur le relief, estompées quand une crête les cache
+const V3PIN = '<svg viewBox="0 0 24 24"><path d="M12 1a7 7 0 0 0-7 7c0 5 7 15 7 15s7-10 7-15a7 7 0 0 0-7-7z" fill="#0b63b6" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="8" r="2.6" fill="#fff"/></svg>';
+function v3Label(cls, name, inner){ const d = document.createElement("div"); d.className = "v3-lb "+cls; const b = document.createElement("b"); b.textContent = name; d.append(b); d.insertAdjacentHTML("beforeend", inner); $("v3Labels").append(d); return d; }
+const v3In = (u, v) => u >= 0 && u <= 1 && v >= 0 && v <= 1;
+function v3MakeLabels(){
+  $("v3Labels").innerHTML = ""; V3.labels = [];
+  wps.forEach(w => { const [u, v] = v3UV(w.lat, w.lng); if(v3In(u, v)) V3.labels.push({u, v, el:v3Label("", w.n, V3PIN)}); });
+  V3.me = {u:-1, v:-1, el:v3Label("me", "Vous", "<i></i>")}; V3.me.el.style.display = "none"; V3.labels.push(V3.me);
+  v3Gps();
+}
+function v3Gps(){ if(!last){ V3.me.u = -1; return; } const [u, v] = v3UV(last.ll.lat, last.ll.lng); V3.me.u = u; V3.me.v = v; V3.lastGps = last.t; V3.dirty = true; }
+function v3Hidden(p){ // la ligne de visée caméra → point passe-t-elle sous le relief ?
+  const c = V3.cam.position, n = 40;
+  for(let i=1;i<n;i++){ const f = i/n, x = c.x+(p.x-c.x)*f, y = c.y+(p.y-c.y)*f, z = c.z+(p.z-c.z)*f, u = x/V3.S+.5, v = z/V3.S+.5;
+    if(v3In(u, v) && v3Y(v3H(u, v)) > y + V3.S/400) return true; }
+  return false;
+}
+function v3PlaceLabels(slow){
+  const w = V3.renderer.domElement.clientWidth, h = V3.renderer.domElement.clientHeight, p = new THREE.Vector3();
+  for(const L3 of V3.labels){
+    if(!v3In(L3.u, L3.v)){ L3.el.style.display = "none"; continue; }
+    p.set(v3X(L3.u), v3Y(v3H(L3.u, L3.v)), v3Z(L3.v)); const world = p.clone(); p.project(V3.cam);
+    const vis = p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1; L3.el.style.display = vis ? "" : "none"; if(!vis) continue;
+    L3.el.style.transform = `translate(${(p.x*.5+.5)*w}px,${(-p.y*.5+.5)*h}px) translate(-50%,-100%)`;
+    if(slow) L3.el.classList.toggle("hid", v3Hidden(world));
+  }
+}
+function v3Loop(){
+  V3.raf = requestAnimationFrame(v3Loop);
+  if(last && last.t !== V3.lastGps) v3Gps();
+  if(rec && rec.on && Date.now()-V3.lastRec > 15000){ V3.lastRec = Date.now(); if(rec.pts.length > 1) v3Paint(); }
+  V3.ctl.update();
+  const az = V3.ctl.getAzimuthalAngle()*180/Math.PI; $("v3Needle").style.transform = `rotate(${az}deg)`;
+  if(!V3.dirty) return; V3.dirty = false;
+  V3.renderer.render(V3.scene, V3.cam);
+  const now = Date.now(), slow = now-(V3.lastOcc||0) > 250; if(slow) V3.lastOcc = now; else V3.dirty = true;  // repasse pour l'estompage
+  v3PlaceLabels(slow);
+}
+function close3D(){
+  V3.open = false; cancelAnimationFrame(V3.raf); if(V3.abort) V3.abort.abort();
+  $("v3d").hidden = true; $("b3d").classList.remove("on"); $("v3Labels").innerHTML = ""; $("v3Status").hidden = true; removeEventListener("resize", v3Resize);
+  if(V3.renderer){ V3.ctl.dispose(); V3.mesh.geometry.dispose(); V3.mesh.material.dispose(); V3.tex.dispose(); V3.renderer.dispose(); V3.renderer.forceContextLoss(); V3.renderer.domElement.remove(); }
+  for(const k in (V3.img||{})) try{ V3.img[k].close && V3.img[k].close(); }catch(e){}
+  Object.assign(V3, {renderer:null, sun:null, ctl:null, scene:null, mesh:null, tex:null, cv:null, h:null, img:{}, labels:[]});
+}
+// Réglages : fond, pentes, exagération, soleil (mémorisés)
+function v3Sun(){ if(!V3.sun) return; const a = V3.pref.sun*Math.PI/180, S = V3.S; V3.sun.position.set(Math.sin(a)*S, S*.8, -Math.cos(a)*S); V3.dirty = true; }
+function v3Prefs(){
+  const P = V3.pref; store.set("v3", P);
+  document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.setAttribute("aria-pressed", b.dataset.t===P.tex));
+  $("v3Slope").setAttribute("aria-pressed", P.slope);
+  $("v3Exag").value = P.exag; $("v3ExagO").textContent = v3Fmt(P.exag)+"×";
+  $("v3Sun").value = P.sun; $("v3SunO").textContent = v3Dir(P.sun);
+  $("v3Leg").innerHTML = P.slope ? 'Pentes :<i style="background:#f5e200"></i>30–35°<i style="background:#f08a00"></i>35–40°<i style="background:#e00000"></i>40–45°<i style="background:#b000b0"></i>> 45°'
+    : "Glisser : tourner · pincer : zoomer · deux doigts : déplacer · toucher : altitude";
+  v3Sun();
+}
+async function v3Need(key){ if(V3.img[key] || !V3.mesh) return true;
+  v3Tip("Chargement…"); try{ await v3Img(key, V3.abort.signal); return true; }catch(e){ if(V3.open) v3Tip(key==="scan" ? "Carte IGN indisponible" : "Image IGN indisponible"); return false; } }
+document.querySelectorAll("#v3d .v3-seg button[data-t]").forEach(b => b.onclick = async () => {
+  const t = b.dataset.t; if(!(await v3Need(t)) || !V3.open) return; V3.pref.tex = t; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; });
+$("v3Slope").onclick = async () => { const on = !V3.pref.slope; if(on && !(await v3Need("slope"))) return; if(!V3.open) return; V3.pref.slope = on; v3Prefs(); if(V3.cv) v3Paint(); $("v3Tip").hidden = true; };
+$("v3Exag").oninput = e => { V3.pref.exag = +e.target.value; $("v3ExagO").textContent = v3Fmt(V3.pref.exag)+"×";
+  if(V3.mesh && !V3.exT) V3.exT = requestAnimationFrame(() => { V3.exT = 0; const t = V3.ctl.target, y0 = t.y; v3ApplyH(); const ny = v3Y(v3H(t.x/V3.S+.5, t.z/V3.S+.5)); V3.cam.position.y += ny-y0; t.y = ny; }); };
+$("v3Exag").onchange = () => store.set("v3", V3.pref);
+$("v3Sun").oninput = e => { V3.pref.sun = +e.target.value; $("v3SunO").textContent = v3Dir(V3.pref.sun); v3Sun(); };
+$("v3Sun").onchange = () => store.set("v3", V3.pref);
+$("v3North").onclick = () => { if(!V3.ctl) return; const t = V3.ctl.target, c = V3.cam.position, d = c.distanceTo(t), pol = V3.ctl.getPolarAngle();
+  c.set(t.x, t.y + d*Math.cos(pol), t.z + d*Math.sin(pol)); V3.ctl.update(); V3.dirty = true; };
+$("v3Close").onclick = close3D;
+$("b3d").onclick = open3D;
+document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
+
+const APP_VERSION="2026.11.16-y"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
