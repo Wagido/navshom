@@ -547,6 +547,11 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 #tbar .trow .tog{padding:6px 9px}
 @media (max-height:700px){ #tbar .tbl{max-height:26vh} }
 #tbar.mini #tSun{display:none}
+#tSun{display:none!important}
+#tbar .thd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:2px 0 4px}
+#tbar .thd .t{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} #tbar .thd .lbl{display:none}
+#tbar .thd .here{font:600 14px var(--sans)!important;color:#0B2F5B;white-space:nowrap}
+#tbar .train{padding:5px 9px!important}
 #tbar .sunl{display:flex;gap:20px;padding:4px 2px 6px;font:500 13px var(--sans);color:#4A5D73}
 #tbar .sunl span{display:flex;align-items:center;gap:6px} #tbar .sunl b{color:#0B2F5B;font-weight:700} #tbar .sunl svg{width:18px;height:18px}
 #tbar .tbl table{font:600 14px var(--sans);font-variant-numeric:tabular-nums;color:#0B2F5B}
@@ -655,8 +660,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="chips" id="tChips"></div>
   <canvas id="tLegend"></canvas>
   <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tRadar" class="tog">☔ Pluie à venir</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button></div>
-  <div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div>
-  <div class="here" id="tHere">—</div>
+  <div class="thd"><div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div><div class="here" id="tHere">—</div></div>
   <div class="train" id="tRain" hidden></div>
   <div class="tnote" id="tNote" hidden>⚠ Modèle de 8 km : courants des goulets et des raz très sous-estimés (Port-Navalo, Raz de Sein…).</div>
   <div class="sunl" id="tSun"></div>
@@ -1368,14 +1372,14 @@ function refIdx(){ if(!ov.data) return -1; const ref=boatInView()?last.ll:map.ge
   ov.pts.forEach((p,k)=>{ if(ov.data[k].v.every(v=>v==null)) return; const d=map.distance(ref,p); if(d<bd){bd=d;bi=k;} }); return bi; }
 function hereText(s,i){
   const t=OVT[ov.type], v=s.v[i]; if(v==null) return "—";
-  const val=v.toFixed(t.dec)+" "+t.unit;
-  if(ov.type==="wind") return Math.round(v)+" nd (raf. "+Math.round(s.g[i])+") du "+pad3(s.from[i])+"° "+compass(s.from[i]);
-  if(ov.type==="cur") return val+", porte au "+pad3(s.dir[i])+"°";
-  if(t.vec) return val+" de "+pad3(s.from[i])+"° "+compass(s.from[i])+(s.per&&s.per[i]!=null?" · "+Math.round(s.per[i])+" s":"");
+  const val=v.toFixed(t.dec).replace(".",",")+" "+t.unit;
+  if(ov.type==="wind") return Math.round(v)+" nd · raf. "+Math.round(s.g[i])+" · "+compass(s.from[i]);
+  if(ov.type==="cur") return val+" → "+pad3(s.dir[i])+"°";
+  if(t.vec) return val+" · "+compass(s.from[i])+(s.per&&s.per[i]!=null?" · "+Math.round(s.per[i])+" s":"");
   return val;
 }
 function drawTimeline(){
-  if(ov.data){ const k0=refIdx(); if(k0>=0) $("tHere").textContent = (boatInView()?(R()?"Ma position : ":"Au bateau : "):"Centre carte : ") + hereText(ov.data[k0], ov.idx); }
+  if(ov.data){ const k0=refIdx(); if(k0>=0) $("tHere").textContent = hereText(ov.data[k0], ov.idx); }
   const c=$("tGraph"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W||!ov.data) return;
   c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
   const k=refIdx(); if(k<0) return; const t=OVT[ov.type], s=ov.data[k], n=s.time.length;
@@ -1399,7 +1403,7 @@ function drawTimeline(){
   g.strokeStyle="#1C9E47"; g.lineWidth=2; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(ov.now),top-2); g.lineTo(X(ov.now),bot); g.stroke(); g.setLineDash([]);
   g.fillStyle="#4A5D73"; g.textAlign="right"; g.fillText((t.zero?"max ":"")+hi.toFixed(t.dec)+" "+t.unit,W-2,22);
   if(!t.zero){ g.fillText(lo.toFixed(t.dec), W-2, bot-2); }
-  $("tHere").textContent = (boatInView()?(R()?"Ma position : ":"Au bateau : "):"Centre carte : ") + hereText(s, ov.idx);
+  $("tHere").textContent = hereText(s, ov.idx);
 }
 function setOverlay(type){
   if(ov.type===type) type=null;
@@ -1467,7 +1471,8 @@ function renderTable(){
   const bg=(sc,v,a=.75)=>{ const c=colorAt(sc,v); return `background:rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a*c[3]/255})`; };
   const mname=tbl.force?"Point choisi":tbl.gps?(R()?"Ma position":"Au bateau"):"Centre carte";
   let days='<tr class="dayr"><th>'+mname+'</th>'+cols.map((i,n)=>{ const t=h.time[i], hr=+t.slice(11,13);
-    const lab=(n===0||hr===0)?new Date(t.slice(0,10)+"T12:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}):"";
+    const dd0=tbl.f.daily, di=dd0&&dd0.time?dd0.time.indexOf(t.slice(0,10)):-1, sun=di>=0&&dd0.sunrise?` · ☀ ${dd0.sunrise[di].slice(11,16)}–${dd0.sunset[di].slice(11,16)}`:"";
+    const lab=(n===0||hr===0)?new Date(t.slice(0,10)+"T12:00").toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"})+sun:"";
     return `<td class="${hr===0?"d0":""}">${lab?`<span>${lab}</span>`:""}</td>`; }).join("")+'</tr>';
   const row=(label,fn,cls="",key="")=>{ const [nm,un]=label.split("|"), on=key&&key===ov.type;
     return `<tr class="${cls}${on?" lay":""}"><th${key?` data-k="${key}" title="Afficher sur la carte"`:""}>${nm}${un?`<small>${un}</small>`:""}${on?'<i class="onmap">sur la carte</i>':""}</th>${cols.map(fn).join("")}</tr>`; };
@@ -1497,7 +1502,7 @@ function renderTable(){
           return cell(i, v==null?"":`<div class="wc" style="${bg(OVT.cur,v,.45)}">${dc(v)}</div>`); },"","cur");
   }
   html+='</table>';
-  const dd=tbl.f.daily; if(dd && dd.sunrise) $("tSun").innerHTML='<span><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#ffc83d"/></svg>Lever <b>'+dd.sunrise[0].slice(11,16)+'</b></span><span><svg viewBox="0 0 48 48"><path d="M28 8a14 14 0 1 0 12 20 11 11 0 0 1-12-20z" fill="#9AA8B8"/></svg>Coucher <b>'+dd.sunset[0].slice(11,16)+'</b></span>';
+  const dd=null; if(dd && dd.sunrise) $("tSun").innerHTML='<span><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="10" fill="#ffc83d"/></svg>Lever <b>'+dd.sunrise[0].slice(11,16)+'</b></span><span><svg viewBox="0 0 48 48"><path d="M28 8a14 14 0 1 0 12 20 11 11 0 0 1-12-20z" fill="#9AA8B8"/></svg>Coucher <b>'+dd.sunset[0].slice(11,16)+'</b></span>';
   const el=$("tTbl"), keep=el.scrollLeft, first=!el.dataset.ready; el.innerHTML=html; el.dataset.ready=1;
   if(!R()){ // en mer : vent, direction, vagues et courant en premier
     const rows=[...el.querySelectorAll("tr")], byTxt=t=>rows.find(r=>r.cells[0] && r.cells[0].textContent===t), byK=k=>{ const th=el.querySelector(`th[data-k="${k}"]`); return th&&th.parentElement; };
@@ -2937,10 +2942,10 @@ function rainSummary(){ const h=tbl.f&&tbl.f.hourly; if(!h||!h.precipitation) re
   const now=Date.now(); let k0=0; h.time.forEach((t,i)=>{ if(new Date(t).getTime()<=now) k0=i; });
   const hh=i=>h.time[i].slice(11,13)+" h", n=Math.min(h.time.length, k0+13), wet=i=>(h.precipitation[i]||0)>=0.2;
   let first=-1; for(let i=k0;i<n;i++) if(wet(i)){ first=i; break; }
-  if(first<0) return "☀️ <b>Pas de pluie prévue</b> d'ici "+hh(n-1);
+  if(first<0) return "☀️ <b>Sec</b> jusqu'à "+hh(n-1);
   let end=first; while(end+1<n && wet(end+1)) end++; let tot=0; for(let i=first;i<=end;i++) tot+=h.precipitation[i]||0;
   const mm=tot<1?tot.toFixed(1).replace(".",","):Math.round(tot);
-  return (first===k0?"🌧️ <b>Pluie en ce moment</b>":"🌦️ <b>Sec jusqu'à "+hh(first)+"</b>, puis pluie")+" jusqu'à "+hh(end+1)+" · "+mm+" mm"+(end+1<n?" · ensuite sec":""); }
+  return first===k0 ? "🌧️ <b>Pluie jusqu'à "+hh(end+1)+"</b> · "+mm+" mm" : "🌦️ <b>Pluie de "+hh(first)+" à "+hh(end+1)+"</b> · "+mm+" mm"; }
 async function rainOn(){ RAIN.on=true; $("tRadar").classList.add("on");
   if(ov.type!=="rain") setOverlay("rain"); setFold(true);
   for(let k=0;k<40 && !ov.data;k++) await new Promise(r=>setTimeout(r,250));
@@ -3095,7 +3100,7 @@ $("refChk").onchange=e=>refSet(e.target.checked); map.on("moveend", ()=>{ clearT
 map.attributionControl.addAttribution('<a href="https://www.refuges.info" target="_blank" rel="noopener">refuges.info</a>');
 refSet(store.get("refuges",false));
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-u"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-v"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
