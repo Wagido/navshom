@@ -1,5 +1,5 @@
 // Balise - cache de l'app et des tuiles pour usage hors ligne
-const APP = "navshom-app-v48", TILES = "navshom-tiles";
+const APP = "navshom-app-v49", TILES = "navshom-tiles";
 const SHELL = ["./", "index.html", "lib/leaflet.js", "lib/leaflet.css", "lib/landmask.png", "lib/fonts/inter-latin-400-normal.woff2", "lib/fonts/inter-latin-500-normal.woff2", "lib/fonts/inter-latin-600-normal.woff2", "lib/fonts/inter-latin-700-normal.woff2", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(APP).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("navshom-app-") && k !== APP).map(k => caches.delete(k))))); self.clients.claim(); });
@@ -15,7 +15,7 @@ self.addEventListener("fetch", e => {
     }));
   } else if (u.startsWith(self.location.origin)) {
     // app : réseau d'abord (mises à jour), sinon cache
-    e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(APP).then(c => c.put(e.request, cp)); return r; })
+    e.respondWith(fetch(e.request, { cache: "no-cache" }).then(r => { const cp = r.clone(); caches.open(APP).then(c => c.put(e.request, cp)); return r; })
       .catch(() => caches.match(e.request, { ignoreSearch: true })));
   }
 });
