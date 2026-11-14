@@ -430,6 +430,35 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
 #tbar .big{font:700 14px var(--sans)} #tbar .here{font:500 13px var(--sans)} #tbar .lbl{font:500 11px var(--sans)}
 .chips button,.trow select,.tog,.tlbtns button{font:500 13px var(--sans)} .chips button.on{font-weight:600}
 .tbl table{font:500 12px var(--sans)} .tbl th{font:500 11px var(--sans)} .tbl tr.hh td,.tbl tr.dayr td span{font-size:11px}
+/* Prévisions détaillées : style Clarté (fond blanc, chiffres nets, sans cases) */
+#sMeteo{background:#fff;color:#0B2F5B}
+#sMeteo .grab{background:#D5DEE8} #sMeteo .x{background:#EEF2F6;color:#4A5D73}
+#sMeteo h2{font-size:18px}
+#sMeteo .sun{background:#fff;justify-content:flex-start;gap:22px;padding:0 max(16px,var(--sr)) 8px max(16px,var(--sl));font:600 14px var(--sans);color:#0B2F5B}
+#sMeteo .sun svg{width:20px;height:20px} #sMeteo .sun small{display:inline;color:#4A5D73;font:500 13px var(--sans);text-transform:none;letter-spacing:0;margin-right:4px}
+#sMeteo .sun span{display:flex;align-items:baseline}
+#sMeteo .hwrap{background:#fff;border-top:1px solid #E8EDF2;border-bottom:1px solid #E8EDF2}
+#sMeteo .legend{background:#F7F9FB;flex:0 0 72px;border-top:0;border-right:1px solid #E8EDF2;padding-left:10px}
+#sMeteo .legend span{font:600 12px var(--sans);color:#0B2F5B;text-transform:none;letter-spacing:0;flex-direction:column;align-items:flex-start;justify-content:center;line-height:1.15}
+#sMeteo .legend small{font:500 10.5px var(--sans);color:#6B7C90}
+#sMeteo .hours{background:#fff;border-top:0}
+#sMeteo .hr{flex:0 0 62px;color:#0B2F5B;border-right:1px solid #F0F3F6}
+#sMeteo .hr.sel{background:#FFF4E8} #sMeteo .hr.now .h{color:#E65100}
+#sMeteo .hr .h{font:600 13px var(--sans);font-variant-numeric:tabular-nums} #sMeteo .hr .d{color:#6B7C90;font:600 10.5px var(--sans)}
+#sMeteo svg.wx{filter:drop-shadow(0 0 1px rgba(11,47,91,.55))}
+#sMeteo .hr .tp{font:700 16px var(--sans)}
+#sMeteo .tile{width:52px;background:transparent;color:#0B2F5B;border-radius:8px;font:600 15px var(--sans);font-variant-numeric:tabular-nums}
+#sMeteo .tile small{font:500 10px var(--sans);color:#6B7C90;text-transform:none}
+#sMeteo .tile.rn{background:#E3F0FF;color:#0B5CAD} #sMeteo .tile.w3:not(.cur){background:#FFE0B2}
+#sMeteo .tile.w1{background:#E8F5E9} #sMeteo .tile.w2{background:#FFF3C4} #sMeteo .tile.w3{background:#FFE0B2} #sMeteo .tile.w4{background:#FFCDD2}
+#sMeteo .tile.cur{background:transparent} #sMeteo .tile.cur.c2{background:#FFF3C4} #sMeteo .tile.cur.c3{background:#FFE0B2}
+#sMeteo .days{background:#fff;border-bottom:1px solid #E8EDF2}
+#sMeteo .day{border-right:1px solid #F0F3F6;color:#0B2F5B} #sMeteo .day .t span{color:#6B7C90} #sMeteo .day .w{color:#4A5D73}
+#sMeteo .cmp h3,#sMeteo .maps h3{color:#0B2F5B;font-size:16px} #sMeteo .cmp .mdl{color:#6B7C90}
+#sMeteo .cvleg{color:#4A5D73} #sMeteo .note{color:#6B7C90}
+#sMeteo .maptiles button{background:#F4F7FA;border:1px solid #E3E9EF}
+#sMeteo #meteoMsg{color:#4A5D73}
+body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 </style>
 </head>
 <body>
@@ -561,7 +590,7 @@ body.night #tbar{background:#2a1210;color:#ff8a7a}
   <div id="meteoMsg">Chargement de la météo…</div>
   <div id="meteoBody" hidden>
     <div class="sun" id="mtSun"></div>
-    <div class="hwrap"><div class="legend"><span style="height:12px"></span><span style="height:16px"></span><span style="height:34px">Ciel</span><span style="height:18px">Temp.</span><span style="height:42px">Vent nd</span><span style="height:42px">Pluie</span><span style="height:42px">Pression</span><span class="mer-only" style="height:42px">Vagues</span><span class="mer-only" style="height:42px">Houle</span><span class="mer-only" style="height:42px">Courant</span><span class="mer-only" style="height:42px">Marée</span><span class="rando-only" style="height:42px">Neige</span><span class="rando-only" style="height:42px">Iso 0 °C</span></div><div class="hours" id="mtHours"></div></div>
+    <div class="hwrap"><div class="legend"><span style="height:12px"></span><span style="height:16px"></span><span style="height:34px">Ciel</span><span style="height:18px">Temp.</span><span style="height:42px">Vent<small>nœuds</small></span><span style="height:42px">Pluie<small>mm</small></span><span style="height:42px">Pression<small>hPa</small></span><span class="mer-only" style="height:42px">Vagues<small>m</small></span><span class="mer-only" style="height:42px">Houle<small>m</small></span><span class="mer-only" style="height:42px">Courant<small>nœuds</small></span><span class="mer-only" style="height:42px">Marée<small>m</small></span><span class="rando-only" style="height:42px">Neige<small>cm</small></span><span class="rando-only" style="height:42px">Iso 0 °C<small>m</small></span></div><div class="hours" id="mtHours"></div></div>
     <div class="days" id="mtDays"></div>
     <div class="cmp"><h3>Vent : comparer les modèles</h3><p class="mdl" id="mtModel"></p>
       <div id="cmpWrap"><canvas id="cmpGraph"></canvas></div><div class="cvleg" id="cmpLeg"></div>
@@ -1523,8 +1552,8 @@ async function openMeteo(ll){
     else $("meteoMsg").textContent="Météo indisponible. Vérifiez la connexion réseau.";
   }
 }
-function snowT(h,i){ const v=h.snowfall?h.snowfall[i]:null; return v==null ? '<div class="tile"><small>—</small></div>' : `<div class="tile" style="${v>=0.1?"background:#e1f5fe":""}"><span>${v>=0.1?(v<1?v.toFixed(1):Math.round(v)):"0"}</span><small>cm</small></div>`; }
-function frzT(h,i){ const v=h.freezing_level_height?h.freezing_level_height[i]:null; return v==null ? '<div class="tile"><small>—</small></div>' : `<div class="tile"><span style="font-size:13px">${Math.round(v/50)*50}</span><small>m</small></div>`; }
+function snowT(h,i){ const v=h.snowfall?h.snowfall[i]:null; return v==null ? '<div class="tile"><small>—</small></div>' : `<div class="tile" style="${v>=0.1?"background:#e1f5fe":""}"><span>${v>=0.1?(v<1?v.toFixed(1):Math.round(v)):"0"}</span></div>`; }
+function frzT(h,i){ const v=h.freezing_level_height?h.freezing_level_height[i]:null; return v==null ? '<div class="tile"><small>—</small></div>' : `<div class="tile"><span>${Math.round(v/50)*50}</span></div>`; }
 function unsuffix(o){ if(!o) return o; for(const k of Object.keys(o)){ const m=k.match(/^(.*)_(meteofrance|ecmwf|icon|gfs|ukmo).*$/); if(m && !(m[1] in o)) o[m[1]]=o[k]; } return o; }
 function renderMeteo(f,m){
   $("meteoMsg").hidden=true; $("meteoBody").hidden=false; unsuffix(f.hourly); unsuffix(f.daily);
@@ -1539,15 +1568,15 @@ function renderMeteo(f,m){
     const t=h.time[i], dt=new Date(t), w=h.wind_speed_10m[i], gu=h.wind_gusts_10m[i], wc=w<10?"w1":w<17?"w2":w<25?"w3":"w4", j=mIdx(t);
     let wave='<div class="tile"><small>—</small></div>', cur=wave, sea=wave, swell=wave;
     const pr=h.pressure_msl?h.pressure_msl[i]:null, rn=h.precipitation?h.precipitation[i]:null;
-    const press = pr==null ? wave : `<div class="tile"><span style="font-size:13px">${Math.round(pr)}</span><small>hPa</small></div>`;
-    const rain = rn==null ? wave : `<div class="tile ${rn>=3?"w3":rn>=0.5?"rn":""}"><span>${rn>0&&rn<0.1?"0.1":rn.toFixed(1)}</span><small>mm</small></div>`;
+    const press = pr==null ? wave : `<div class="tile"><span>${Math.round(pr)}</span></div>`;
+    const rain = rn==null ? wave : `<div class="tile ${rn>=3?"w3":rn>=0.5?"rn":""}"><span>${rn<0.05?"–":rn<0.1?"0,1":rn.toFixed(1).replace(".",",")}</span></div>`;
     if(j>=0){
-      if(hm.wave_height[j]!=null) wave=`<div class="tile"><span>${hm.wave_height[j].toFixed(1)}</span><small>m · ${Math.round(hm.wave_period[j])} s</small></div>`;
-      if(hm.swell_wave_height && hm.swell_wave_height[j]!=null) swell=`<div class="tile">${arrowSvg((hm.swell_wave_direction[j]+180)%360)}<span>${hm.swell_wave_height[j].toFixed(1)}</span><small>${Math.round(hm.swell_wave_period[j])} s</small></div>`;
+      if(hm.wave_height[j]!=null) wave=`<div class="tile"><span>${hm.wave_height[j].toFixed(1).replace(".",",")}</span><small>${Math.round(hm.wave_period[j])} s</small></div>`;
+      if(hm.swell_wave_height && hm.swell_wave_height[j]!=null) swell=`<div class="tile">${arrowSvg((hm.swell_wave_direction[j]+180)%360)}<span>${hm.swell_wave_height[j].toFixed(1).replace(".",",")}</span><small>${Math.round(hm.swell_wave_period[j])} s</small></div>`;
       if(hm.ocean_current_velocity[j]!=null){ const c=hm.ocean_current_velocity[j]/1.852;
-        cur=`<div class="tile cur ${c>=3?"c3":c>=1.5?"c2":""}">${arrowSvg(hm.ocean_current_direction[j],"#c0392b")}<span>${c.toFixed(1)}</span></div>`; }
+        cur=`<div class="tile cur ${c>=3?"c3":c>=1.5?"c2":""}">${arrowSvg(hm.ocean_current_direction[j],"#c0392b")}<span>${c.toFixed(1).replace(".",",")}</span></div>`; }
       if(hm.sea_level_height_msl && hm.sea_level_height_msl[j]!=null){ const s=hm.sea_level_height_msl[j], s2=hm.sea_level_height_msl[j+1];
-        sea=`<div class="tile"><span>${s>=0?"+":""}${s.toFixed(1)}</span><small>${s2==null?"m":s2>s?"▲ monte":"▼ desc."}</small></div>`; }
+        sea=`<div class="tile"><span>${s>=0?"+":""}${s.toFixed(1).replace(".",",")}</span><small>${s2==null?"":s2>s?"▲ monte":"▼ desc."}</small></div>`; }
     }
     const day = (i===i0 || dt.getHours()===0) ? dt.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}) : "";
     html+=`<button class="hr${i===i0?" now sel":""}" data-t="${t}"><span class="d">${day}</span><span class="h">${i===i0?"Main.":tf(t)}</span>
@@ -1581,12 +1610,12 @@ function drawCompare(){
   let hi=10; cmpData.forEach(d=>{ for(let i=0;i<n;i++){ const v=d.v[idx(i)]; if(v!=null&&v>hi) hi=v; } }); hi=Math.ceil(hi/5)*5;
   const padL=26, padR=8, top=8, bot=H-16, X=i=>padL+i*(W-padL-padR)/(n-1), Y=v=>bot-v/hi*(bot-top);
   g.font="500 10px Inter,system-ui,sans-serif";
-  for(let v=0; v<=hi; v+=5){ g.strokeStyle="rgba(255,255,255,.1)"; g.beginPath(); g.moveTo(padL,Y(v)); g.lineTo(W-padR,Y(v)); g.stroke(); g.fillStyle="#9fc0e6"; g.textAlign="right"; g.fillText(v,padL-4,Y(v)+3); }
+  for(let v=0; v<=hi; v+=5){ g.strokeStyle="rgba(11,47,91,.1)"; g.beginPath(); g.moveTo(padL,Y(v)); g.lineTo(W-padR,Y(v)); g.stroke(); g.fillStyle="#5d6e80"; g.textAlign="right"; g.fillText(v,padL-4,Y(v)+3); }
   for(let i=0;i<n;i++){ const tt=cmpData[0].time[idx(i)]; if(!tt) continue; const hr=new Date(tt).getHours();
-    if(hr%6===0){ g.fillStyle="#9fc0e6"; g.textAlign="center"; g.fillText(hr===0?new Date(tt).toLocaleDateString("fr-FR",{weekday:"short"}):String(hr).padStart(2,"0")+"h", X(i), H-3); } }
+    if(hr%6===0){ g.fillStyle="#5d6e80"; g.textAlign="center"; g.fillText(hr===0?new Date(tt).toLocaleDateString("fr-FR",{weekday:"short"}):String(hr).padStart(2,"0")+"h", X(i), H-3); } }
   cmpData.forEach(d=>{ g.beginPath(); let on=false; for(let i=0;i<n;i++){ const v=d.v[idx(i)]; if(v==null){ on=false; continue; } on?g.lineTo(X(i),Y(v)):(g.moveTo(X(i),Y(v)),on=true); }
     g.strokeStyle=d.col; g.lineWidth=2.2; g.stroke(); });
-  g.fillStyle="#9fc0e6"; g.textAlign="left"; g.fillText("nd",2,top+8);
+  g.fillStyle="#5d6e80"; g.textAlign="left"; g.fillText("nœuds",padL+4,top+10);
 }
 
 /* ================= Mode Rando ================= */
@@ -2481,7 +2510,7 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
 async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
 renderZones();
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.15-m"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.15-n"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
