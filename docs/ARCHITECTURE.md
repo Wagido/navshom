@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.17-f · Dernière mise à jour : 16 novembre 2026
+> Statut : version 2026.11.17-g · Dernière mise à jour : 16 novembre 2026
 
 ## 1. Résumé
 
@@ -198,7 +198,7 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 
 - **Bandeau du haut** : en Rando, altitude (GPS, sinon altitude IGN du point toutes les 20 s) et montée de la sortie en cours ; en Mer, vitesse et cap. Libellés en 10 px. GPS refusé : toucher le bandeau explique comment autoriser la localisation.
 - **Boutons** : à droite en haut, seulement Cartes, Pentes et 3D en Rando, Cartes et Instruments en Mer. Le + et le − sont masqués sur écran tactile (pincer suffit). La boussole et « ma position » sont en bas à droite, au-dessus de la barre, sous le pouce ; ils se masquent si un panneau haut les rejoint (`crowded3`).
-- **Barre du bas en Rando** : Météo, Mesurer, **Enregistrer** (gros bouton central vert : démarre la sortie d'un toucher ; pendant la sortie, il devient rose, affiche la distance et ouvre pause et fin), Traces, Plus.
+- **Barre du bas en Rando** : Météo, Mesurer, **Enregistrer** (gros bouton central vert, qui dépasse de la barre : démarre la sortie d'un toucher ; pendant la sortie, il devient rose et affiche la distance, et un toucher ouvre une bulle **Pause / Terminer / Détails** ; « Terminer » demande une confirmation par un second toucher), Traces, Plus.
 - **Point touché en Rando** : altitude IGN en grand, pente (alerte orange dès 30°), versant, distance et dénivelé depuis ma position, temps à vol d'oiseau (4 km/h, 300 m/h en montée, 500 m/h en descente : le plus long plus la moitié du plus court), bouton « Voir en 3D », lien Camptocamp en ligne de liste.
 - **Météo** : si le service ne répond pas, un bandeau orange dans le panneau dit pourquoi, avec « Réessayer » (fini le panneau vide). La liste des couches s'estompe à droite pour montrer qu'elle défile.
 - **Menu Plus** : compteurs Traces, Repères, Routes ; carte « Hors ligne » avec jauge d'espace ; la recherche n'apparaît que par la loupe du bandeau.
@@ -328,6 +328,7 @@ Autres points :
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.17-g** : bouton Enregistrer entier (barre sans découpe) ; bulle Pause / Terminer / Détails pendant la sortie.
 - **2026.11.17-f** : refonte de l'écran principal et des panneaux (bandeau Rando, bouton Enregistrer, point touché, météo sans réseau, menu Plus, hors ligne, panneau 3D).
 - **2026.11.17-e** : vue 3D jusqu'à 30 km quand le relief est sur le téléphone, bouton « Recentrer la 3D ici », cadrage entre le titre et le panneau.
 - **2026.11.17-d** : fond de la vue 3D choisi tout seul (carte de la zone téléchargée, sinon Relief).

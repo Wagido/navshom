@@ -621,6 +621,11 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 
 /* ---- Améliorations d'ergonomie (2026.11.17-f) ---- */
 body.rando:not(.night){--blue:#2E7D32}
+.bar{overflow:visible!important}
+body:has(#recAsk:not([hidden])) #colBR{display:none!important}
+#recAsk{position:fixed;z-index:1200;left:50%;transform:translateX(-50%);bottom:calc(var(--sb) + 104px);display:flex;gap:8px;background:#fff;border-radius:18px;padding:8px;box-shadow:0 8px 26px rgba(11,47,91,.28)}
+#recAsk button{height:46px;padding:0 16px;border-radius:14px;border:1px solid var(--line);background:var(--soft);color:var(--ink);font:600 14px var(--sans);cursor:pointer;white-space:nowrap}
+#recAsk #raStop{background:#d81b60;border-color:#d81b60;color:#fff}
 #chip b{font-size:10px!important;color:var(--slate)!important}
 @media (pointer:coarse){#bZin,#bZout{display:none!important}}
 #colBR{display:flex!important;flex-direction:column;gap:10px;right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 98px + var(--tl))}
@@ -718,6 +723,7 @@ body:not(.rando) .offcard{background:#EAF2FB}
     <button class="fab on" id="bFollow" aria-label="Centrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small id="followLbl" hidden>Bateau</small></button>
 </div>
 
+<div id="recAsk" hidden role="dialog" aria-label="Sortie en cours"><button id="raPause">Pause</button><button id="raStop">■ Terminer</button><button id="raMore">Détails</button></div>
 <nav class="bar" aria-label="Navigation principale">
   <button class="dk" id="bWind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><span>Météo</span></button>
   <button class="dk mer-only" id="bCur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg><span>Courant</span></button>
@@ -1303,6 +1309,7 @@ function showPoint(ll, wp){
 }
 $("chip").onclick = () => R() ? showGps() : instOpen();
 map.on("click", e => { if(RT.picking){ RT[RT.picking]=e.latlng; RT.picking=null; $("pickBar").hidden=true; RT.layer.clearLayers(); RT.result=null; drawRtMarks(); openSheet("sRouting"); renderRouteParams(); $("rtRes").hidden=true; return; }
+  if(!$("recAsk").hidden){ $("recAsk").hidden=true; return; }
   if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets();
   if(ov.data) return showPicker(e.latlng); showPoint(e.latlng); });
 $("aPin").onclick = () => { if(pointLL) addWp(pointLL); closeSheets(); };
@@ -2147,7 +2154,7 @@ function renderRec(){
   $("trStart").hidden=!!on; $("trPause").hidden=!on; $("trStop").hidden=!on; $("trPause").textContent = on&&rec.paused ? "Reprendre" : "Pause";
   const d=on?recDist(rec.pts):0, h=on?recDuration():0;
   $("tsDist").textContent = on?fmtD(d):"—"; $("tsDur").textContent = on?fmtDur(h):"—";
-  $("tsUp").textContent = on?(recGpsUp?"≈ "+Math.round(recGpsUp)+" m":"—"):"—"; $("tsAvg").textContent = on && h>0.01 ? (d/1000/h).toFixed(1)+" km/h" : "—";
+  $("tsUp").textContent = on?(recGpsUp?"≈ "+Math.round(recGpsUp)+" m":"—"):"—"; $("tsAvg").textContent = on && h>0.01 ? (d/1000/h).toFixed(1).replace(".",",")+" km/h" : "—";
   $("tsAlt").textContent = last && last.alt!=null ? Math.round(last.alt)+" m" : "—";
   $("tsState").textContent = !on ? "Prêt à enregistrer" : rec.paused ? "En pause" : "Enregistrement en cours";
   $("bRec").classList.toggle("on", !!on && !rec.paused); $("bRec").classList.toggle("paused", !!on && rec.paused);
@@ -2159,7 +2166,13 @@ $("trStart").onclick = () => { rec={on:true,paused:false,start:Date.now(),paused
   if(activity==="run") closeSheets(); recGpsUp=0; recGpsRef=null; recLine.setLatLngs([]);
   if(last) recPoint(last.ll, {accuracy:last.acc||10, altitude:last.alt}, Date.now()); recPersist(true); renderRec(); wake(); toast("Enregistrement démarré. Gardez l'écran allumé."); };
 // Bouton central : démarre l'enregistrement d'un toucher ; pendant la sortie, ouvre le panneau (pause, fin)
-$("bRec").onclick = () => { if(rec && rec.on){ if($("sTrack").hidden) $("bTrack").onclick(); return; } closeSheets(); $("trStart").onclick(); renderRec(); };
+$("bRec").onclick = () => { if(rec && rec.on){ const a=$("recAsk"); a.hidden=!a.hidden; $("raPause").textContent = rec.paused ? "Reprendre" : "Pause"; $("raStop").textContent="■ Terminer"; $("raStop").dataset.armed=""; return; }
+  closeSheets(); $("trStart").onclick(); renderRec(); };
+// Bulle de la sortie en cours : pause, fin (deuxième toucher pour confirmer), détails
+$("raPause").onclick = () => { $("trPause").onclick(); $("recAsk").hidden=true; toast(rec && rec.paused ? "Sortie en pause" : "Enregistrement repris"); };
+$("raStop").onclick = () => { const b=$("raStop"); if(b.dataset.armed!=="1"){ b.dataset.armed="1"; b.textContent="Confirmer la fin ?"; setTimeout(()=>{ if(b.dataset.armed==="1"){ b.dataset.armed=""; b.textContent="■ Terminer"; } },4000); return; }
+  b.dataset.armed=""; $("recAsk").hidden=true; $("trStop").onclick(); };
+$("raMore").onclick = () => { $("recAsk").hidden=true; if($("sTrack").hidden) $("bTrack").onclick(); };
 $("trPause").onclick = () => { if(!rec) return; if(rec.paused){ rec.pausedTotal+=Date.now()-rec.pausedAt; rec.paused=false; } else { rec.paused=true; rec.pausedAt=Date.now(); } recPersist(true); renderRec(); renderRun(); };
 $("rhPause").onclick = () => $("trPause").onclick();
 $("rhStop").onclick = () => { if($("rhStop").dataset.armed!=="1"){ $("rhStop").dataset.armed="1"; $("rhStop").textContent="Confirmer ?"; setTimeout(()=>{ $("rhStop").dataset.armed=""; $("rhStop").textContent="■ Terminer"; },3000); return; }
@@ -3710,7 +3723,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-f"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-g"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
