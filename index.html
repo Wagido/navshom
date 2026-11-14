@@ -2925,12 +2925,12 @@ const RANDO_OVL={
   contour: L.tileLayer(geopf("ELEVATION.CONTOUR.LINE","image/png"), {maxZoom:19, maxNativeZoom:18, zIndex:410, bounds:FRANCE, attribution:"Courbes © IGN"}),
   cadastre:L.tileLayer(geopf("CADASTRALPARCELS.PARCELLAIRE_EXPRESS","image/png"), {minZoom:14, maxZoom:19, maxNativeZoom:19, zIndex:415, bounds:FRANCE, attribution:"Cadastre © IGN/DGFiP"}),
   forest:  L.tileLayer(geopf("LANDCOVER.FORESTINVENTORY.V2","image/png"), {maxZoom:19, maxNativeZoom:16, zIndex:405, opacity:.55, bounds:FRANCE, attribution:"Forêts © IGN"})};
-function randoOvlApply(){ document.querySelectorAll("input.ovl").forEach(cb=>{ const ly=RANDO_OVL[cb.dataset.k]; cb.checked=store.get("ovl_"+cb.dataset.k,cb.dataset.k==="trails");
+function randoOvlApply(){ document.querySelectorAll("input.ovl").forEach(cb=>{ const ly=RANDO_OVL[cb.dataset.k]; cb.checked=store.get("ovl_"+cb.dataset.k,false);
   (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); }); }
 document.querySelectorAll("input.ovl").forEach(cb=>cb.onchange=()=>{ store.set("ovl_"+cb.dataset.k,cb.checked); randoOvlApply(); });
 randoOvlApply();
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-j"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-k"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
