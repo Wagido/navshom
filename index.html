@@ -787,6 +787,10 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <label class="mapc rando-only"><input type="radio" name="base" value="ign"><img alt="" loading="lazy"><span>Plan IGN<small>Routes, lieux</small></span></label>
     <label class="mapc "><input type="radio" name="base" value="ortho"><img alt="" loading="lazy"><span>Satellite<small>Photos aériennes IGN</small></span></label>
     <label class="mapc mer-only"><input type="radio" name="base" value="emod"><img alt="" loading="lazy"><span>Profondeurs<small>Bathymétrie EMODnet</small></span></label>
+    <label class="mapc rando-only"><input type="radio" name="base" value="topo"><img alt="" loading="lazy"><span>OpenTopoMap<small>Topo, ombrage, toute l'Europe</small></span></label>
+    <label class="mapc rando-only"><input type="radio" name="base" value="ign1950"><img alt="" loading="lazy"><span>Carte IGN 1950<small>Le terrain il y a 75 ans</small></span></label>
+    <label class="mapc rando-only"><input type="radio" name="base" value="ortho50"><img alt="" loading="lazy"><span>Photos 1950-1965<small>Glaciers, forêts d'avant</small></span></label>
+    <label class="mapc rando-only"><input type="radio" name="base" value="etatmaj"><img alt="" loading="lazy"><span>État-major<small>Carte 1820-1866</small></span></label>
     <label class="mapc "><input type="radio" name="base" value="osm"><img alt="" loading="lazy"><span>OpenStreetMap<small>Carte collaborative</small></span></label>
     <label class="mapc mer-only"><input type="radio" name="base" value="shom"><img alt="" loading="lazy"><span>Cartes SHOM<small>Avec votre clé SHOM</small></span></label>
   </div>
@@ -797,6 +801,10 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="rando-only">
     <label class="opt"><input type="checkbox" id="shadeChk"><div>Ombrage du relief (IGN)<small>Crêtes et vallées en relief sur la carte</small></div></label>
     <label class="opt"><input type="checkbox" id="autoSat"><div>Photos aériennes au zoom maximal<small>Au-delà du détail du 1:25 000, bascule sur les photos, puis revient</small></div></label>
+    <label class="opt"><input type="checkbox" class="ovl" data-k="trails"><div>Sentiers balisés GR, PR<small>Itinéraires de randonnée officiels (Waymarked Trails)</small></div></label>
+    <label class="opt"><input type="checkbox" class="ovl" data-k="contour"><div>Courbes de niveau (IGN)<small>Utile sur les photos aériennes</small></div></label>
+    <label class="opt"><input type="checkbox" class="ovl" data-k="cadastre"><div>Cadastre (parcelles)<small>Limites de propriété, à partir du zoom 14</small></div></label>
+    <label class="opt"><input type="checkbox" class="ovl" data-k="forest"><div>Forêts (IGN)<small>Types de peuplements</small></div></label>
     <label class="opt"><input type="checkbox" id="slopeChk"><div>Pentes de plus de 30° (IGN)<small>Ski de rando : relief IGN au pas de 5 m</small></div></label>
     <div class="slopeleg"><span style="background:#f2e600"></span>30–35°<span style="background:#f39200"></span>35–40°<span style="background:#e3000f"></span>40–45°<span style="background:#a3007d"></span>&gt; 45°</div>
   </div>
@@ -995,6 +1003,10 @@ const bases = {
   ortho: L.tileLayer(geopf("ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg"), {maxZoom:19, maxNativeZoom:19, bounds:FRANCE, attribution:"© IGN"}),
   litto: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS","image/png"), {maxZoom:18, minNativeZoom:6, maxNativeZoom:16, bounds:FRANCE, attribution:"© IGN / SHOM · non destiné à la navigation"}),
   scan25:L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS","image/jpeg",true), {maxZoom:18, maxNativeZoom:16, bounds:FRANCE, attribution:"© IGN"}),
+  topo:  L.tileLayer("https://tile.opentopomap.org/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:17, bounds:FRANCE, attribution:"© OpenTopoMap (CC-BY-SA), © OpenStreetMap"}),
+  ign1950: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN50.1950","image/jpeg"), {maxZoom:18, minNativeZoom:3, maxNativeZoom:15, bounds:FRANCE, attribution:"© IGN · carte 1950"}),
+  etatmaj: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.ETATMAJOR40","image/jpeg"), {maxZoom:18, minNativeZoom:6, maxNativeZoom:15, bounds:FRANCE, attribution:"© IGN · carte d'État-major (1820-1866)"}),
+  ortho50: L.tileLayer(geopf("ORTHOIMAGERY.ORTHOPHOTOS.1950-1965","image/png"), {maxZoom:19, maxNativeZoom:18, bounds:FRANCE, attribution:"© IGN · photos 1950-1965"}),
   emod:  L.tileLayer("https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:12, bounds:FRANCE, attribution:"© EMODnet Bathymetry"})
 };
 const slopes = L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN","image/png"), {maxZoom:19, maxNativeZoom:17, opacity:.45, bounds:FRANCE, attribution:"Pentes © IGN"});
@@ -1821,6 +1833,7 @@ function setMode(m, quiet){
   $("mSpeed").value = store.get("mspeed_"+MODE, R()?4:5);
   try{ if(mobMk){ R()?map.removeLayer(mobMk):mobMk.addTo(map); } }catch(e){}
   try{ (R() || !$("track").checked) ? map.removeLayer(trackLine) : trackLine.addTo(map); }catch(e){}
+  try{ randoOvlApply(); }catch(e){}
   try{ if(R()){ aisStop(); map.removeLayer(AIS.layer); } else if(AIS.on) aisStart(); }catch(e){}
   try{ R()?map.removeLayer(anchorLayer):anchorLayer.addTo(map); }catch(e){}
   chipLabels(); if(measuring) drawMeasure(); if(typeof setSlopes==="function") setSlopes(store.get("slopes",false)); try{ autoSatCheck(); setShade(store.get("shade",true)); }catch(e){ /* pas encore initialisé au démarrage */ }
@@ -2633,7 +2646,7 @@ function tileRange(b,z){ const n=2**z, x=lng=>Math.floor((lng+180)/360*n),
   y=lat=>{ const r=lat*Math.PI/180; return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n); };
   return {x0:x(b.getWest()),x1:x(b.getEast()),y0:y(b.getNorth()),y1:y(b.getSouth())}; }
 /* Zones téléchargées : on enregistre toutes les tuiles des couches affichées, du zoom 6 au détail maximal du fond */
-const TILE_KB={litto:30,scan25:38,ign:22,ortho:30,emod:12,shom:30,gebco:10,shade:14,slopes:6,seamarks:2}, DL_MAX=9000;
+const TILE_KB={ign1950:30,etatmaj:25,ortho50:45,litto:30,scan25:38,ign:22,ortho:30,emod:12,shom:30,gebco:10,shade:14,slopes:6,seamarks:2}, DL_MAX=9000;
 const OVL={shade, slopes, seamarks};
 let zones=store.get("zones",[]), dl=null, dlQ=0;
 const lyOf=k=>bases[k]||OVL[k];
@@ -2654,9 +2667,9 @@ function dlBounds(){ const f=$("dlFrame").getBoundingClientRect(), m=map.getCont
 function dlLayout(){ const top=$("colTL").getBoundingClientRect().bottom+14, bot=$("dlBar").getBoundingClientRect().top-14, f=$("dlFrame").style;
   const side=Math.max(18, innerWidth>700 ? innerWidth*0.12 : 18), rt=innerWidth>700?side:Math.max(side,$("colTR").getBoundingClientRect().width+26);
   f.top=top+"px"; f.left=side+"px"; f.right=rt+"px"; f.height=Math.max(80,bot-top)+"px"; }
-const NAMES={litto:"carte marine",scan25:"IGN 1:25 000",ign:"plan IGN",ortho:"photos aériennes",emod:"profondeurs",shom:"cartes SHOM",gebco:"GEBCO",shade:"relief",slopes:"pentes",seamarks:"balisage"};
+const NAMES={ign1950:"carte IGN 1950",etatmaj:"État-major",ortho50:"photos 1950",litto:"carte marine",scan25:"IGN 1:25 000",ign:"plan IGN",ortho:"photos aériennes",emod:"profondeurs",shom:"cartes SHOM",gebco:"GEBCO",shade:"relief",slopes:"pentes",seamarks:"balisage"};
 function dlEstimate(){ if(!dl || dl.running) return; const b=dlBounds(), ks=dlKeys(), e=$("dlEst"), go=$("dlGo");
-  if(curBase==="osm"){ e.className="dl-s warn"; e.textContent="OpenStreetMap interdit le téléchargement en masse : choisissez un autre fond (bouton Cartes)."; go.disabled=true; return; }
+  if(curBase==="osm"||curBase==="topo"){ e.className="dl-s warn"; e.textContent=(curBase==="osm"?"OpenStreetMap":"OpenTopoMap")+" interdit le téléchargement en masse : choisissez un autre fond (bouton Cartes)."; go.disabled=true; return; }
   let n=0, kb=0; ks.forEach(k=>{ const c=tilesIn(b,k,dlQ); n+=c; kb+=c*(TILE_KB[k]||20); });
   const mo=Math.max(1,Math.round(kb/1024)), zx=dlZooms(ks[0],dlQ)[1];
   if(n>DL_MAX){ e.className="dl-s warn"; e.innerHTML="Zone trop grande ("+n.toLocaleString("fr-FR")+" tuiles). Rapprochez-vous ou choisissez « Plus léger »."; go.disabled=true; return; }
@@ -2906,8 +2919,18 @@ function rainOff(){ clearInterval(RAIN.timer); RAIN.on=false; $("tRadar").classL
 function radarOff(){ rainOff(); }
 $("tRadar").onclick=()=>RAIN.on ? rainOff() : rainOn();
 $("tSlider").addEventListener("pointerdown", ()=>{ if(RAIN.on){ clearInterval(RAIN.timer); } });
+/* ================= Surimpressions Rando (sentiers, courbes, cadastre, forêts) ================= */
+const RANDO_OVL={
+  trails:  L.tileLayer("https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png", {maxZoom:19, maxNativeZoom:17, zIndex:420, opacity:.85, attribution:'Sentiers © <a href="https://hiking.waymarkedtrails.org" target="_blank" rel="noopener">Waymarked Trails</a>, OSM'}),
+  contour: L.tileLayer(geopf("ELEVATION.CONTOUR.LINE","image/png"), {maxZoom:19, maxNativeZoom:18, zIndex:410, bounds:FRANCE, attribution:"Courbes © IGN"}),
+  cadastre:L.tileLayer(geopf("CADASTRALPARCELS.PARCELLAIRE_EXPRESS","image/png"), {minZoom:14, maxZoom:19, maxNativeZoom:19, zIndex:415, bounds:FRANCE, attribution:"Cadastre © IGN/DGFiP"}),
+  forest:  L.tileLayer(geopf("LANDCOVER.FORESTINVENTORY.V2","image/png"), {maxZoom:19, maxNativeZoom:16, zIndex:405, opacity:.55, bounds:FRANCE, attribution:"Forêts © IGN"})};
+function randoOvlApply(){ document.querySelectorAll("input.ovl").forEach(cb=>{ const ly=RANDO_OVL[cb.dataset.k]; cb.checked=store.get("ovl_"+cb.dataset.k,cb.dataset.k==="trails");
+  (cb.checked && R()) ? ly.addTo(map) : map.removeLayer(ly); }); }
+document.querySelectorAll("input.ovl").forEach(cb=>cb.onchange=()=>{ store.set("ovl_"+cb.dataset.k,cb.checked); randoOvlApply(); });
+randoOvlApply();
 const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
-const APP_VERSION="2026.11.16-i"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-j"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
