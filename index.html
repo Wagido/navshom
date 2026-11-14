@@ -474,7 +474,7 @@ body.measuring #chip{display:none!important}
 #navcard{top:calc(var(--st) + 66px)}
 #runHud{top:calc(var(--st) + 66px);right:calc(var(--sr) + 64px)}
 #toast{top:calc(var(--st) + 66px)}
-body.crowded #colTR .grp .g-b:nth-child(n+3), body.crowded #scale{display:none}
+body.crowded #colTR .grp .g-b:not(#bLayers):not(#bZin):not(#bZout), body.crowded #scale{display:none}
 body.crowded2 #colBL{display:none}
 body.night{--glass:rgba(42,18,16,.92)}
 
@@ -607,7 +607,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 #v3Status{position:absolute;z-index:2;left:50%;top:45%;transform:translate(-50%,-50%);max-width:calc(100% - 40px);background:#fff;border-radius:14px;box-shadow:0 4px 18px rgba(11,47,91,.2);padding:14px 18px;font:500 14px/1.4 var(--sans);color:var(--navy);text-align:center}
 #v3Status button{margin-top:10px;border:0;border-radius:10px;background:var(--sapin);color:#fff;font:600 14px var(--sans);padding:9px 16px;cursor:pointer}
 #v3Tip{position:absolute;z-index:2;left:50%;top:calc(var(--st) + 66px);transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:12px;padding:7px 12px;font:600 13px var(--sans);white-space:nowrap;pointer-events:none}
-#v3Here{position:absolute;z-index:2;left:50%;transform:translateX(-50%);bottom:calc(var(--v3card,190px) + 18px);border:0;border-radius:20px;background:var(--sapin);color:#fff;font:600 14px var(--sans);padding:10px 16px;box-shadow:0 4px 14px rgba(11,47,91,.25);cursor:pointer;white-space:nowrap}
+#v3Here{position:absolute;z-index:2;left:50%;transform:translateX(-50%);bottom:calc(var(--v3card,64px) + 18px);border:0;border-radius:20px;background:var(--sapin);color:#fff;font:600 14px var(--sans);padding:10px 16px;box-shadow:0 4px 14px rgba(11,47,91,.25);cursor:pointer;white-space:nowrap}
 .v3-card{position:absolute;z-index:2;left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 10px);max-width:460px;margin:0 auto;background:rgba(255,255,255,.96);border-radius:18px;box-shadow:0 6px 20px rgba(11,47,91,.18);padding:10px 12px 8px}
 .v3-seg{display:flex;gap:6px}
 .v3-seg button{flex:1 1 0;min-width:0;height:34px;border-radius:17px;border:1px solid var(--line);background:#fff;color:var(--navy);font:600 12.5px var(--sans);cursor:pointer;padding:0 6px;white-space:nowrap}
@@ -618,6 +618,57 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 .v3-ctl output{font:600 13px var(--sans);color:var(--navy);text-align:right;font-variant-numeric:tabular-nums}
 .v3-src{margin:4px 0 0;font:400 11px/1.35 var(--sans);color:var(--muted)}
 .v3-src i{font-style:normal;display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin:0 2px 0 6px}
+
+/* ---- Améliorations d'ergonomie (2026.11.17-f) ---- */
+body.rando:not(.night){--blue:#2E7D32}
+#chip b{font-size:10px!important;color:var(--slate)!important}
+@media (pointer:coarse){#bZin,#bZout{display:none!important}}
+#colBR{display:flex!important;flex-direction:column;gap:10px;right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 98px + var(--tl))}
+#colBR .fab{box-shadow:0 4px 14px rgba(11,47,91,.2);color:var(--navy)}
+#colBR #bFollow{color:var(--blue)} #colBR #bFollow.on{background:var(--blue);color:#fff}
+#colBR #bCompass.on{background:#E8F0FB}
+body.crowded3 #colBR, body.dlmode #colBR{display:none!important}
+.bar button.rec-c{flex:0 0 66px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:1px;padding:0;background:transparent;color:var(--slate);font:600 10.5px var(--sans);border-radius:0}
+.rec-c i{width:56px;height:56px;margin-top:-26px;border-radius:50%;background:var(--sapin);border:4px solid #fff;box-shadow:0 6px 16px rgba(46,125,50,.4);display:grid;place-items:center}
+.rec-c i::after{content:"";width:18px;height:18px;border-radius:50%;background:#fff}
+.rec-c.on i{background:#d81b60;box-shadow:0 6px 16px rgba(216,27,96,.4)} .rec-c.on i::after{width:16px;height:16px;border-radius:3px;animation:blink 1.4s infinite}
+.rec-c.paused i{background:#8d6e63} .rec-c.paused i::after{animation:none}
+.rec-c.on span{color:#d81b60} .rec-c.paused span{color:#8d6e63}
+.p-alt{display:flex;align-items:baseline;gap:8px;margin:-4px 0 8px} .p-alt b{font:700 30px var(--sans);letter-spacing:-.01em;color:var(--ink)}
+.p-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px} .p-chips:empty{display:none}
+.p-chips span{display:inline-flex;align-items:center;min-height:30px;padding:0 11px;border-radius:15px;background:var(--soft);font:600 13px var(--sans);color:var(--ink)}
+.p-chips .warn{background:#FFF3E0;color:#9A3F00}
+.lrow{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:52px;border-top:1px solid var(--line);margin-top:12px;text-decoration:none;color:var(--ink)}
+.lrow b{display:block;font:600 15px var(--sans)} .lrow small{display:block;font:400 12px var(--sans);color:var(--muted)} .lrow>span:last-child{color:var(--muted)}
+#tErr{display:flex;align-items:center;gap:10px;background:#FFF3E0;border-radius:12px;padding:8px 10px;margin:6px 0;font:500 13px/1.35 var(--sans);color:#6A2E00}
+#tErr button{flex:none;height:38px;padding:0 14px;border:0;border-radius:19px;background:#FF7A00;color:#fff;font:600 13px var(--sans);cursor:pointer}
+#tChips{-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent);padding-right:24px}
+.trow select{min-width:90px!important}
+#sMenu:not(.searching) .msearch, #sMenu:not(.searching) #qRes{display:none}
+.mcount{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px;margin:2px 0 10px}
+.mcount button{min-height:70px;border:0;border-radius:14px;background:var(--soft);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 12px;color:var(--ink);cursor:pointer;font-family:var(--sans)}
+.mcount b{font:700 22px var(--sans)} .mcount small{font:600 13px var(--sans)}
+.offcard{width:100%;border:0;border-radius:14px;background:#EEF6EE;padding:12px 14px;margin:0 0 10px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:7px;color:var(--ink);font-family:var(--sans)}
+body:not(.rando) .offcard{background:#EAF2FB}
+.offcard .t{display:flex;justify-content:space-between;align-items:baseline;font:700 16px var(--sans)} .offcard .t i{font:600 13px var(--sans);font-style:normal;color:var(--blue)}
+.offcard small{font:400 12.5px var(--sans);color:var(--muted)}
+.gauge{display:flex;height:9px;border-radius:5px;overflow:hidden;background:var(--line)} .gauge i{display:block;height:100%}
+.glegend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font:400 12.5px var(--sans);color:var(--muted)} .glegend span{display:inline-flex;align-items:center;gap:5px} .glegend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.offbox{background:var(--soft);border-radius:14px;padding:12px 14px;margin:2px 0 10px}
+.offbox .tot{font:700 24px var(--sans)} .offbox .tot small{font:400 13px var(--sans);color:var(--muted)}
+.zb{display:inline-block;font:600 11px var(--sans);padding:2px 7px;border-radius:6px;margin:4px 4px 0 0;background:#E6EDF6;color:#0B2F5B}
+.zbs{margin:2px 0 0;line-height:1.2} .zb{white-space:nowrap} .wplist button.zb{padding:5px 9px;border:0;border-radius:6px;font:600 11px var(--sans);color:var(--blue);background:var(--soft);cursor:pointer}
+.zb.g{background:#E5F2E6;color:#1E5E22} .zb.o{background:#FFF3E0;color:#8A3B00} .zb.n{background:var(--soft);color:var(--muted)}
+.mapc.noimg img{opacity:0}
+.mapc.noimg::before{content:"Aperçu indisponible";position:absolute;left:0;right:0;top:0;aspect-ratio:16/10;display:grid;place-items:center;font:500 12px var(--sans);color:var(--muted);background:repeating-linear-gradient(135deg,#eef2f6 0 10px,#e6ebf1 10px 20px)}
+.v3-card{padding:8px!important;border-radius:26px!important}
+.v3-row{display:flex;align-items:center;gap:8px}
+.v3-seg{flex:1;min-width:0;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));background:#EEF2F6;border-radius:21px;padding:3px;gap:0!important}
+.v3-seg button{height:40px!important;border:0!important;border-radius:18px!important;background:transparent!important;color:var(--navy)!important}
+.v3-seg button[aria-pressed="true"]{background:var(--sapin)!important;color:#fff!important}
+.v3-ic{width:46px;height:46px;flex:none;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--navy);display:grid;place-items:center;cursor:pointer;padding:0}
+.v3-ic svg{width:21px;height:21px} .v3-ic[aria-pressed="true"]{background:#FFF3E0;border-color:#FF7A00;color:#E65100} .v3-ic[aria-expanded="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+#v3SetBox{padding:2px 6px 2px} #v3Leg{padding:6px 6px 0;margin:0}
 </style>
 </head>
 <body>
@@ -652,9 +703,8 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <button class="g-b" id="bZout" aria-label="Dézoomer">−</button>
     <button class="g-b" id="bLayers" aria-label="Cartes et couches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 17.5l10 5 10-5"/></svg></button>
     <button class="g-b rando-only" id="bSlope" aria-label="Pentes de plus de 30°" title="Pentes > 30°"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20h18L3 6z"/><path d="M8 20a6 6 0 0 0-1.5-4"/></svg></button>
+    <button class="g-b mer-only" id="bInstQ" aria-label="Instruments" title="Instruments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l4-5"/><circle cx="12" cy="15" r="1.4"/></svg></button>
     <button class="g-b rando-only" id="b3d" aria-label="Vue 3D du relief" title="Vue 3D">3D</button>
-    <button class="g-b" id="bCompass" aria-label="Orienter la carte" title="Nord en haut / carte orientée"><svg viewBox="0 0 24 24" id="compassNeedle"><path d="M12 2 15.5 12h-7z" fill="#E5372B"/><path d="M12 22 8.5 12h7z" fill="#9AA8B8"/><circle cx="12" cy="12" r="1.6" fill="#fff"/></svg></button>
-    <button class="g-b on" id="bFollow" aria-label="Centrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small id="followLbl" hidden>Bateau</small></button>
   </div>
   <div id="scale">—</div>
   <button class="fab" id="bSat" hidden aria-label="Vue satellite"></button>
@@ -663,14 +713,18 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <button class="mob mer-only" id="bMob" aria-label="Homme à la mer">MOB</button>
   <button class="fab" id="bPin" hidden aria-label="Poser un repère"></button>
 </div>
-<div class="col" id="colBR"></div>
+<div class="col" id="colBR">
+    <button class="fab" id="bCompass" aria-label="Orienter la carte" title="Nord en haut / carte orientée"><svg viewBox="0 0 24 24" id="compassNeedle"><path d="M12 2 15.5 12h-7z" fill="#E5372B"/><path d="M12 22 8.5 12h7z" fill="#9AA8B8"/><circle cx="12" cy="12" r="1.6" fill="#fff"/></svg></button>
+    <button class="fab on" id="bFollow" aria-label="Centrer sur ma position"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 2.9L13.4 21z"/></svg><small id="followLbl" hidden>Bateau</small></button>
+</div>
 
 <nav class="bar" aria-label="Navigation principale">
   <button class="dk" id="bWind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg><span>Météo</span></button>
   <button class="dk mer-only" id="bCur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0"/></svg><span>Courant</span></button>
   <button class="dk" id="bMeasure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg><span>Mesurer</span></button>
   <button class="dk mer-only" id="bAnchor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v14M8 11h8M4.5 14a7.5 7.5 0 0 0 15 0"/></svg><span>Ancre</span></button>
-  <button class="dk rando-only" id="bTrack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19c2-6 6-2 7-8s5-6 7-6"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/></svg><span>Trace</span></button>
+  <button class="rec-c rando-only" id="bRec" aria-label="Enregistrer ma sortie"><i></i><span id="bRecT">Enregistrer</span></button>
+  <button class="dk rando-only" id="bTrack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19c2-6 6-2 7-8s5-6 7-6"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="5" r="2"/></svg><span>Traces</span></button>
   <button class="dk" id="bMenu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Plus</span></button>
 </nav>
 
@@ -694,6 +748,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <button id="tClose" aria-label="Fermer la météo sur la carte">✕</button>
   <button id="tFold" aria-expanded="false"><span class="fold-bar"></span><span id="tFoldTxt">Détails ︿</span></button>
   <div class="chips" id="tChips"></div>
+  <div id="tErr" hidden role="status"><span id="tErrT" style="flex:1">Pas de prévision : le service ne répond pas.</span><button id="tErrGo">Réessayer</button></div>
   <canvas id="tLegend"></canvas>
   <div class="trow"><select id="tModel" aria-label="Modèle météo"></select><button id="tTblBtn" class="tog">Tableau</button><button id="tNums" class="tog">Chiffres</button><button id="tRadar" class="tog">☔ Pluie à venir</button><button id="tAnim" class="tog">Animation</button><button id="tFcst" class="tog">7 jours</button></div>
   <div class="thd"><div class="t"><span class="big" id="tTime">—</span><span class="lbl" id="tSrc">—</span></div><div class="here" id="tHere">—</div></div>
@@ -709,10 +764,11 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
 <section class="sheet" id="sPoint" hidden>
   <div class="grab"></div>
   <h2><span id="pTitle">Ma position GPS</span><button class="x" data-close aria-label="Fermer">×</button></h2>
+  <div class="p-alt" id="pAltRow" hidden><b id="pAlt">—</b><span class="note" style="margin:0">altitude IGN</span></div>
+  <div class="p-chips" id="pChips"></div>
   <div class="info">
     <div><b id="pLabel">Position</b><span id="pLL">—</span></div>
     <div id="pDistRow"><b>Depuis le bateau</b><span id="pDist">—</span></div>
-    <div id="pC2c" class="rando-only"><b>Montagne</b><span><a id="aC2c" href="#" target="_blank" rel="noopener">Itinéraires et sorties récentes ici (Camptocamp) ›</a></span></div>
     <div id="pGeo" hidden><b>Terrain ici (indicatif, BRGM)</b><span id="pGeoT">—</span></div>
   </div>
   <div class="seainfo" id="pSea" hidden></div>
@@ -721,9 +777,11 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     <button class="act mer-only" id="aRouting"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 20c3-1 4-5 7-6s5 2 9-9"/><path d="M14 5h6v6"/></svg></span>Routage</button>
     <button class="act mer-only" id="aCurve"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 12c2.5-6 5-6 7.5 0s5 6 7.5 0 3-4 5-2"/></svg></span>Marée</button>
     <button class="act" id="aMeteo"><span><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 18z"/></svg></span>Météo ici</button>
+    <button class="act rando-only" id="a3d"><span style="font:700 15px var(--sans)">3D</span>Voir en 3D</button>
     <button class="act" id="aMeasure"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 17 17 3l4 4L7 21zM7 13l2 2M10 10l2 2M13 7l2 2"/></svg></span>Mesurer</button>
   </div>
   <div class="btnrow"><button class="pill" id="aPin">Poser un repère ici</button><button class="pill danger" id="aDelWp" hidden>Supprimer ce repère</button></div>
+  <a id="pC2c" class="lrow rando-only" href="#" target="_blank" rel="noopener"><span><b>Itinéraires et sorties récentes</b><small>Ouvre camptocamp.org</small></span><span aria-hidden="true">↗</span></a>
 </section>
 
 <!-- Courbe courant + marée -->
@@ -901,12 +959,17 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div hidden><button id="bMeteo"></button></div>
   <label class="opt" hidden for="menuModel"><div style="flex:1">Modèle météo</div><select id="menuModel"></select></label>
 
+  <div class="mcount" id="mCount">
+    <button class="rando-only" id="mcTr"><b id="mcTrN">0</b><small>Traces</small></button>
+    <button data-open="cWps"><b id="mcWpN">0</b><small>Repères</small></button>
+    <button data-open="cRoutes"><b id="mcRtN">0</b><small>Routes</small></button>
+  </div>
+  <button class="offcard" data-open="cOff"><span class="t">Hors ligne<i>Gérer ›</i></span><span class="gauge" id="ocGauge"></span><small id="ocTxt">Cartes, relief 3D et météo pour partir sans réseau</small></button>
   <div class="hub">
     <button class="hb mer-only c-or" id="bInst"><span class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l4-5"/><circle cx="12" cy="15" r="1.4"/></svg></span>Instruments<small>Gros chiffres, polaire</small></button>
     <button class="hb mer-only c-bl" id="bRouting"><span class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c3-1 4-5 7-6s5 2 9-9"/><path d="M14 5h6v6"/></svg></span>Routage<small>Route la plus rapide</small></button>
     <label class="hb rando-only c-gr" for="gpxIn"><span class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M4 5h16"/></svg></span>Importer GPX<small>Trace d'un itinéraire</small></label>
     <a class="hb rando-only c-bl" href="https://meteofrance.com/meteo-montagne" target="_blank" rel="noopener"><span class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20 10 8l3 5 2-3 6 10z"/><path d="M14 4v2M17 6l-1 1M11 6l1 1"/></svg></span>Avalanche<small>Bulletin Météo-France</small></a>
-    <button class="hb c-te" data-open="cOff"><span class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg></span>Hors ligne<small id="hbOff">Cartes et météo</small></button>
     <button class="hb mer-only c-vi" data-open="cAis"><span class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 18 20 12 16 6 20Z"/></svg></span>AIS<small id="hbAis">Navires autour</small></button>
     <a class="hb mer-only c-na" href="https://meteofrance.com/meteo-marine" target="_blank" rel="noopener"><span class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>Bulletins<small>Côte et large</small></a>
     <label class="hb c-rd" for="night" id="hbNight"><span class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></span>Mode nuit<small>Écran rouge</small></label>
@@ -922,6 +985,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
     </div></details>
   <details class="card " id="cOff"><summary><span class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg></span><span class="ct">Cartes hors ligne<small>Zones téléchargées, avec la météo</small></span><span class="chev">›</span></summary>
     <div class="cb">
+      <div class="offbox" id="offBox"><div class="tot" id="offTot">—</div><span class="gauge" id="offGauge" style="margin-top:6px"></span><div class="glegend" id="offLeg"></div></div>
       <div class="btnrow"><button class="pill primary" id="bCache2">Télécharger une zone</button></div>
       <div class="wplist" id="zoneList"></div>
       <p class="note" id="zoneNote">Sans réseau, les cartes des zones téléchargées s'affichent normalement.</p>
@@ -1033,18 +1097,24 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <button id="v3Here" hidden>⟳ Recentrer la 3D ici</button>
   <div id="v3Status" hidden></div>
   <div class="v3-card">
-    <div class="v3-seg" role="group" aria-label="Fond de la vue 3D">
-      <button data-t="relief" aria-pressed="false" title="Couleurs d'altitude, sans données à télécharger">Relief</button>
-      <button data-t="ortho" aria-pressed="true" title="Photo aérienne IGN">Photo</button>
-      <button data-t="scan" aria-pressed="false" title="Carte IGN 1:25 000">Carte</button>
-      <button id="v3Slope" aria-pressed="false" title="Pentes de plus de 30°">Pentes</button>
+    <div class="v3-row">
+      <div class="v3-seg" role="group" aria-label="Fond de la vue 3D">
+        <button data-t="relief" aria-pressed="false" title="Couleurs d'altitude, sans données à télécharger">Relief</button>
+        <button data-t="ortho" aria-pressed="true" title="Photo aérienne IGN">Photo</button>
+        <button data-t="scan" aria-pressed="false" title="Carte IGN 1:25 000">Carte</button>
+      </div>
+      <button class="v3-ic" id="v3Slope" aria-pressed="false" aria-label="Pentes de plus de 30°" title="Pentes > 30°"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20h18L3 6z"/><path d="M8 20a6 6 0 0 0-1.5-4"/></svg></button>
+      <button class="v3-ic" id="v3Set" aria-expanded="false" aria-label="Réglages : relief et soleil" title="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
     </div>
-    <div class="v3-ctl">
-      <label for="v3Exag">Relief</label><input type="range" id="v3Exag" min="1" max="3" step="0.1" value="1.3"><output id="v3ExagO">1,3×</output>
-      <label for="v3Sun">Soleil</label><input type="range" id="v3Sun" min="0" max="355" step="5" value="135"><output id="v3SunO">SE</output>
+    <p class="v3-src" id="v3Leg" hidden></p>
+    <div id="v3SetBox" hidden>
+      <div class="v3-ctl">
+        <label for="v3Exag">Relief</label><input type="range" id="v3Exag" min="1" max="3" step="0.1" value="1.3"><output id="v3ExagO">1,3×</output>
+        <label for="v3Sun">Soleil</label><input type="range" id="v3Sun" min="0" max="355" step="5" value="135"><output id="v3SunO">SE</output>
+      </div>
+      <p class="v3-src">Glisser : tourner · pincer : zoomer · deux doigts : déplacer · toucher : altitude</p>
+      <p class="v3-src">Relief, photo et carte © IGN · aucune aide à la décision en montagne</p>
     </div>
-    <p class="v3-src" id="v3Leg">Glisser : tourner · pincer : zoomer · deux doigts : déplacer · toucher : altitude</p>
-    <p class="v3-src">Relief, photo et carte © IGN · aucune aide à la décision en montagne</p>
   </div>
 </div>
 
@@ -1145,12 +1215,13 @@ let tmpMarker=null;
 function openSheet(id){ sheets.forEach(s => $(s).hidden = s!==id); }
 function closeSheets(){ sheets.forEach(s => $(s).hidden = true); if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; } }
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeSheets);
-$("bMenu").onclick = () => { if(!$("sMenu").hidden) return closeSheets(); renderWps(); openSheet("sMenu"); };
+$("bMenu").onclick = () => { if(!$("sMenu").hidden) return closeSheets(); $("sMenu").classList.remove("searching"); menuCounts(); renderWps(); openSheet("sMenu"); };
+function menuCounts(){ try{ $("mcTrN").textContent=tracks.length; $("mcWpN").textContent=wps.length; $("mcRtN").textContent=routes.length; }catch(e){} usageNote(); }
 $("bLayers").onclick = $("bMenu").onclick;
 SPOTS.forEach((sp,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=sp[0]; $("spot").appendChild(o); });
 $("spot").insertAdjacentHTML("afterbegin",'<option value="" selected>Choisir…</option>');
 $("spot").onchange = e => { if(e.target.value==="") return; const sp=SPOTS[+e.target.value]; setFollow(false); map.setView(sp[1], sp[2]); closeSheets(); e.target.value=""; };
-$("bSearch").onclick = () => { renderWps(); openSheet("sMenu"); setTimeout(()=>$("q").focus(),50); };
+$("bSearch").onclick = () => { $("sMenu").classList.add("searching"); menuCounts(); renderWps(); openSheet("sMenu"); setTimeout(()=>$("q").focus(),50); };
 function markTmp(ll){ if(tmpMarker) map.removeLayer(tmpMarker); tmpMarker=L.circleMarker(ll,{radius:8,color:"#fff",weight:3,fillColor:"#0b63b6",fillOpacity:1}).addTo(map); }
 
 /* ================= GPS ================= */
@@ -1192,7 +1263,9 @@ function onPos(p){
     if(c.accuracy<50 && (!lt.length || map.distance(lt[lt.length-1],ll)>15)){
       trackLine.addLatLng(ll); store.set("trackT",Date.now()); store.set("track", trackLine.getLatLngs().slice(-5000).map(x=>[+x.lat.toFixed(6),+x.lng.toFixed(6)])); } }
   last={ll,t:p.timestamp,alt:c.altitude,acc:c.accuracy};
-  if(R()){ if(sogNow!=null) $("sog").textContent=(sogNow*1.852).toFixed(1); $("cog").textContent = c.altitude!=null ? Math.round(c.altitude) : "—"; }
+  if(R() && c.altitude==null && Date.now()-(onPos.altT||0)>20000 && navigator.onLine){ onPos.altT=Date.now(); // pas d'altitude GPS : altitude IGN du point
+    elevations([[ll.lat,ll.lng]]).then(z=>{ if(R() && z[0]!=null && (last.alt==null)) $("sog").textContent=Math.round(z[0]); }).catch(()=>{}); }
+  if(R()){ if(c.altitude!=null || $("sog").textContent==="—") $("sog").textContent = c.altitude!=null ? Math.round(c.altitude) : "—"; $("cog").textContent = rec&&rec.on ? "+"+Math.round(recGpsUp||0) : "—"; }
   recPoint(ll, c, p.timestamp); navTick(ll);
   if(follow && AREA().contains(ll)) map.panTo(ll,{animate:true});
   updateMob(); updateRoute(); if(ov.data) drawTimeline();
@@ -1200,7 +1273,8 @@ function onPos(p){
   if(typeof instTick==="function" && instOn) instTick();
   if(typeof headTick==="function" && (ROT.on || headCone)) headTick();
 }
-function onErr(e){ $("gpsdot").className="gps bad"; $("acc").textContent = e.code===1 ? "refusé" : "—"; if(e.code===1) toast("Autorisez la localisation pour ce site", 5000); }
+let gpsDenied=false;
+function onErr(e){ gpsDenied = e.code===1; $("gpsdot").className="gps bad"; $("acc").textContent = e.code===1 ? "refusé" : "—"; if(e.code===1) toast("Autorisez la localisation pour ce site", 5000); }
 // le suivi GPS est démarré par geoStart() (navigateur, ou natif en arrière-plan dans l'APK)
 
 /* ================= Point / position ================= */
@@ -1208,7 +1282,8 @@ let pointMode="gps", pointLL=null;
 function showGps(){
   pointMode="gps"; pointWp=null; $("pSea").hidden=true; $("pC2c").hidden=true; $("aPin").hidden=false; $("aDelWp").hidden=true; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
   $("pDistRow").querySelector("b").textContent="Vitesse et cap"; $("aRoute").hidden=true;
-  if(!last){ pointLL=null; $("pLL").textContent="En attente du GPS…"; $("pDistRow").hidden=true; }
+  $("pAltRow").hidden=true; $("pChips").innerHTML="";
+  if(!last){ pointLL=null; $("pLL").textContent = gpsDenied ? "Localisation refusée. Autorisez-la dans les réglages du navigateur (le cadenas à côté de l'adresse) ou du téléphone, puis rouvrez l'appli." : "En attente du GPS…"; $("pDistRow").hidden=true; }
   else { pointLL=last.ll; $("pLL").textContent=fmtLL(last.ll.lat,last.ll.lng); $("pDistRow").hidden=false;
     $("pDist").textContent=(sogNow!=null?sogNow.toFixed(1)+" nd":"—")+" · cap "+$("cog").textContent+"°"; }
   openSheet("sPoint");
@@ -1217,12 +1292,13 @@ let pointWp=null;
 function showPoint(ll, wp){
   pointMode="pt"; pointLL=ll; $("pC2c").hidden=false; pointWp=wp||null; $("pTitle").textContent = wp ? wp.n : "Point sur la carte";
   $("aPin").hidden=!!wp; $("aDelWp").hidden=!wp; $("pLabel").textContent="Coordonnées";
-  $("pLL").textContent=fmtLL(ll.lat,ll.lng); $("pDistRow").querySelector("b").textContent="Depuis le bateau";
-  $("pDistRow").hidden=false; $("pDist").textContent = last ? fmtNM(map.distance(last.ll,ll))+" · "+pad3(bearing(last.ll,ll))+"°" : "GPS en attente";
+  $("pLL").textContent=fmtLL(ll.lat,ll.lng); $("pDistRow").querySelector("b").textContent = R() ? "Depuis ma position" : "Depuis le bateau";
+  $("pAltRow").hidden=true; $("pChips").innerHTML="";
+  $("pDistRow").hidden=false; $("pDist").textContent = last ? (R() ? fmtD(map.distance(last.ll,ll)) : fmtNM(map.distance(last.ll,ll)))+" · "+pad3(bearing(last.ll,ll))+"°" : (R() ? "Position GPS en attente" : "GPS en attente");
   $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint"); if(typeof showSeamarks==="function") showSeamarks(ll);
-  if(R()) slopeAt(ll).then(t=>{ if(pointLL===ll && t){ $("pDistRow").querySelector("b").textContent="Relief (IGN)"; $("pDist").textContent=t; } });
+  if(R()) pointInfo(ll);
   { const k=20037508.34/180, x=ll.lng*k, y=Math.log(Math.tan((90+ll.lat)*Math.PI/360))/(Math.PI/180)*k, d=4000;
-    $("aC2c").href=`https://www.camptocamp.org/routes?bbox=${Math.round(x-d)},${Math.round(y-d)},${Math.round(x+d)},${Math.round(y+d)}`; }
+    $("pC2c").href=`https://www.camptocamp.org/routes?bbox=${Math.round(x-d)},${Math.round(y-d)},${Math.round(x+d)},${Math.round(y+d)}`; }
   $("pGeo").hidden=true; if(R() && typeof geoAt==="function"){ const g=geoAt(ll); if(g){ $("pGeo").hidden=false; $("pGeoT").textContent=g; } }
 }
 $("chip").onclick = () => R() ? showGps() : instOpen();
@@ -1234,6 +1310,7 @@ $("aDelWp").onclick = () => { if(!pointWp) return; wps=wps.filter(w=>w!==pointWp
 function meteoHere(ll){ closeSheets(); tbl.force=ll; markTmp(ll); if(!ov.type) setOverlay("wind"); setFold(true); loadTable(true); }
 $("aMeteo").onclick = () => { if(pointLL) meteoHere(pointLL); };
 $("aCurve").onclick = () => { const p = pointLL || map.getCenter(); showCurve(p); };
+$("a3d").onclick = () => { const p=pointLL; closeSheets(); if(!p) return; setFollow(false); map.setView(p, Math.max(map.getZoom(),13), {animate:false}); open3D(); };
 $("aMeasure").onclick = () => { const p=pointLL; closeSheets(); startMeasure(); if(p) addMeasure(p); };
 
 /* Aller ici : ligne directe bateau -> destination */
@@ -1423,7 +1500,9 @@ async function loadOverlay(keepIdx){
     $("tSrc").textContent = offT ? "hors ligne · prévision du "+new Date(offT).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "";
     if(offT) toast("Sans réseau : météo enregistrée le "+new Date(offT).toLocaleString("fr-FR",{weekday:"short",hour:"2-digit",minute:"2-digit"}),4000);
     drawOverlay();
-  }catch(e){ $("tSrc").textContent="indisponible"; if(!/429/.test(String(e))) toast(OVT[type].name+" indisponible (réseau ?)"); }
+    $("tErr").hidden=true;
+  }catch(e){ $("tSrc").textContent="indisponible";
+    tErrShow(!navigator.onLine ? "Pas de réseau, et pas de météo enregistrée pour cet endroit." : /429/.test(String(e)) ? "Trop de demandes au service météo : réessayez dans une minute." : "Pas de prévision : le service météo ne répond pas."); }
 }
 function drawOverlay(){
   ov.layer.clearLayers(); if(!ov.data) return;
@@ -1501,7 +1580,9 @@ function setModel(m){ model=m; store.set("model",m); $("tModel").value=m; $("men
   if(ov.type && OVT[ov.type].api==="fc") loadOverlay(ov.idx); if(tbl.open) loadTable(true); toast("Modèle : "+modelName(m)); }
 $("tModel").onchange=e=>setModel(e.target.value); $("menuModel").onchange=e=>setModel(e.target.value);
 $("tAnim").onclick=()=>{ ov.anim=!ov.anim; store.set("anim",ov.anim); $("tAnim").classList.toggle("on",ov.anim); drawOverlay(); if(!ov.anim) stopParticles(); };
-$("tClose").onclick=()=>{ tbl.force=null; try{ radarOff(); }catch(e){} setOverlay(null); };
+function tErrShow(t){ $("tErrT").textContent=t; $("tErr").hidden=false; fixTl(); }
+$("tErrGo").onclick=()=>{ $("tErr").hidden=true; fixTl(); if(ov.type) loadOverlay(); if(tbl.open) loadTable(true); };
+$("tClose").onclick=()=>{ $("tErr").hidden=true; tbl.force=null; try{ radarOff(); }catch(e){} setOverlay(null); };
 function setFold(open){ store.set("tbarOpen",open); $("tbar").classList.toggle("mini",!open); $("tFold").setAttribute("aria-expanded",open);
   $("tFoldTxt").textContent = open ? "Réduire ﹀" : "Détails ︿"; if(open && tbl.open) loadTable(); fixTl(); setTimeout(()=>{ drawLegend(); drawTimeline(); },30); }
 $("tFold").onclick=()=>setFold($("tbar").classList.contains("mini"));
@@ -1510,7 +1591,8 @@ $("tFcst").onclick=()=>openMeteo(tbl.force||null);
 /* ---- Tableau heure par heure, repliable ---- */
 const tbl={ll:null,f:null,m:null,model:null,open:true,loading:false}; // le tableau est toujours affiché quand le panneau est déplié
 function crowdCheck(){ // un panneau haut ne doit pas recouvrir le groupe de commandes : on le réduit au zoom
-  document.body.classList.remove("crowded","crowded2");
+  document.body.classList.remove("crowded","crowded2","crowded3");
+  { const br=$("colBR").getBoundingClientRect(); if(br.height && br.top < $("colTR").getBoundingClientRect().bottom+8) document.body.classList.add("crowded3"); }
   const panel=[$("tbar"),$("measure")].find(e=>e && !e.hidden); if(!panel) return;
   const top=panel.getBoundingClientRect().top, mob=$("colBL").getBoundingClientRect();
   if(top < $("colTR").getBoundingClientRect().bottom+8) document.body.classList.add("crowded");
@@ -1530,7 +1612,7 @@ async function loadTable(force){
       getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=wave_height,wave_direction,swell_wave_height,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timezone=auto&forecast_days=3&cell_selection=sea`).catch(()=>null)]);
     unsuffix(f.hourly); tbl.f=f; tbl.m=(m && !R() && landFrac(ll.lat,ll.lng)<0.5) ? m : null;
   }catch(e){ await wxLoadAll(); const x=wxTableNearest(ll);
-    if(x && x.f){ unsuffix(x.f.hourly); tbl.f=x.f; tbl.m=(x.m && !R())?x.m:null; } else toast("Tableau indisponible (réseau ?)"); }
+    if(x && x.f){ unsuffix(x.f.hourly); tbl.f=x.f; tbl.m=(x.m && !R())?x.m:null; } else tErrShow(navigator.onLine ? "Tableau heure par heure indisponible : le service ne répond pas." : "Pas de réseau : tableau heure par heure indisponible."); }
   tbl.loading=false; renderTable();
 }
 function renderTable(){
@@ -1924,8 +2006,8 @@ function drawCompare(){
 const ICON_MER = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 3v12H4.5L11 3zm2 2.5L18.5 15H13V5.5zM3 17h18l-2.2 3.2a2 2 0 0 1-1.6.8H6.8a2 2 0 0 1-1.6-.8L3 17z"/></svg>';
 const ICON_RANDO = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 20 9.5 7l3.6 6.2L15.5 9 22 20H2zm7.5-9.2L6 17h7l-3.5-6.2z"/></svg>';
 function chipLabels(){
-  $("c1l").textContent="Vitesse"; $("c1u").textContent = R()?"km/h":"nd";
-  $("c2l").textContent = R()?"Altitude":"Cap"; $("c2u").textContent = R()?"m":"°";
+  $("c1l").textContent = R()?"Altitude":"Vitesse"; $("c1u").textContent = R()?"m":"nd";
+  $("c2l").textContent = R()?"Montée":"Cap"; $("c2u").textContent = R()?"m":"°";
   $("cog").textContent="—"; $("sog").textContent="—";
 }
 function setMode(m, quiet){
@@ -2068,10 +2150,16 @@ function renderRec(){
   $("tsUp").textContent = on?(recGpsUp?"≈ "+Math.round(recGpsUp)+" m":"—"):"—"; $("tsAvg").textContent = on && h>0.01 ? (d/1000/h).toFixed(1)+" km/h" : "—";
   $("tsAlt").textContent = last && last.alt!=null ? Math.round(last.alt)+" m" : "—";
   $("tsState").textContent = !on ? "Prêt à enregistrer" : rec.paused ? "En pause" : "Enregistrement en cours";
+  $("bRec").classList.toggle("on", !!on && !rec.paused); $("bRec").classList.toggle("paused", !!on && rec.paused);
+  $("bRecT").textContent = !on ? "Enregistrer" : rec.paused ? "En pause" : fmtD(d);
+  $("bRec").setAttribute("aria-label", !on ? "Enregistrer ma sortie" : "Sortie en cours : pause ou fin");
+  if(R()) $("cog").textContent = on ? "+"+Math.round(recGpsUp||0) : "—";
 }
 $("trStart").onclick = () => { rec={on:true,paused:false,start:Date.now(),pausedTotal:0,pts:[],act:activity,dist:0,splits:[]};
   if(activity==="run") closeSheets(); recGpsUp=0; recGpsRef=null; recLine.setLatLngs([]);
   if(last) recPoint(last.ll, {accuracy:last.acc||10, altitude:last.alt}, Date.now()); recPersist(true); renderRec(); wake(); toast("Enregistrement démarré. Gardez l'écran allumé."); };
+// Bouton central : démarre l'enregistrement d'un toucher ; pendant la sortie, ouvre le panneau (pause, fin)
+$("bRec").onclick = () => { if(rec && rec.on){ if($("sTrack").hidden) $("bTrack").onclick(); return; } closeSheets(); $("trStart").onclick(); renderRec(); };
 $("trPause").onclick = () => { if(!rec) return; if(rec.paused){ rec.pausedTotal+=Date.now()-rec.pausedAt; rec.paused=false; } else { rec.paused=true; rec.pausedAt=Date.now(); } recPersist(true); renderRec(); renderRun(); };
 $("rhPause").onclick = () => $("trPause").onclick();
 $("rhStop").onclick = () => { if($("rhStop").dataset.armed!=="1"){ $("rhStop").dataset.armed="1"; $("rhStop").textContent="Confirmer ?"; setTimeout(()=>{ $("rhStop").dataset.armed=""; $("rhStop").textContent="■ Terminer"; },3000); return; }
@@ -2441,6 +2529,22 @@ function setSlopes(on){ store.set("slopes",on); $("slopeChk").checked=on; $("bSl
 $("slopeChk").onchange=e=>setSlopes(e.target.checked);
 $("bSlope").onclick=()=>{ const on=!store.get("slopes",false); setSlopes(on); toast(on?"Carte des pentes : jaune > 30°, orange > 35°, rouge > 40°, violet > 45°":"Carte des pentes masquée", 4000); };
 setSlopes(store.get("slopes",false));
+// Point touché en Rando : altitude en grand, pente (alerte au-delà de 30°), versant, distance, dénivelé et temps depuis ma position
+async function slopeData(ll){
+  try{ const dLat=15/111320, dLng=15/(111320*Math.cos(ll.lat*Math.PI/180));
+    const pts=[[ll.lat,ll.lng],[ll.lat,ll.lng+dLng],[ll.lat+dLat,ll.lng]]; if(last) pts.push([last.ll.lat,last.ll.lng]);
+    const z=await elevations(pts); if(z.slice(0,3).some(v=>v==null)) return null;
+    const gx=(z[1]-z[0])/15, gy=(z[2]-z[0])/15, slope=Math.round(Math.atan(Math.hypot(gx,gy))*180/Math.PI);
+    return {z:Math.round(z[0]), slope, asp:compass((Math.atan2(-gx,-gy)*180/Math.PI+360)%360), me:last?z[3]:null};
+  }catch(e){ return null; } }
+async function pointInfo(ll){
+  const s=await slopeData(ll); if(pointLL!==ll || !s) return;
+  $("pAltRow").hidden=false; $("pAlt").textContent=s.z.toLocaleString("fr-FR")+" m";
+  const ch=[`<span class="${s.slope>=30?"warn":""}">Pente ${s.slope}°${s.slope>=30?" · zone d'avalanche possible":""}</span>`];
+  if(s.slope>=3) ch.push(`<span>Versant ${s.asp}</span>`);
+  if(last && s.me!=null){ const d=map.distance(last.ll,ll), up=s.z-s.me, h=d/4000, v=up>0?up/300:-up/500;
+    ch.push(`<span>${fmtD(d)} · ${up>=0?"+":"−"}${Math.abs(Math.round(up))} m depuis vous</span>`, `<span>≈ ${fmtDur(Math.max(h,v)+Math.min(h,v)/2)} à vol d'oiseau</span>`); }
+  $("pChips").innerHTML=ch.join(""); }
 async function slopeAt(ll){ // pente et exposition sur 3 points distants de 15 m
   try{ const dLat=15/111320, dLng=15/(111320*Math.cos(ll.lat*Math.PI/180));
     const z=await elevations([[ll.lat,ll.lng],[ll.lat,ll.lng+dLng],[ll.lat+dLat,ll.lng]]); if(z.some(v=>v==null)) return null;
@@ -2449,6 +2553,7 @@ async function slopeAt(ll){ // pente et exposition sur 3 points distants de 15 m
     return Math.round(z[0])+" m · pente "+Math.round(slope)+"°"+(slope>=2?" · exposition "+compass(aspect):"")+(slope>=30?" ⚠":"");
   }catch(e){ return null; } }
 /* ---- Panneau Cartes : fonds selon le mode, avec aperçu du lieu ---- */
+document.querySelectorAll(".mapc img").forEach(im=>{ im.addEventListener("error",()=>im.closest(".mapc").classList.add("noimg")); im.addEventListener("load",()=>im.closest(".mapc").classList.remove("noimg")); });
 function markSelMaps(){ document.querySelectorAll(".mapc").forEach(el=>el.classList.toggle("sel", el.querySelector("input").value===curBase)); }
 function openMaps(){
   if(!$("sMaps").hidden) return closeSheets();
@@ -2828,14 +2933,31 @@ $("dlGo").onclick=async()=>{ if(!dl || dl.running || !dl.b) return;
   if(wantWx){ toast("Cartes enregistrées · téléchargement de la météo…",3000); try{ await wxDownload(zn); }catch(e){ toast("Météo non enregistrée (réseau ou limite Open-Meteo)",4000); } }
   renderZones();
   toast("« "+zn.name+" » disponible hors ligne"+(fail?" ("+fail+" tuiles manquantes, relancez pour compléter)":""),5000); };
+// Ajouter la vue 3D (relief + photo) à une zone déjà téléchargée
+async function zoneAdd3D(zn, btn){
+  if(!navigator.onLine) return toast("Il faut du réseau pour ajouter la vue 3D");
+  const urls=v3ZoneUrls(L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]));
+  if(urls.length>V3DL_MAX) return toast("Zone trop grande pour la 3D : prenez plutôt le relief par massif", 4000);
+  btn.disabled=true; btn.textContent="0 %"; const c=await caches.open("navshom-tiles"), list=urls.slice(); let done=0, bytes=0, fail=0;
+  const w=async()=>{ while(list.length){ const u=list.pop();
+    try{ if(!(await c.match(u))){ const r=await fetch(u,{mode:"cors"}); if(r.ok){ const b=await r.blob(); bytes+=b.size; await c.put(u,new Response(b,{headers:{"Content-Type":r.headers.get("Content-Type")||"application/octet-stream"}})); } else fail++; } }catch(e){ fail++; }
+    if(++done%10===0) btn.textContent=Math.round(100*done/urls.length)+" %"; } };
+  await Promise.all([w(),w(),w(),w()]);
+  zn.d3=true; zn.mb=(zn.mb||0)+Math.round(bytes/1048576); store.set("zones",zones); v3KeepLib(); renderZones();
+  toast("Vue 3D ajoutée à « "+zn.name+" »"+(fail?" ("+fail+" morceaux manquants, relancez plus tard)":""), 4000); }
 $("bCache").onclick=dlStart; $("bCache2").onclick=dlStart;
 function renderZones(){ const el=$("zoneList"); el.innerHTML="";
   if(!zones.length){ el.innerHTML='<p class="note" style="margin:4px 0">Aucune zone téléchargée pour l\'instant.</p>'; }
   zones.slice().reverse().forEach(zn=>{ const row=document.createElement("div");
     row.innerHTML='<span style="flex:1;min-width:0"><b></b><small style="display:block;color:var(--muted);font-size:12px"></small></span><button data-a="wx">Météo</button><button data-a="see">Voir</button><button data-a="del" style="color:#C62828">Supprimer</button>';
     row.querySelector("b").textContent=zn.name+(zn.mode==="rando"?" · Rando":" · Mer");
-    row.querySelector("small").textContent=(zn.mb?zn.mb+" Mo · ":"")+zn.keys.map(k=>NAMES[k]||k).join(" + ")+(zn.d3?" + vue 3D":"")+" · "+new Date(zn.d).toLocaleDateString("fr-FR")
-      +" · météo "+(zn.wx?"du "+new Date(zn.wx).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"non enregistrée");
+    row.querySelector("small").textContent=(zn.mb?zn.mb+" Mo · ":"")+"le "+new Date(zn.d).toLocaleDateString("fr-FR");
+    const bz=document.createElement("p"); bz.className="zbs"; // étiquettes : ce que contient la zone
+    bz.innerHTML='<span class="zb">'+esc(zn.keys.map(k=>NAMES[k]||k).join(" + "))+'</span>'
+      +(zn.mode==="rando" ? (zn.d3 ? '<span class="zb g">Vue 3D</span>' : '<button class="zb n add3d" data-a="d3">Sans 3D · ajouter</button>') : '')
+      +(zn.wx ? '<span class="zb o">Météo du '+new Date(zn.wx).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})+'</span>' : '<span class="zb n">Sans météo</span>');
+    row.querySelector("small").after(bz); row.style.flexWrap="wrap"; row.firstElementChild.style.flexBasis="100%";
+    const a3=bz.querySelector('[data-a=d3]'); if(a3) a3.onclick=()=>zoneAdd3D(zn, a3);
     row.querySelector('[data-a=see]').onclick=()=>{ closeSheets(); if(zn.mode!==MODE) setMode(zn.mode); const b=L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]);
       setFollow(false); map.fitBounds(b); const r=L.rectangle(b,{color:"#FF7A00",weight:2,dashArray:"6 6",fill:false,interactive:false}).addTo(map); setTimeout(()=>map.removeLayer(r),4000); };
     row.querySelector('[data-a=wx]').onclick=async()=>{ toast("Mise à jour de la météo de « "+zn.name+" »…",3000);
@@ -2847,7 +2969,17 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
       toast("Zone supprimée"); usageNote(); };
     el.appendChild(row); });
   usageNote(); }
-async function usageNote(){ try{ const e=await navigator.storage.estimate(); $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau. Espace utilisé par Balise : "+Math.round(e.usage/1048576)+" Mo."; }catch(e){} }
+async function usageNote(){ let tot=0; try{ tot=(await navigator.storage.estimate()).usage/1048576; }catch(e){}
+  let mi={}; try{ mi=mInst; }catch(e){}
+  const zMb=zones.reduce((a,z)=>a+(z.mb||0),0), mMb=Object.values(mi).reduce((a,m)=>a+m.n*64/1024,0), all=Math.max(tot, zMb+mMb);
+  const parts=[["Zones",zMb,"#0B2F5B"],["Relief des massifs",mMb,"#2E7D32"],["Carte déjà vue et appli",Math.max(0,all-zMb-mMb),"#9AA8B8"]];
+  const g=parts.map(([n,v,c])=>`<i style="width:${all?(100*v/all).toFixed(1):0}%;background:${c}"></i>`).join("");
+  $("ocGauge").innerHTML=g; $("offGauge").innerHTML=g;
+  $("offTot").innerHTML=Math.round(all).toLocaleString("fr-FR")+" Mo <small>sur le téléphone</small>";
+  $("offLeg").innerHTML=parts.filter(x=>x[1]>=.5).map(([n,v,c])=>`<span><i style="background:${c}"></i>${n} ${Math.round(v).toLocaleString("fr-FR")} Mo</span>`).join("");
+  const nm=Object.keys(mi).length, nz=zones.length;
+  $("ocTxt").textContent = nz||nm ? nz+" zone"+(nz>1?"s":"")+(R()?" · "+nm+" massif"+(nm>1?"s":"")+" 3D":"")+" · "+Math.round(all).toLocaleString("fr-FR")+" Mo sur le téléphone" : "Cartes, relief 3D et météo pour partir sans réseau";
+  $("zoneNote").textContent="Sans réseau, les cartes des zones téléchargées s'affichent normalement. La météo et les marées demandent du réseau."; }
 renderZones();
 // Ménage unique : les tuiles mises en cache en « opaque » par les anciennes versions gonflaient l'espace affiché
 // (plusieurs Mo comptés par tuile). On les retire, sauf SHOM (sans CORS) et celles des zones téléchargées ; elles
@@ -3547,8 +3679,9 @@ function v3Prefs(){
   $("v3Slope").setAttribute("aria-pressed", P.slope);
   $("v3Exag").value = P.exag; $("v3ExagO").textContent = v3Fmt(P.exag)+"×";
   $("v3Sun").value = P.sun; $("v3SunO").textContent = v3Dir(P.sun);
-  $("v3Leg").innerHTML = P.slope ? 'Pentes :<i style="background:#f5e200"></i>30–35°<i style="background:#f08a00"></i>35–40°<i style="background:#e00000"></i>40–45°<i style="background:#b000b0"></i>> 45°'
-    : "Glisser : tourner · pincer : zoomer · deux doigts : déplacer · toucher : altitude";
+  $("v3Leg").hidden = !P.slope;
+  if(P.slope) $("v3Leg").innerHTML = 'Pentes :<i style="background:#f5e200"></i>30–35°<i style="background:#f08a00"></i>35–40°<i style="background:#e00000"></i>40–45°<i style="background:#b000b0"></i>> 45°';
+  v3Resize();
   v3Sun();
 }
 async function v3Need(key){ if(key==="relief" || V3.img[key] || !V3.mesh) return true;
@@ -3564,6 +3697,10 @@ $("v3Sun").onchange = () => store.set("v3", V3.pref);
 $("v3North").onclick = () => { if(!V3.ctl) return; const t = V3.ctl.target, c = V3.cam.position, d = c.distanceTo(t), pol = V3.ctl.getPolarAngle();
   c.set(t.x, t.y + d*Math.cos(pol), t.z + d*Math.sin(pol)); V3.ctl.update(); V3.dirty = true; };
 $("v3Close").onclick = close3D;
+$("v3Set").onclick = () => { const o = $("v3SetBox").hidden; $("v3SetBox").hidden = !o; $("v3Set").setAttribute("aria-expanded", o); v3Resize();
+  $("v3d").style.setProperty("--v3card", document.querySelector(".v3-card").offsetHeight+"px"); };
+$("bInstQ").onclick = () => instOpen();
+$("mcTr").onclick = () => { closeSheets(); $("bTrack").onclick(); };
 // Recentrer : nouvelle zone autour du point regardé, même taille, même angle de vue ; la carte suit
 $("v3Here").onclick = () => { if(!V3.ctl) return; const t = V3.ctl.target, bb = V3.bb, u = t.x/V3.S+.5, v = t.z/V3.S+.5;
   const c = L.CRS.EPSG3857.unproject(L.point(bb[0]+u*(bb[2]-bb[0]), bb[3]-v*(bb[3]-bb[1])));
@@ -3573,7 +3710,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-e"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-f"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */

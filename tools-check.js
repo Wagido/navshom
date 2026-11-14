@@ -14,7 +14,7 @@ const STATES={ repos:async p=>{}, meteo:async p=>{ await p.click('#bWind'); }, t
   await p.addInitScript(m=>{ try{ localStorage.setItem('nav_mode',JSON.stringify(m)); localStorage.setItem('nav_tblOpen','false'); }catch(e){} }, mode);
   await p.goto(URL); await p.waitForTimeout(2300); await fn(p); await p.waitForTimeout(700);
   const r=await p.evaluate(()=>{ const W=innerWidth,H=innerHeight, vis=e=>{ const s=getComputedStyle(e); return e.offsetParent!==null && s.visibility!=="hidden" && s.display!=="none"; };
-   const els=[...document.querySelectorAll('#colTL,.grp,.mob,.bar,#scale,#tbar,#measure,.sheet:not([hidden])')].filter(vis).map(e=>({id:e.id||e.className.split(' ')[0],r:e.getBoundingClientRect(),e}));
+   const els=[...document.querySelectorAll('#colTL,.grp,#colBR,.mob,.bar,#scale,#tbar,#measure,.sheet:not([hidden])')].filter(vis).map(e=>({id:e.id||e.className.split(' ')[0],r:e.getBoundingClientRect(),e}));
    const out=els.filter(x=>x.r.left<-1||x.r.right>W+1||x.r.top<-1||x.r.bottom>H+1).map(x=>x.id+" hors écran");
    const ov=[]; for(let i=0;i<els.length;i++) for(let j=i+1;j<els.length;j++){ const a=els[i],c=els[j]; if(a.e.contains(c.e)||c.e.contains(a.e)) continue;
      const big=['tbar','measure','sheet'].some(k=>a.id.includes(k)||c.id.includes(k)); // un panneau peut recouvrir des boutons de la carte, pas l'inverse
