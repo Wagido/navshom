@@ -1,5 +1,5 @@
 // Balise - cache de l'app et des tuiles pour usage hors ligne
-const APP = "navshom-app-v80", TILES = "navshom-tiles";
+const APP = "navshom-app-v81", TILES = "navshom-tiles";
 const SHELL = ["./", "index.html", "lib/leaflet.js", "lib/leaflet.css", "lib/landmask.png", "lib/fonts/inter-latin-400-normal.woff2", "lib/fonts/inter-latin-500-normal.woff2", "lib/fonts/inter-latin-600-normal.woff2", "lib/fonts/inter-latin-700-normal.woff2", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(APP).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("navshom-app-") && k !== APP).map(k => caches.delete(k))))); self.clients.claim(); });
@@ -7,7 +7,6 @@ const isTile = u => /services\.data\.shom\.fr|tile\.openstreetmap\.org|tiles\.op
 self.addEventListener("fetch", e => {
   const u = e.request.url;
   if (e.request.method !== "GET") return;
-  if (/data\.geopf\.fr\/(private\/)?wms-r\?/.test(u)) return; // vue 3D (WMS) : cache HTTP du navigateur seulement, pas de cache permanent
   if (isTile(u)) {
     // tuiles : cache d'abord, sinon réseau puis mise en cache
     e.respondWith(caches.open(TILES).then(async c => {

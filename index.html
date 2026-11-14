@@ -860,6 +860,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <label class="opt mer-only"><input type="checkbox" id="seamarks"><div>Balisage OpenSeaMap<small>Bouées, feux, amers : utile sur Profondeurs ou Satellite</small></div></label>
   <div class="rando-only">
     <label class="opt"><input type="checkbox" id="shadeChk"><div>Ombrage du relief (IGN)<small>Crêtes et vallées en relief sur la carte</small></div></label>
+    <label class="opt rando-only"><input type="checkbox" id="v3eco"><div>Vue 3D économe en données<small>Image du relief moins détaillée (environ 4 fois moins de données). Automatique si le téléphone signale un réseau lent ou l'économiseur de données</small></div></label>
     <label class="opt"><input type="checkbox" id="autoSat"><div>Photos aériennes au zoom maximal<small>Au-delà du détail du 1:25 000, bascule sur les photos, puis revient</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="trails"><div>Sentiers balisés GR, PR<small>Itinéraires de randonnée officiels (Waymarked Trails)</small></div></label>
     <label class="opt"><input type="checkbox" class="ovl" data-k="geol"><div>Géologie (BRGM)<small>Nature des roches : 1:1 000 000, puis 1:50 000 en zoomant</small></div></label>
@@ -996,6 +997,7 @@ body.night #sMeteo{background:#1a0000;color:#ff5a4a}
   <div class="dl-t" id="dlTitle">Cadrez la zone à emporter</div>
   <div class="dl-s" id="dlEst">…</div>
   <label class="dl-wx" id="dlWxRow"><input type="checkbox" id="dlWx" checked> Météo des 3 prochains jours (pour l'utiliser sans réseau)</label>
+  <label class="dl-wx rando-only" id="dlD3Row"><input type="checkbox" id="dlD3" checked> <span id="dlD3Txt">Vue 3D : relief et photo</span></label>
   <div class="dl-q" id="dlQ"><button data-q="0" class="on">Détail maximal</button><button data-q="1">Plus léger</button></div>
   <div class="dl-p" id="dlP" hidden><i id="dlProg"></i></div>
   <div class="dl-b"><button class="pill" id="dlCancel">Annuler</button><button class="pill primary" id="dlGo">Télécharger</button></div>
@@ -2760,7 +2762,8 @@ function tilesIn(b,k,q,cb){ const [z0,z1]=dlZooms(k,q); let n=0;
   for(let z=z0; z<=z1; z++){ const r=tileRange(b,z); n+=(r.x1-r.x0+1)*(r.y1-r.y0+1);
     if(cb) for(let x=r.x0;x<=r.x1;x++) for(let y=r.y0;y<=r.y1;y++) cb(L.Util.template(lyOf(k)._url, L.extend({},lyOf(k).options,{z,x,y,s:"a",r:""}))); }
   return n; }
-function zoneUrls(zn){ const b=L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]), out=[]; zn.keys.forEach(k=>{ if(lyOf(k)) tilesIn(b,k,zn.q||0,u=>out.push(u)); }); return out; }
+function zoneUrls(zn){ const b=L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]), out=[]; zn.keys.forEach(k=>{ if(lyOf(k)) tilesIn(b,k,zn.q||0,u=>out.push(u)); });
+  if(zn.d3) out.push(...v3ZoneUrls(b)); return [...new Set(out)]; }
 function dlBounds(){ const f=$("dlFrame").getBoundingClientRect(), m=map.getContainer().getBoundingClientRect();
   const nw=map.containerPointToLatLng([f.left-m.left,f.top-m.top]), se=map.containerPointToLatLng([f.right-m.left,f.bottom-m.top]);
   const b=L.latLngBounds(se,nw), A=FRANCE;
@@ -2772,6 +2775,8 @@ const NAMES={ign1950:"carte IGN 1950",litto:"carte marine",scan25:"IGN 1:25 000"
 function dlEstimate(){ if(!dl || dl.running) return; const b=dlBounds(), ks=dlKeys(), e=$("dlEst"), go=$("dlGo");
   if(curBase==="osm"||curBase==="topo"){ e.className="dl-s warn"; e.textContent=(curBase==="osm"?"OpenStreetMap":"OpenTopoMap")+" interdit le téléchargement en masse : choisissez un autre fond (bouton Cartes)."; go.disabled=true; return; }
   let n=0, kb=0; ks.forEach(k=>{ const c=tilesIn(b,k,dlQ); n+=c; kb+=c*(TILE_KB[k]||20); });
+  if(R()){ const u=v3ZoneUrls(b), k3=u.dem*64+(u.length-u.dem)*TILE_KB.ortho; $("dlD3Txt").textContent="Vue 3D : relief et photo (≈ "+Math.max(1,Math.round(k3/1024))+" Mo)";
+    if($("dlD3").checked){ n+=u.length; kb+=k3; } }
   const mo=Math.max(1,Math.round(kb/1024)), zx=dlZooms(ks[0],dlQ)[1];
   if(n>DL_MAX){ e.className="dl-s warn"; e.innerHTML="Zone trop grande ("+n.toLocaleString("fr-FR")+" tuiles). Rapprochez-vous ou choisissez « Plus léger »."; go.disabled=true; return; }
   e.className="dl-s"; e.innerHTML="<b>≈ "+mo+" Mo</b> · "+n.toLocaleString("fr-FR")+" tuiles · "+ks.map(k=>NAMES[k]||k).join(" + ")+" · détail jusqu'au 1:"+Math.round(591658711/2**zx/1000)+" 000";
@@ -2784,12 +2789,13 @@ function dlStart(){ if(!("caches" in window)) return toast("Ce navigateur ne per
 function dlEnd(){ dl=null; document.body.classList.remove("dlmode"); $("dlFrame").hidden=true; $("dlBar").hidden=true; }
 map.on("moveend zoomend", ()=>{ if(dl) dlEstimate(); }); addEventListener("resize", ()=>{ if(dl){ dlLayout(); dlEstimate(); } });
 $("dlQ").onclick=e=>{ const q=e.target.dataset.q; if(q==null) return; dlQ=+q; $("dlQ").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===e.target)); dlEstimate(); };
+$("dlD3").onchange=dlEstimate;
 $("dlCancel").onclick=()=>{ if(dl && dl.running){ dl.stop=true; return; } dlEnd(); };
 async function zoneName(c){ for(const ix of ["poi","address"]) try{ const r=await fetch("https://data.geopf.fr/geocodage/reverse?lon="+c.lng.toFixed(4)+"&lat="+c.lat.toFixed(4)+"&limit=1&index="+ix); const j=await r.json(); const p=j.features[0].properties, n=p.toponym||p.city; if(n) return n; }catch(e){}
   return "Zone du "+new Date().toLocaleDateString("fr-FR"); }
 $("dlGo").onclick=async()=>{ if(!dl || dl.running || !dl.b) return;
   try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
-  const wantWx=$("dlWx").checked, q=dlQ, zn={id:Date.now(), b:[dl.b.getSouth(),dl.b.getWest(),dl.b.getNorth(),dl.b.getEast()], keys:dl.keys, q, mode:MODE, d:new Date().toISOString()};
+  const wantWx=$("dlWx").checked, q=dlQ, zn={id:Date.now(), b:[dl.b.getSouth(),dl.b.getWest(),dl.b.getNorth(),dl.b.getEast()], keys:dl.keys, q, mode:MODE, d3:R()&&$("dlD3").checked, d:new Date().toISOString()};
   const urls=zoneUrls(zn), total=urls.length; dl.running=true;
   $("dlTitle").textContent="Téléchargement…"; $("dlQ").hidden=true; $("dlP").hidden=false; $("dlGo").hidden=true; $("dlCancel").textContent="Arrêter";
   const cache=await caches.open("navshom-tiles"); let done=0, fail=0, bytes=0; const t0=Date.now();
@@ -2817,7 +2823,7 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
   zones.slice().reverse().forEach(zn=>{ const row=document.createElement("div");
     row.innerHTML='<span style="flex:1;min-width:0"><b></b><small style="display:block;color:var(--muted);font-size:12px"></small></span><button data-a="wx">Météo</button><button data-a="see">Voir</button><button data-a="del" style="color:#C62828">Supprimer</button>';
     row.querySelector("b").textContent=zn.name+(zn.mode==="rando"?" · Rando":" · Mer");
-    row.querySelector("small").textContent=(zn.mb?zn.mb+" Mo · ":"")+zn.keys.map(k=>NAMES[k]||k).join(" + ")+" · "+new Date(zn.d).toLocaleDateString("fr-FR")
+    row.querySelector("small").textContent=(zn.mb?zn.mb+" Mo · ":"")+zn.keys.map(k=>NAMES[k]||k).join(" + ")+(zn.d3?" + vue 3D":"")+" · "+new Date(zn.d).toLocaleDateString("fr-FR")
       +" · météo "+(zn.wx?"du "+new Date(zn.wx).toLocaleString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"non enregistrée");
     row.querySelector('[data-a=see]').onclick=()=>{ closeSheets(); if(zn.mode!==MODE) setMode(zn.mode); const b=L.latLngBounds([zn.b[0],zn.b[1]],[zn.b[2],zn.b[3]]);
       setFollow(false); map.fitBounds(b); const r=L.rectangle(b,{color:"#FF7A00",weight:2,dashArray:"6 6",fill:false,interactive:false}).addTo(map); setTimeout(()=>map.removeLayer(r),4000); };
@@ -3193,18 +3199,66 @@ const V3N = v3Mem <= 2 ? 192 : v3Low ? 256 : 400;       // côté de la grille d
 const V3T = v3Mem <= 2 ? 1024 : 2048;                    // côté de la texture drapée (pixels)
 function v3Script(src){ return new Promise((res, rej) => { const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("chargement de "+src)); document.head.appendChild(s); }); }
 async function v3Lib(){ if(!window.THREE) await v3Script("lib/three.min.js"); if(!THREE.OrbitControls) await v3Script("lib/three-orbit.js"); }
-const v3Wms = (layer, fmt, n, bb, priv) => `https://data.geopf.fr/${priv?"private/wms-r?apikey=ign_scan_ws&":"wms-r?"}SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=${layer}&STYLES=&CRS=EPSG:3857&BBOX=${bb.map(v=>v.toFixed(1)).join(",")}&WIDTH=${n}&HEIGHT=${n}&FORMAT=${fmt}${fmt==="image/png"?"&TRANSPARENT=TRUE":""}`;
-const V3SRC = { ortho:["ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg",false], scan:["GEOGRAPHICALGRIDSYSTEMS.MAPS","image/jpeg",true], slope:["GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN","image/png",false] };
 const v3Dir = d => ["N","NE","E","SE","S","SO","O","NO"][Math.round(((d%360)+360)%360/45)%8];
 const v3Fmt = v => v.toFixed(1).replace(".", ",");
-
+// Données en tuiles fixes (grille Web Mercator, comme la carte) : les mêmes adresses reviennent d'une ouverture
+// à l'autre, le service worker les garde (cache d'abord) et les zones hors ligne peuvent les télécharger.
+const V3O = 20037508.342789244, v3TS = z => 2*V3O/2**z, V3DZ = 13, V3DP = 128; // relief : tuiles z13 de 128 px (≈ 27 m à 45° N)
+function v3Tiles(bb, z){ const ts = v3TS(z); return {ts, x0:Math.floor((bb[0]+V3O)/ts), x1:Math.floor((bb[2]+V3O)/ts-1e-9), y0:Math.floor((V3O-bb[3])/ts), y1:Math.floor((V3O-bb[1])/ts-1e-9)}; }
+function v3DemUrl(x, y){ const ts = v3TS(V3DZ), x0 = -V3O+x*ts, y1 = V3O-y*ts;
+  return `https://data.geopf.fr/wms-r?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES&STYLES=&CRS=EPSG:3857&BBOX=${x0.toFixed(2)},${(y1-ts).toFixed(2)},${(x0+ts).toFixed(2)},${y1.toFixed(2)}&WIDTH=${V3DP}&HEIGHT=${V3DP}&FORMAT=image/x-bil;bits=32`; }
+const V3LY = { ortho:()=>bases.ortho, scan:()=>bases.scan25, slope:()=>slopes };   // mêmes tuiles WMTS que la carte
+const v3TileUrl = (ly, z, x, y) => L.Util.template(ly._url, L.extend({}, ly.options, {z, x, y, s:"a", r:""}));
+// Économie de données : réglage, ou « économiseur de données » / réseau lent signalé par le navigateur
+const v3Eco = () => { const c = navigator.connection; return store.get("v3eco", false) || !!(c && (c.saveData || /2g|3g/.test(c.effectiveType||""))); };
+// Zoom de la texture : assez pour ≈ V3T pixels sur la zone, plafonné à 14 sur téléphone (≈ 10 m/pixel, comme les zones hors ligne)
+function v3TexZ(bb){ const z = Math.floor(Math.log2(V3T/256 * 2*V3O/(bb[2]-bb[0]))); return Math.max(11, Math.min(z, v3Low ? 14 : 15) - (v3Eco() ? 1 : 0)); }
+function v3Proj(b){ const a = L.CRS.EPSG3857.project(b.getSouthWest()), c = L.CRS.EPSG3857.project(b.getNorthEast()); return [a.x, a.y, c.x, c.y]; }
+// Adresses à télécharger pour une zone hors ligne : relief (zone + 5 km de marge) et photo au zoom 14
+function v3ZoneUrls(b){ const out = [], lat = b.getCenter().lat, dy = .045, dx = .045/Math.cos(lat*Math.PI/180);
+  const pb = L.latLngBounds([b.getSouth()-dy, b.getWest()-dx], [b.getNorth()+dy, b.getEast()+dx]);
+  let r = v3Tiles(v3Proj(pb), V3DZ); for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) out.push(v3DemUrl(x, y));
+  const dem = out.length; r = v3Tiles(v3Proj(b), 14); for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) out.push(v3TileUrl(bases.ortho, 14, x, y));
+  out.dem = dem; return out; }
+async function v3Pool(items, n, fn){ let i = 0; await Promise.all(Array.from({length:n}, async () => { while(i < items.length){ const k = i++; await fn(items[k]); } })); }
 async function v3Fetch(url, sig){ const r = await fetch(url, {signal:sig}); if(!r.ok) throw new Error("IGN "+r.status); return r; }
+async function v3Bitmap(url, sig){ const b = await (await v3Fetch(url, sig)).blob(); if(!/^image\//.test(b.type)) throw new Error("image"); return createImageBitmap(b); }
+function v3Prog(what, done, n){ const t = what+" "+Math.round(100*done/n)+" %"; if(V3.mesh) v3Tip(t); else if(V3.open) $("v3Status").textContent = "Chargement · "+t; }
+// Relief : mosaïque des tuiles z13, puis grille N×N par interpolation bilinéaire (centres des pixels)
+async function v3Dem(sig){
+  const r = v3Tiles(V3.bb, V3DZ), P = V3DP, nx = r.x1-r.x0+1, ny = r.y1-r.y0+1, W = nx*P, H = ny*P, M = new Float32Array(W*H).fill(NaN), list = [];
+  for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) list.push([x, y]);
+  let done = 0, got = 0;
+  await v3Pool(list, 4, async ([x, y]) => {
+    try{ const a = new Float32Array(await (await v3Fetch(v3DemUrl(x, y), sig)).arrayBuffer());
+      if(a.length >= P*P){ got++; const ox = (x-r.x0)*P, oy = (y-r.y0)*P; for(let j=0;j<P;j++) M.set(a.subarray(j*P, j*P+P), (oy+j)*W+ox); }
+    }catch(e){ if(e.name==="AbortError") throw e; }
+    v3Prog("relief", ++done, list.length); });
+  if(got < list.length*.5) throw new Error(navigator.onLine ? "Relief IGN indisponible. Vérifiez le réseau." : "Pas de relief enregistré ici. Hors ligne, la vue 3D marche dans les zones téléchargées avec l'option « Vue 3D » (Plus › Hors ligne).");
+  const N = V3N, h = new Float32Array(N*N), ps = r.ts/P, mx = -V3O+r.x0*r.ts, my = V3O-r.y0*r.ts, bb = V3.bb;
+  const px = (x, y) => M[Math.max(0, Math.min(H-1, y))*W + Math.max(0, Math.min(W-1, x))];
+  for(let j=0;j<N;j++){ const fy = (my-(bb[3]-j/(N-1)*(bb[3]-bb[1])))/ps-.5, y0 = Math.floor(fy), ty = fy-y0;
+    for(let i=0;i<N;i++){ const fx = (bb[0]+i/(N-1)*(bb[2]-bb[0])-mx)/ps-.5, x0 = Math.floor(fx), tx = fx-x0;
+      h[j*N+i] = (px(x0,y0)*(1-tx)+px(x0+1,y0)*tx)*(1-ty) + (px(x0,y0+1)*(1-tx)+px(x0+1,y0+1)*tx)*ty; } }
+  return h;
+}
+// Texture : tuiles WMTS de la carte assemblées dans un canvas ; tuile absente → tuile parente (1 ou 2 niveaux) agrandie
 async function v3Img(key, sig){
   if(V3.img[key]) return V3.img[key];
-  const [layer, fmt, priv] = V3SRC[key], r = await v3Fetch(v3Wms(layer, fmt, V3T, V3.bb, priv), sig), b = await r.blob();
-  if(!/^image\/(jpeg|png)/.test(b.type)) throw new Error("image IGN indisponible");
-  let im; try{ im = await createImageBitmap(b); } catch(e){ im = await new Promise((res, rej) => { const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(b); }); }
-  return V3.img[key] = im;
+  const ly = V3LY[key](), bb = V3.bb, z = v3TexZ(bb), r = v3Tiles(bb, z), T = V3T, k = T/(bb[2]-bb[0]), list = [], par = new Map();
+  const cv = document.createElement("canvas"); cv.width = cv.height = T; const g = cv.getContext("2d");
+  for(let y=r.y0;y<=r.y1;y++) for(let x=r.x0;x<=r.x1;x++) list.push([x, y]);
+  const parent = (pz, x, y) => { const u = v3TileUrl(ly, pz, x, y); if(!par.has(u)) par.set(u, v3Bitmap(u, sig).catch(() => null)); return par.get(u); };
+  let ok = 0, done = 0; const what = key==="slope" ? "pentes" : key==="scan" ? "carte" : "photo";
+  await v3Pool(list, 6, async ([x, y]) => {
+    const dx = (-V3O+x*r.ts-bb[0])*k, dy = (bb[3]-(V3O-y*r.ts))*k, ds = r.ts*k; let im = null;
+    try{ im = await v3Bitmap(v3TileUrl(ly, z, x, y), sig); }catch(e){ if(e.name==="AbortError") throw e; }
+    if(im){ g.drawImage(im, dx, dy, ds, ds); im.close && im.close(); ok++; }
+    else for(let up=1; up<=2; up++){ const pi = await parent(z-up, x>>up, y>>up); if(pi){ const n = 1<<up, s = 256/n; g.drawImage(pi, (x%n)*s, (y%n)*s, s, s, dx, dy, ds, ds); ok++; break; } }
+    v3Prog(what, ++done, list.length); });
+  for(const p of par.values()){ const im = await p; if(im && im.close) im.close(); }
+  if(!ok){ cv.width = 0; throw new Error(what+" indisponible"); }
+  return V3.img[key] = cv;
 }
 // Zone : centre de la carte, côté = largeur affichée bornée entre 6 et 10 km, carré en mètres vrais
 function v3Zone(){
@@ -3225,7 +3279,6 @@ const v3X = u => (u-.5)*V3.S, v3Z = v => (v-.5)*V3.S, v3Y = m => (m-V3.h0)/1000*
 
 async function open3D(){
   if(V3.open) return;
-  if(!navigator.onLine){ toast("La vue 3D a besoin du réseau (relief IGN)"); return; }
   if(!FRANCE.contains(map.getCenter())){ toast("Vue 3D : France seulement (relief IGN)"); return; }
   V3.open = true; $("b3d").classList.add("on"); $("v3d").hidden = false; v3Prefs();
   const z = v3Zone(); Object.assign(V3, z, { S: z.side/1000, img:{}, labels:[], abort:new AbortController() });
@@ -3233,24 +3286,21 @@ async function open3D(){
   v3Status("Chargement du relief IGN…");
   try{
     const sig = V3.abort.signal;
-    // relief : grille élargie d'un demi-pixel pour que les centres des pixels tombent sur les bords de la zone
-    const p = (z.bb[2]-z.bb[0])/(V3N-1), dbb = [z.bb[0]-p/2, z.bb[1]-p/2, z.bb[2]+p/2, z.bb[3]+p/2];
-    const demP = v3Fetch(v3Wms("ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES", "image/x-bil;bits=32", V3N, dbb), sig).then(r => r.arrayBuffer());
-    const texP = v3Img(V3.pref.tex, sig).catch(e => (V3.pref.tex==="scan" ? v3Img("ortho", sig).then(i => { V3.pref.tex="ortho"; return i; }) : Promise.reject(e)));
-    const slP = V3.pref.slope ? v3Img("slope", sig).catch(() => null) : null;
-    const [buf] = await Promise.all([demP, v3Lib(), texP, slP]);
+    const alt = V3.pref.tex==="scan" ? "ortho" : "scan";  // fond indisponible (ex. hors ligne) : on essaie l'autre
+    const [h] = await Promise.all([v3Dem(sig), v3Lib()]);
+    await v3Img(V3.pref.tex, sig).catch(e => { if(e.name==="AbortError") throw e; return v3Img(alt, sig).then(() => { V3.pref.tex = alt; }); }).catch(e => { if(e.name==="AbortError") throw e; });
+    if(V3.pref.slope) await v3Img("slope", sig).catch(() => null);
     if(!V3.open) return;
-    v3Heights(buf); v3Build(); v3Prefs(); v3Status(null);
+    v3Heights(h); v3Build(); v3Prefs(); v3Status(null);
   }catch(e){
     if(!V3.open || e.name==="AbortError") return;
-    v3Status((/hors/.test(e.message) ? e.message : "Relief IGN indisponible ("+e.message+"). Vérifiez le réseau."), true);
+    v3Status(/relief|Zone/i.test(e.message) ? e.message : "Relief IGN indisponible ("+e.message+").", true);
   }
 }
 function v3Status(msg, retry){ const el = $("v3Status"); el.hidden = !msg; if(!msg) return; el.textContent = msg;
   if(retry){ const b = document.createElement("button"); b.textContent = "Réessayer"; b.onclick = () => { close3D(); open3D(); }; el.append(document.createElement("br"), b); } }
-function v3Heights(buf){
-  const a = new Float32Array(buf), N = V3N; if(a.length < N*N) throw new Error("réponse du relief incomplète");
-  const h = new Float32Array(N*N); let ok = 0, sum = 0;
+function v3Heights(a){
+  const N = V3N, h = new Float32Array(N*N); let ok = 0, sum = 0;
   for(let i=0;i<N*N;i++){ const v = a[i]; if(v > -500 && v < 9000){ h[i] = v; ok++; sum += v; } else h[i] = NaN; }
   if(ok < N*N*.1) throw new Error("Zone hors couverture du relief IGN");
   const mean = sum/ok; let lo = 1e9, hi = -1e9;
@@ -3365,7 +3415,7 @@ function close3D(){
   V3.open = false; cancelAnimationFrame(V3.raf); if(V3.abort) V3.abort.abort();
   $("v3d").hidden = true; $("b3d").classList.remove("on"); $("v3Labels").innerHTML = ""; $("v3Status").hidden = true; removeEventListener("resize", v3Resize);
   if(V3.renderer){ V3.ctl.dispose(); V3.mesh.geometry.dispose(); V3.mesh.material.dispose(); V3.tex.dispose(); V3.renderer.dispose(); V3.renderer.forceContextLoss(); V3.renderer.domElement.remove(); }
-  for(const k in (V3.img||{})) try{ V3.img[k].close && V3.img[k].close(); }catch(e){}
+  for(const k in (V3.img||{})) V3.img[k].width = 0;  // libère la mémoire des canvas
   Object.assign(V3, {renderer:null, sun:null, ctl:null, scene:null, mesh:null, tex:null, cv:null, h:null, img:{}, labels:[]});
 }
 // Réglages : fond, pentes, exagération, soleil (mémorisés)
@@ -3393,10 +3443,11 @@ $("v3Sun").onchange = () => store.set("v3", V3.pref);
 $("v3North").onclick = () => { if(!V3.ctl) return; const t = V3.ctl.target, c = V3.cam.position, d = c.distanceTo(t), pol = V3.ctl.getPolarAngle();
   c.set(t.x, t.y + d*Math.cos(pol), t.z + d*Math.sin(pol)); V3.ctl.update(); V3.dirty = true; };
 $("v3Close").onclick = close3D;
+$("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store.set("v3eco", e.target.checked);
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.16-y"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.16-z"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
