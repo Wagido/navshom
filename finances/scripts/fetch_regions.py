@@ -6,7 +6,7 @@ serveur par région et par année. Énergie (MWh) = somme des MW × 0,5 h.
 
 Usage : python3 scripts/fetch_regions.py   (écrit data/sources/regions/eco2mix_regions.json)
 """
-import json, os, subprocess, time, urllib.parse
+import datetime, json, os, subprocess, time, urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "sources", "regions", "eco2mix_regions.json")
@@ -25,7 +25,7 @@ def get(params):
 
 
 out = {}
-for year in range(2013, 2026):
+for year in range(2013, datetime.date.today().year):
     sel = ",".join(f"sum({f}) as {f}" for f in FIELDS) + ",count(*) as n"
     rows = get({"select": "code_insee_region,libelle_region," + sel, "group_by": "code_insee_region,libelle_region",
                 "where": f"year(date_heure)={year}", "limit": 50})
