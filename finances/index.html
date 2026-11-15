@@ -31,12 +31,19 @@
       <a href="#sols">Sols</a>
       <a href="#alimentation">Alimentation</a>
       <a href="#climat">Climat</a>
+      <a href="#dechets">Déchets</a>
       <a href="#territoire">Territoire</a>
+      <a href="#transports">Transports</a>
       <span class="tab-group">Société</span>
       <a href="#demographie">Démographie</a>
       <a href="#immigration">Immigration</a>
       <a href="#travail">Temps de travail</a>
+      <a href="#emploi">Emploi</a>
       <a href="#justice">Justice</a>
+      <a href="#sante">Santé</a>
+      <a href="#education">Éducation</a>
+      <a href="#logement">Logement</a>
+      <a href="#inegalites">Inégalités</a>
       <span class="tab-group">·</span>
       <a href="#methode">Méthode</a>
     </nav>
@@ -306,6 +313,19 @@
   </div>
 </section>
 
+<section id="dechets" class="panel">
+  <div class="panel-head">
+    <h2>Déchets : qui les produit, ce qu'ils deviennent <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="wa-kpis"></div>
+  <div class="grid2">
+    <div><h3>Qui produit les déchets</h3><div id="wa-sect" class="chart"></div></div>
+    <div><h3>Ce qu'ils deviennent (déchets traités)</h3><div id="wa-trt" class="chart"></div></div>
+  </div>
+  <h3>Déchets ménagers par habitant et leur traitement</h3><div id="wa-men" class="chart"></div><div class="legend-row" id="wa-men-legend"></div>
+  <h3>Comparer les pays</h3><div id="wa-cmp" class="chart"></div>
+</section>
+
 <!-- =============================================================== TERRITOIRE -->
 <section id="territoire" class="panel">
   <div class="panel-head">
@@ -330,6 +350,18 @@
     <p><b>Électricité.</b> RTE publie, pour chaque région, sa production, sa consommation et son solde d'échanges, mais pas les flux d'une région à l'autre. Les flèches sont donc une <em>estimation</em> : chaque région excédentaire alimente d'abord les régions déficitaires les plus proches, et ce qui reste part à l'étranger. La Corse a son propre réseau et n'est pas couverte.</p>
     <p><b>PIB et revenu.</b> Le PIB est produit là où sont les entreprises et les administrations. Le revenu disponible des ménages, lui, est perçu là où ils habitent : salaires des navetteurs, retraites, prestations, après impôts. En Île-de-France, le revenu ne représente qu'environ 45 % du PIB, contre 65 à 70 % dans la plupart des autres régions. C'est la mesure la plus directe de la redistribution entre territoires (sièges sociaux, impôts, retraités qui s'installent ailleurs).</p>
   </div>
+</section>
+
+<section id="transports" class="panel">
+  <div class="panel-head">
+    <h2>Transports : comment se déplacent les personnes et les marchandises <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="tr2-kpis"></div>
+  <div class="grid2">
+    <div><h3>Voyageurs : part de chaque mode (km parcourus sur le territoire)</h3><div id="tr2-modal" class="chart"></div><div class="legend-row" id="tr2-modal-legend"></div></div>
+    <div><h3>Marchandises : part de chaque mode (tonnes-km)</h3><div id="tr2-fret" class="chart"></div><div class="legend-row" id="tr2-fret-legend"></div></div>
+  </div>
+  <h3>Comparer les pays</h3><div id="tr2-cmp" class="chart"></div>
 </section>
 
 <h2 class="group-title" id="g-societe">Société</h2>
@@ -371,6 +403,19 @@
   <h3>Comparer les pays</h3><div id="tt-cmp" class="chart"></div>
 </section>
 
+<section id="emploi" class="panel">
+  <div class="panel-head">
+    <h2>Emploi : qui travaille, qui cherche, qui est hors du marché <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="em-kpis"></div>
+  <div class="grid2">
+    <div><h3>Les 15-64 ans : en emploi, au chômage, inactifs</h3><div id="em-act" class="chart"></div><div class="legend-row" id="em-act-legend"></div>
+      <h3>Chômage et emploi depuis 1995</h3><div id="em-taux" class="chart"></div><div class="legend-row" id="em-taux-legend"></div></div>
+    <div><h3>Les métiers (personnes en emploi)</h3><div id="em-met" class="chart"></div></div>
+  </div>
+  <h3>Comparer les pays</h3><div id="em-cmp" class="chart"></div>
+</section>
+
 <section id="justice" class="panel">
   <div class="panel-head">
     <h2>Justice et sécurité <span class="geo-tag"></span></h2>
@@ -382,6 +427,60 @@
     <div><h3>Détenus et places de prison</h3><div id="ju-pris" class="chart"></div></div>
   </div>
   <h3>Comparer les pays</h3><div id="ju-cmp" class="chart"></div>
+</section>
+
+<section id="sante" class="panel">
+  <div class="panel-head">
+    <h2>Santé : combien de temps on vit, de quoi on meurt, qui paie les soins <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="sa-kpis"></div>
+  <h3>Qui paie quels soins (dépense courante de santé)</h3>
+  <div class="sk-scroll"><div id="sa-flux" class="chart sk-fixed"></div></div>
+  <div class="grid2">
+    <div><h3>Espérance de vie à la naissance</h3><div id="sa-esp" class="chart"></div><div class="legend-row" id="sa-esp-legend"></div></div>
+    <div><h3 id="sa-causes-title">Causes de décès</h3><div id="sa-causes" class="chart"></div></div>
+  </div>
+  <h3>Comparer les pays</h3><div id="sa-cmp" class="chart"></div>
+</section>
+
+<section id="education" class="panel">
+  <div class="panel-head">
+    <h2>Éducation : élèves, diplômes, coût <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="ed-kpis"></div>
+  <div class="grid2">
+    <div><h3>Élèves et étudiants par niveau</h3><div id="ed-eff" class="chart"></div></div>
+    <div><h3>Dépense par élève et par an</h3><div id="ed-cout" class="chart"></div>
+      <h3>Niveau de diplôme des adultes</h3><div id="ed-dip" class="chart"></div><div class="legend-row" id="ed-dip-legend"></div></div>
+  </div>
+  <h3>Comparer les pays</h3><div id="ed-cmp" class="chart"></div>
+</section>
+
+<section id="logement" class="panel">
+  <div class="panel-head">
+    <h2>Logement : propriétaires, locataires, place, prix <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="lo-kpis"></div>
+  <div class="grid2">
+    <div><h3>Statut d'occupation (part de la population)</h3><div id="lo-statut" class="chart"></div><div class="legend-row" id="lo-statut-legend"></div></div>
+    <div><h3>Prix des logements et inflation (base 100 en 2015)</h3><div id="lo-prix" class="chart"></div><div class="legend-row" id="lo-prix-legend"></div></div>
+  </div>
+  <p class="muted" style="font-size:.85rem">Les logements vacants ne sont pas publiés par Eurostat dans une série annuelle. En France, l'INSEE en compte environ 3 millions (8 % du parc), d'après ses estimations annuelles du parc de logements.</p>
+  <h3>Comparer les pays</h3><div id="lo-cmp" class="chart"></div>
+</section>
+
+<section id="inegalites" class="panel">
+  <div class="panel-head">
+    <h2>Inégalités et pauvreté <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="in-kpis"></div>
+  <div class="grid2">
+    <div><h3 id="in-dec-title">Part du revenu de chaque dixième</h3><div id="in-dec" class="chart"></div>
+      <p class="muted" style="font-size:.85rem">Revenu disponible (après impôts directs et prestations) par unité de consommation, enquête SRCV. Ces chiffres ne comptent pas les services publics gratuits (école, santé) : voir le diagramme « L'argent public » pour une vision élargie.</p></div>
+    <div><h3>Pauvreté et inégalités dans le temps</h3><div id="in-serie" class="chart"></div><div class="legend-row" id="in-serie-legend"></div></div>
+  </div>
+  <p class="muted" style="font-size:.85rem">Le patrimoine des ménages par tranche n'est pas publié par Eurostat. En France, d'après l'INSEE, les 10 % de ménages les mieux dotés détiennent environ la moitié du patrimoine brut.</p>
+  <h3>Comparer les pays</h3><div id="in-cmp" class="chart"></div>
 </section>
 
 <!-- =============================================================== METHODE -->
@@ -412,6 +511,12 @@
     <li>Climat : <a href="https://ec.europa.eu/eurostat/databrowser/view/env_air_gge/default/table" target="_blank" rel="noopener">env_air_gge</a> (inventaires nationaux transmis à l'ONU). Eau : <a href="https://ec.europa.eu/eurostat/databrowser/view/env_wat_abs/default/table" target="_blank" rel="noopener">env_wat_abs</a>. Sols : enquête LUCAS (<a href="https://ec.europa.eu/eurostat/databrowser/view/lan_lcv_ovw/default/table" target="_blank" rel="noopener">lan_lcv_ovw</a>, lan_use_ovw).</li>
     <li>Alimentation : <a href="https://www.fao.org/faostat/fr/#data/FBS" target="_blank" rel="noopener">FAOSTAT, bilans alimentaires</a> (CC BY 4.0). Les « calories disponibles » comprennent le gaspillage au niveau des ménages.</li>
     <li>Démographie et immigration : demo_gind, demo_pjan, proj_23np, migr_pop3ctb, migr_imm1ctz, migr_emi1ctz. Temps de travail : nama_10_a10_e (heures travaillées, comptabilité nationale) et l'enquête emploi du temps 2010 (tus_00age). Justice : crim_off_cat, crim_pris_cap, crim_just_job.</li>
+  </ul>
+  <h3>Santé, éducation, logement, transports, emploi, inégalités, déchets</h3>
+  <ul>
+    <li>Santé : demo_mlexpec (espérance de vie), hlth_cd_aro (causes de décès), hlth_sha11_hchf et hlth_sha11_hf (comptes de la santé, système SHA). Éducation : educ_uoe_enra01, educ_uoe_fini04, edat_lfse_03.</li>
+    <li>Logement : enquête SRCV (ilc_lvho02, 03, 05a, 07a, 50a), indice des prix des logements prc_hpi_a, prix à la consommation prc_hicp_aind. Transports : tran_hv_psmod, tran_hv_frmod, rail_pa_total, avia_paoc, road_go_ta_tott.</li>
+    <li>Emploi : enquête Emploi (lfsa_pganws, lfsa_egais, lfsa_esgaed, une_rt_a, lfsi_emp_a). Inégalités : ilc_di01, ilc_di12, ilc_li02, ilc_li10, ilc_mdsd11. Déchets : env_wasgen, env_wastrt, env_wasmun.</li>
   </ul>
   <h3>Autres pays</h3>
   <ul>
@@ -448,5 +553,6 @@
 <script src="matieres.js"></script>
 <script src="territoire.js"></script>
 <script src="themes.js"></script>
+<script src="societe.js"></script>
 </body>
 </html>

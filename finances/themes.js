@@ -58,7 +58,8 @@ function lineChart(el, data, lines, opts = {}) {
   const w = Math.max(320, el.clientWidth), h = opts.h || 260, m = { t: 12, r: 14, b: 26, l: 56 };
   const x = d3.scaleLinear(d3.extent(data, d => +d.annee), [m.l, w - m.r]);
   const vals = data.flatMap(d => lines.map(l => d[l.k]).filter(v => v != null));
-  const y = d3.scaleLinear([Math.min(0, d3.min(vals)), d3.max(vals) * 1.08], [h - m.b, m.t]).nice();
+  const lo = opts.nozero ? d3.min(vals) - (d3.max(vals) - d3.min(vals)) * .08 : Math.min(0, d3.min(vals));
+  const y = d3.scaleLinear([lo, d3.max(vals) + (opts.nozero ? (d3.max(vals) - d3.min(vals)) * .08 : d3.max(vals) * .08)], [h - m.b, m.t]).nice();
   const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
   svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
   lines.forEach(l => svg.append("path").attr("fill", "none").attr("stroke", l.c).attr("stroke-width", 2.2).attr("stroke-dasharray", l.dash || null)
@@ -403,5 +404,6 @@ function drawJustice() {
   ], "det");
 }
 
+window.TH = { areaChart, lineChart, bars, kpis, legend, showTip, hideTip, table: null, esc, n0, n1, n2, pct, css };
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
