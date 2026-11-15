@@ -153,3 +153,7 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: .
   .cas-row { grid-template-columns: 1fr auto; }
   .cas-track { grid-column: 1 / -1; grid-row: 2; }
 }
+
+.fn-legend span { cursor: pointer; user-select: none; }
+.fn-legend span.off { opacity: .35; }
+.fn-legend i { border-top-width: 10px !important; opacity: 1 !important; width: 14px; }

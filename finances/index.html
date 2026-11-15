@@ -18,6 +18,7 @@
       <a href="#pib">Le PIB</a>
       <a href="#argent-public">L'argent public</a>
       <a href="#simulateur">Couper la dépense ?</a>
+      <a href="#duree">Sur 30 ans</a>
       <a href="#patrimoine">Patrimoine</a>
       <a href="#methode">Méthode</a>
     </nav>
@@ -56,7 +57,7 @@
   <h3>Valeur ajoutée par activité</h3>
   <div id="pib-branches" class="chart"></div>
 
-  <h3>Dépenses, recettes publiques et dette depuis 2015</h3>
+  <h3>Dépenses, recettes publiques et dette depuis 1995</h3>
   <div id="pib-histo" class="chart"></div>
 </section>
 
@@ -104,6 +105,25 @@
   </div>
 </section>
 
+<!-- =============================================================== SUR LA DUREE -->
+<section id="duree" class="panel">
+  <div class="panel-head">
+    <h2>Sur 30 ans : la charge de la dette et ce que finance l'argent public</h2>
+  </div>
+
+  <h3>La charge d'intérêts de la dette publique</h3>
+  <div class="kpis" id="int-kpis"></div>
+  <p class="lead">La dette a été multipliée par près de cinq depuis 1995, mais les intérêts payés n'ont pas suivi : la baisse des taux a absorbé la hausse de la dette jusqu'en 2021. Le <strong>taux apparent</strong> (intérêts de l'année ÷ dette de fin d'année précédente) mesure ce coût moyen. Il remonte lentement, car la dette se renouvelle progressivement aux taux actuels.</p>
+  <div id="int-chart" class="chart"></div>
+
+  <h3>Les dépenses publiques par fonction, en % du PIB</h3>
+  <p class="lead">Chaque couche est une fonction (classification COFOG, toutes administrations publiques consolidées). Cliquez sur une fonction de la légende pour l'isoler.</p>
+  <div id="fn-chart" class="chart"></div>
+  <div class="legend-row fn-legend" id="fn-legend"></div>
+  <h4 style="margin-top:18px" id="fn-var-title"></h4>
+  <div id="fn-var" class="chart"></div>
+</section>
+
 <!-- =============================================================== PATRIMOINE -->
 <section id="patrimoine" class="panel">
   <div class="panel-head">
@@ -126,6 +146,11 @@
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_main/default/table" target="_blank" rel="noopener">Eurostat gov_10a_main</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_taxag/default/table" target="_blank" rel="noopener">gov_10a_taxag</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_exp/default/table" target="_blank" rel="noopener">gov_10a_exp</a> (COFOG), <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10dd_edpt1/default/table" target="_blank" rel="noopener">gov_10dd_edpt1</a> : comptes des administrations publiques par sous-secteur, impôts détaillés, dépenses par fonction, dette.</li>
     <li><a href="https://www.insee.fr/fr/statistiques/8974371" target="_blank" rel="noopener">INSEE, Insee Analyses n° 118 : comptes nationaux distribués 2023</a> : répartition des prélèvements et des transferts par vingtième de niveau de vie.</li>
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/nama_10_nfa_bs/default/table" target="_blank" rel="noopener">Eurostat nama_10_nfa_bs</a> et <a href="https://ec.europa.eu/eurostat/databrowser/view/nasa_10_f_bs/default/table" target="_blank" rel="noopener">nasa_10_f_bs</a> : patrimoine non financier (dont terrains) et comptes financiers par secteur.</li>
+  </ul>
+  <h3>Séries longues</h3>
+  <ul>
+    <li>Intérêts : intérêts versés par l'ensemble des administrations (D41, comptabilité nationale), un peu supérieurs à la fonction « opérations de la dette publique » de la COFOG (qui exclut certains frais). Dette : dette au sens de Maastricht, en valeur nominale.</li>
+    <li>Fonctions : dépenses consolidées des administrations publiques, regroupées comme dans le diagramme de flux. Les ruptures de classification sont celles d'Eurostat.</li>
   </ul>
   <h3>Hypothèses du diagramme de flux</h3>
   <ul>

@@ -81,6 +81,8 @@ fbs_t = jstat("nasa_10_f_bs.json"); fbs = getter(fbs_t)
 debt_t = jstat("gov_10dd_edpt1.json"); debt = getter(debt_t)
 
 gdp_years = [y for y in years_of(jstat("nama_10_gdp.json")) if gdp(na_item="B1GQ", time=y)]
+# années disponibles dans toutes les sources du PIB détaillé
+pib_years = [y for y in gdp_years if nftr(sector="S11", na_item="B1G", direct="PAID", time=y) or nftr(sector="S11", na_item="B1G", direct="RECV", time=y)]
 
 
 def pop(y):
@@ -117,7 +119,7 @@ A10_LABELS = {
 }
 
 pib = {}
-for y in gdp_years:
+for y in pib_years:
     G = lambda i: gdp(na_item=i, time=y)
     S = lambda sec, i: nftr(sector=sec, na_item=i, direct="PAID", time=y) or nftr(sector=sec, na_item=i, direct="RECV", time=y)
     total = G("B1GQ")
@@ -135,7 +137,7 @@ for y in gdp_years:
     rec = {
         "pib": md(total),
         "population": pop(y),
-        "dette_maastricht_pct": debt(time=y),
+        "dette_maastricht_pct": debt(unit="PC_GDP", time=y),
         # --- optique demande
         "demande": [
             {"id": "conso_menages", "label": "Consommation des ménages", "v": md(G("P31_S14"))},
@@ -497,27 +499,62 @@ for y in bs_years:
            "fl": {i: md(sumcodes(lambda c: fbs(sector="S2", finpos="LIAB", na_item=c, time=y), codes)) for i, _, codes in F_ITEMS}}
     patrimoine[y] = {"secteurs": secs, "reste_du_monde": rdm,
                      "pib": md(gdp(na_item="B1GQ", time=y)), "population": pop(y),
-                     "dette_maastricht_pct": debt(time=y)}
+                     "dette_maastricht_pct": debt(unit="PC_GDP", time=y)}
 
 # ================================================================= 5. Simulateur multiplicateur
 last = gdp_years[-1]
 simu = {
     "annee": last,
-    "dette_pct": debt(time=last),
+    "dette_pct": debt(unit="PC_GDP", time=last),
     "recettes_pct": round(100 * main(sector="S13", na_item="TR", time=last) / gdp(na_item="B1GQ", time=last), 1),
     "prelevements_pct": round(100 * tax(sector="S13", na_item="D2_D5_D91_D61_M_D995", time=last) / gdp(na_item="B1GQ", time=last), 1),
     "depenses_pct": round(100 * main(sector="S13", na_item="TE", time=last) / gdp(na_item="B1GQ", time=last), 1),
 }
 
+# ---------------------------------------------------------------- séries longues
+interets = []
+prev_debt = None
+for y in gdp_years:
+    i = main(sector="S13", na_item="D41PAY", time=y)
+    dmd = debt(unit="MIO_EUR", time=y)
+    tr = main(sector="S13", na_item="TR", time=y)
+    if i is None or tr is None:
+        prev_debt = dmd
+        continue
+    interets.append({
+        "annee": y, "interets": md(i), "pib": md(gdp(na_item="B1GQ", time=y)), "recettes": md(tr),
+        "dette": md(dmd), "dette_pct": debt(unit="PC_GDP", time=y),
+        "pct_recettes": round(100 * i / tr, 2),
+        "pct_pib": round(100 * i / gdp(na_item="B1GQ", time=y), 2),
+        "taux_apparent": round(100 * i / prev_debt, 2) if prev_debt else None,
+    })
+    prev_debt = dmd
+
+fonctions_hist = {"fonctions": [[f[0], f[1]] for f in FUNCS], "annees": []}
+for y in gdp_years:
+    if not exp(sector="S13", cofog99="TOTAL", time=y):
+        continue
+    def fv(codes):
+        v = 0.0
+        for c in codes:
+            x = exp(sector="S13", cofog99=c.lstrip("-"), time=y) or 0.0
+            v += -x if c.startswith("-") else x
+        return v
+    g = gdp(na_item="B1GQ", time=y)
+    fonctions_hist["annees"].append({"annee": y, "pib": md(g), "md": {f[0]: md(fv(f[2])) for f in FUNCS},
+                                     "pct": {f[0]: round(100 * fv(f[2]) / g, 3) for f in FUNCS}})
+
 historique = []
 for y in gdp_years:
     te, tr = main(sector="S13", na_item="TE", time=y), main(sector="S13", na_item="TR", time=y)
     historique.append({"annee": y, "pib": md(gdp(na_item="B1GQ", time=y)),
-                       "depenses": md(te), "recettes": md(tr), "dette_pct": debt(time=y)})
+                       "depenses": md(te), "recettes": md(tr), "dette_pct": debt(unit="PC_GDP", time=y)})
 
 out = {
     "genere_le": __import__("datetime").date.today().isoformat(),
     "historique": historique,
+    "interets": interets,
+    "fonctions_hist": fonctions_hist,
     "pib": pib,
     "sankey": sankey,
     "patrimoine": patrimoine,

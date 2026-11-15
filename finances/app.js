@@ -50,6 +50,7 @@ function init() {
   initSankey();
   initSimu();
   initBilan();
+  drawInterets(); drawFonctions();
   $("#gen-date").textContent = `Données générées le ${new Date(DATA.genere_le).toLocaleDateString("fr-FR", { dateStyle: "long" })}.`;
   // onglet actif selon la section visible
   const links = [...document.querySelectorAll(".tabs a")];
@@ -57,8 +58,8 @@ function init() {
     if (e.isIntersecting) links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id));
   }), { rootMargin: "-40% 0px -55% 0px" });
   document.querySelectorAll("section.panel").forEach(s => io.observe(s));
-  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawSankey(); drawSimu(); drawHisto(); drawBilan(); }, 150); });
-  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { drawSankey(); drawSimu(); drawHisto(); drawBilan(); });
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawSankey(); drawSimu(); drawHisto(); drawBilan(); drawInterets(); drawFonctions(); }, 150); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { drawSankey(); drawSimu(); drawHisto(); drawBilan(); drawInterets(); drawFonctions(); });
 }
 
 /* ================================================================= PIB */
@@ -120,11 +121,11 @@ function drawHisto() {
   const w = Math.max(320, el.clientWidth), h = 260, m = { t: 16, r: 54, b: 26, l: 40 };
   const x = d3.scalePoint(H.map(d => d.annee), [m.l, w - m.r]).padding(.3);
   const y = d3.scaleLinear([40, 65], [h - m.b, m.t]);
-  const y2 = d3.scaleLinear([60, 130], [h - m.b, m.t]);
+  const y2 = d3.scaleLinear([50, 130], [h - m.b, m.t]);
   const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
   svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line")
     .attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickSizeOuter(0)).call(g => g.selectAll("text").attr("display", (d, i) => (w < 560 && i % 2) ? "none" : null));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickSizeOuter(0).tickValues(H.map(d => d.annee).filter(a => +a % (w < 560 ? 10 : 5) === 0)));
   svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d => d + " %")).call(g => g.select(".domain").remove());
   svg.append("g").attr("class", "axis").attr("transform", `translate(${w - m.r},0)`).call(d3.axisRight(y2).ticks(5).tickFormat(d => d + " %")).call(g => g.select(".domain").remove());
   const series = [
@@ -344,6 +345,89 @@ function drawSimu() {
   svg.append("circle").attr("cx", x(Math.min(200, Math.max(20, b * 100)))).attr("cy", yy(Math.min(2, m))).attr("r", 7).attr("fill", css("--accent")).attr("stroke", css("--surface")).attr("stroke-width", 2);
   svg.append("text").attr("x", x(Math.min(200, Math.max(20, b * 100))) + 10).attr("y", yy(Math.min(2, m)) - 8).attr("font-size", 12).attr("font-weight", 650).attr("fill", css("--accent")).text(`France ${S.annee} (hypothèse m)`);
   el.replaceChildren(svg.node());
+}
+
+/* ================================================================= SUR 30 ANS */
+function drawInterets() {
+  if (!DATA) return;
+  const I = DATA.interets, last = I.at(-1), first = I[0];
+  const peak = I.reduce((a, b) => b.pct_recettes > a.pct_recettes ? b : a);
+  const lowT = I.filter(d => d.taux_apparent != null).reduce((a, b) => b.taux_apparent < a.taux_apparent ? b : a);
+  kpis($("#int-kpis"), [
+    [md(last.interets), `intérêts payés en ${last.annee} (${md(first.interets)} en ${first.annee})`],
+    [pct(last.pct_recettes), `des recettes publiques (maximum : ${pct(peak.pct_recettes)} en ${peak.annee})`],
+    [pct(last.taux_apparent, 2), `taux apparent (minimum : ${pct(lowT.taux_apparent, 2)} en ${lowT.annee})`],
+    [md(last.dette), `dette publique fin ${last.annee} (${md(first.dette)} en ${first.annee})`],
+  ]);
+  const el = $("#int-chart");
+  const w = Math.max(320, el.clientWidth), h = 300, m = { t: 16, r: 46, b: 26, l: 46 };
+  const x = d3.scaleBand(I.map(d => d.annee), [m.l, w - m.r]).padding(.18);
+  const y = d3.scaleLinear([0, d3.max(I, d => d.interets) * 1.1], [h - m.b, m.t]).nice();
+  const y2 = d3.scaleLinear([0, Math.ceil(d3.max(I, d => Math.max(d.pct_recettes, d.taux_apparent || 0)) + 0.5)], [h - m.b, m.t]);
+  const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickSizeOuter(0).tickValues(I.map(d => d.annee).filter(a => +a % (w < 560 ? 10 : 5) === 0)));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d => d + " Md€")).call(g => g.select(".domain").remove());
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${w - m.r},0)`).call(d3.axisRight(y2).ticks(5).tickFormat(d => d + " %")).call(g => g.select(".domain").remove());
+  const tipI = d => `<b>${d.annee}</b><br>Intérêts : ${md(d.interets)} (${pct(d.pct_pib, 2)} du PIB)<br>Part des recettes publiques : ${pct(d.pct_recettes, 2)}<br>Taux apparent : ${d.taux_apparent != null ? pct(d.taux_apparent, 2) : "–"}<br>Dette : ${md(d.dette)} (${pct(d.dette_pct)} du PIB)`;
+  svg.append("g").selectAll("rect").data(I).join("rect")
+    .attr("x", d => x(d.annee)).attr("width", x.bandwidth()).attr("y", d => y(d.interets)).attr("height", d => y(0) - y(d.interets))
+    .attr("fill", css("--total")).attr("opacity", .35).attr("rx", 1.5)
+    .on("pointermove", (ev, d) => showTip(tipI(d), ev)).on("pointerleave", hideTip);
+  const cx = d => x(d.annee) + x.bandwidth() / 2;
+  const lines = [
+    { k: "pct_recettes", c: css("--neg"), lab: "Intérêts en % des recettes publiques (axe droit)" },
+    { k: "taux_apparent", c: css("--accent"), lab: "Taux d'intérêt apparent de la dette (axe droit)", dash: "5 4" },
+  ];
+  for (const L of lines) {
+    const pts = I.filter(d => d[L.k] != null);
+    svg.append("path").attr("fill", "none").attr("stroke", L.c).attr("stroke-width", 2.2).attr("stroke-dasharray", L.dash || null)
+      .attr("d", d3.line().x(cx).y(d => y2(d[L.k]))(pts));
+  }
+  // zone de survol pleine hauteur
+  svg.append("g").selectAll("rect").data(I).join("rect").attr("x", d => x(d.annee)).attr("width", x.step()).attr("y", m.t).attr("height", h - m.t - m.b)
+    .attr("fill", "transparent").on("pointermove", (ev, d) => showTip(tipI(d), ev)).on("pointerleave", hideTip);
+  el.replaceChildren(svg.node());
+  el.insertAdjacentHTML("beforeend", `<div class="legend-row"><span><i style="border-top-color:${css("--total")};opacity:.5;border-top-width:10px"></i>Intérêts payés, en Md€ courants (axe gauche)</span>${lines.map(L => `<span><i style="border-top-color:${L.c};opacity:1;${L.dash ? "border-top-style:dashed" : ""}"></i>${L.lab}</span>`).join("")}</div>`);
+}
+
+let fnOnly = null;
+function drawFonctions() {
+  if (!DATA) return;
+  const FH = DATA.fonctions_hist, A = FH.annees, keys = FH.fonctions.map(f => f[0]);
+  const lab = Object.fromEntries(FH.fonctions);
+  const col = Object.fromEntries(keys.map((k, i) => [k, FUNC_PAL[i % FUNC_PAL.length]]));
+  const shown = fnOnly ? [fnOnly] : keys;
+  const el = $("#fn-chart");
+  const w = Math.max(320, el.clientWidth), h = 340, m = { t: 12, r: 12, b: 26, l: 42 };
+  const series = d3.stack().keys(shown).value((d, k) => d.pct[k])(A);
+  const x = d3.scalePoint(A.map(d => d.annee), [m.l, w - m.r]);
+  const y = d3.scaleLinear([0, d3.max(series.at(-1), d => d[1]) * 1.05], [h - m.b, m.t]).nice();
+  const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(6)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
+  svg.append("g").selectAll("path").data(series).join("path").attr("fill", d => col[d.key]).attr("opacity", .88)
+    .attr("d", d3.area().x(d => x(d.data.annee)).y0(d => y(d[0])).y1(d => y(d[1])))
+    .on("pointermove", (ev, s) => {
+      const [mx] = d3.pointer(ev); const i = Math.max(0, Math.min(A.length - 1, Math.round((mx - m.l) / x.step())));
+      const d = A[i]; showTip(`<b>${esc(lab[s.key])}</b> · ${d.annee}<br>${pct(d.pct[s.key], 2)} du PIB<br>${md(d.md[s.key])}`, ev);
+    }).on("pointerleave", hideTip).on("click", (ev, s) => { fnOnly = fnOnly === s.key ? null : s.key; drawFonctions(); });
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickSizeOuter(0).tickValues(A.map(d => d.annee).filter(a => +a % (w < 560 ? 10 : 5) === 0)));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(6).tickFormat(d => d + " %")).call(g => g.select(".domain").remove());
+  el.replaceChildren(svg.node());
+  $("#fn-legend").innerHTML = keys.map(k => `<span data-k="${k}" class="${fnOnly && fnOnly !== k ? "off" : ""}"><i style="border-top-color:${col[k]}"></i>${esc(lab[k])}</span>`).join("");
+  $("#fn-legend").querySelectorAll("span").forEach(sp => sp.onclick = () => { fnOnly = fnOnly === sp.dataset.k ? null : sp.dataset.k; drawFonctions(); });
+
+  const a0 = A[0], a1 = A.at(-1);
+  const tot0 = d3.sum(keys, k => a0.pct[k]), tot1 = d3.sum(keys, k => a1.pct[k]);
+  $("#fn-var-title").textContent = `Variation ${a0.annee} → ${a1.annee}, en points de PIB (total : ${pct(tot0)} → ${pct(tot1)})`;
+  const vars = keys.map(k => ({ label: lab[k], v: a1.pct[k] - a0.pct[k], a: a0.pct[k], b: a1.pct[k], color: col[k] })).sort((p, q) => q.v - p.v);
+  const mx = d3.max(vars, d => Math.abs(d.v));
+  $("#fn-var").innerHTML = `<div class="bars">${vars.map(d => `
+    <div class="bar-row">
+      <span class="lab">${esc(d.label)}</span>
+      <span class="val">${d.v >= 0 ? "+" : "−"}${nf1.format(Math.abs(d.v)).replace(/^0,0$/, "0,0")} pt · ${pct(d.a)} → ${pct(d.b)}</span>
+      <span class="track"><span class="fill" style="left:${d.v < 0 ? 50 - 50 * Math.abs(d.v) / mx : 50}%;width:${50 * Math.abs(d.v) / mx}%;background:${d.v < 0 ? css("--pos") : css("--neg")}"></span><span style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--muted)"></span></span>
+    </div>`).join("")}</div>`;
 }
 
 /* ================================================================= PATRIMOINE */
