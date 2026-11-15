@@ -647,9 +647,9 @@ function drawBilan() {
   const mg = { l: narrow ? 44 : 236, r: 52 };
   const tx = c => `<span style="color:var(--muted)">${c}</span>`;
 
-  function chart(rows, rowH) {
+  function chart(rows, rowH, annotate) {
     const top = narrow ? 34 : 22;
-    const h = top + rows.length * rowH + 6;
+    const h = top + rows.length * rowH + 6 + (annotate ? 34 : 0);
     const maxA = d3.max(rows, s => s.actifs), maxL = d3.max(rows, s => s.passifs);
     const x = d3.scaleLinear([-maxL, maxA], [mg.l, w - mg.r]);
     const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
@@ -688,6 +688,16 @@ function drawBilan() {
         .text(nf0.format(acc));
       svg.append("text").attr("x", x(-accL) - 5).attr("y", yy + bh / 2).attr("dy", ".35em").attr("font-size", 11).attr("font-weight", 600).attr("fill", css("--ink"))
         .attr("text-anchor", "end").text(nf0.format(accL));
+      if (annotate && s.id === "apu") {
+        const debtMV = (s.fl.depots || 0) + (s.fl.titres || 0) + (s.fl.credits || 0);
+        const xa = x(-debtMV), xb = x(0), yb = yy + bh + 4, col = css("--neg");
+        svg.append("rect").attr("x", xa - 1).attr("y", yy - 2).attr("width", xb - xa + 2).attr("height", bh + 4).attr("fill", "none")
+          .attr("stroke", col).attr("stroke-width", 2).attr("rx", 3);
+        svg.append("path").attr("d", `M${xa},${yb} v6 H${xb} v-6`).attr("fill", "none").attr("stroke", col).attr("stroke-width", 1.5);
+        const mtxt = B.dette_maastricht_pct ? ` · ${md(B.dette_maastricht_pct * B.pib / 100)} au sens de Maastricht (${pct(B.dette_maastricht_pct)} du PIB)` : "";
+        svg.append("text").attr("x", narrow ? 0 : xb).attr("y", yb + 20).attr("text-anchor", narrow ? "start" : "end").attr("font-size", 11.5).attr("font-weight", 700).attr("fill", col)
+          .text(`↑ La « dette publique » : ${md(debtMV)}${narrow ? "" : mtxt}`);
+      }
     });
     return svg.node();
   }
@@ -695,7 +705,7 @@ function drawBilan() {
   el.innerHTML = `<h4 style="margin:8px 0 4px">France entière : ${md(total.actifs)} d'actifs, ${md(total.passifs)} de passifs</h4>`;
   el.appendChild(chart([total], narrow ? 62 : 52));
   el.insertAdjacentHTML("beforeend", `<p class="muted" style="font-size:.84rem;margin:2px 0 14px">Les actifs financiers d'un Français sont souvent la dette d'un autre Français (le dépôt d'un ménage est une dette de sa banque) : à l'échelle du pays, ils s'annulent presque. Le patrimoine net (${md(total.net)}) se résume donc aux biens réels (${md(sum(total.nf))}) plus la position face à l'étranger (${extNet >= 0 ? "+" : "−"}${md(Math.abs(extNet))}).</p><h4 style="margin:8px 0 4px">Par secteur (même échelle pour les quatre)</h4>`);
-  el.appendChild(chart(secs, narrow ? 56 : 46));
+  el.appendChild(chart(secs, narrow ? 56 : 46, true));
   const sw = (c, hatch) => `<i style="width:14px;height:12px;border:0;opacity:1;background:${hatch ? `repeating-linear-gradient(45deg, ${c} 0 2.5px, color-mix(in srgb, ${c} 35%, transparent) 2.5px 6px)` : c}"></i>`;
   el.insertAdjacentHTML("beforeend", `
     <div class="legend-row"><b style="color:var(--ink)">Biens réels</b>${L.nf.map(([k, l]) => `<span>${sw(NF_COL[k])}${esc(l)}</span>`).join("")}</div>
@@ -723,6 +733,7 @@ function drawBilan() {
   const apu = secs.find(s => s.id === "apu"), snf = secs.find(s => s.id === "snf"), men = secs.find(s => s.id === "menages");
   $("#bs-notes").innerHTML = `
     <p><b>Les ménages détiennent ${pct(100 * men.net / netTot, 0)} du patrimoine net</b>, dont ${md(men.nf.logements + men.nf.terrains)} en logements et terrains. Leurs dettes sont surtout des crédits immobiliers (${md(men.fl.credits)}).</p>
+    <p><b>La dette publique dont on parle</b> est la partie entourée en rouge à gauche de la barre des administrations : obligations d'État (${md(apu.fl.titres)}), crédits (${md(apu.fl.credits)}) et dépôts (${md(apu.fl.depots)}), soit ${md(apu.fl.titres + apu.fl.credits + apu.fl.depots)} à la valeur de marché. Elle pèse moins que les dettes des entreprises (${md(snf.passifs)}, actions comprises) ou du secteur financier, mais c'est la seule qui est remboursée par l'impôt. En face, les administrations détiennent ${md(apu.actifs)} d'actifs (routes, bâtiments, participations, trésorerie).</p>
     <p><b>Administrations publiques :</b> leurs passifs (${md(apu.passifs)}) sont mesurés à la valeur de marché. La dette « au sens de Maastricht » est mesurée à sa valeur nominale : ${B.dette_maastricht_pct ? pct(B.dette_maastricht_pct) + " du PIB" : "–"}. Leurs actifs sont surtout des routes, bâtiments publics, réseaux et terrains, difficiles à vendre. Leur patrimoine net reste positif (${md(apu.net)}), mais il fond depuis des années.</p>
     <p><b>Entreprises :</b> leurs actions sont comptées comme un passif (elles « appartiennent » aux actionnaires), à la valeur de la Bourse. Leur patrimoine net (${md(snf.net)}) est donc faible par construction. La richesse des entreprises se retrouve dans les actions détenues par les ménages, les assureurs et l'étranger.</p>
     <p>Le patrimoine net de la France est presque entièrement fait de <b>biens réels</b> (${md(nfTot)}), dont ${pct(100 * d3.sum(secs, s => s.nf.terrains) / nfTot, 0)} de terrains. Les créances et dettes financières entre Français s'annulent ; seul compte le solde avec l'étranger (${extNet >= 0 ? "+" : "−"}${md(Math.abs(extNet))}).</p>`;
