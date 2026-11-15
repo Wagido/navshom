@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comptes de la France</title>
+<meta name="description" content="Le PIB français décomposé, le circuit de l'argent public (qui paie, qui reçoit) et le patrimoine de la France, à partir des données Eurostat et INSEE.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="wrap">
+  <h1>Comptes de la France</h1>
+  <p class="sub">Ce que la France produit, ce que l'argent public prélève et redistribue, ce qu'elle possède et ce qu'elle doit. Données officielles Eurostat et INSEE.</p>
+</header>
+<div class="top">
+  <div class="wrap">
+    <nav class="tabs" aria-label="Sections">
+      <a href="#pib">Le PIB</a>
+      <a href="#argent-public">L'argent public</a>
+      <a href="#simulateur">Couper la dépense ?</a>
+      <a href="#patrimoine">Patrimoine</a>
+      <a href="#methode">Méthode</a>
+    </nav>
+  </div>
+</div>
+
+<main class="wrap">
+
+<!-- =============================================================== PIB -->
+<section id="pib" class="panel">
+  <div class="panel-head">
+    <h2>Le PIB et ce qu'il contient vraiment</h2>
+    <label class="ctl">Année <select id="pib-year"></select></label>
+  </div>
+  <div class="kpis" id="pib-kpis"></div>
+
+  <h3>Ce qui, dans le PIB, correspond à des ventes à des clients</h3>
+  <p class="lead">Le PIB additionne des choses de nature très différente. Une partie correspond à des biens et services vendus à un prix à des clients qui les ont choisis. Une autre est comptée par <em>convention</em> : services publics évalués à ce qu'ils coûtent, loyers fictifs des propriétaires, impôts inclus dans les prix, remplacement du matériel usé. Cette cascade retire ces conventions une à une.</p>
+  <div id="cascade" class="chart"></div>
+  <ol class="notes" id="cascade-notes"></ol>
+  <div class="callout">
+    <p><strong>Ce que la cascade ne dit pas.</strong> Retirer une ligne ne veut pas dire qu'elle est « inutile » : un enseignant ou une infirmière produisent quelque chose de réel, mais la comptabilité ne peut pas le mesurer autrement que par leur salaire. À l'inverse, une activité marchande peut être sans valeur (être payé 100 € pour creuser un trou puis le reboucher fait 100 € de PIB). Aucune statistique ne sait trier l'utile de l'inutile : elle sait seulement distinguer ce qui passe par un prix librement payé de ce qui est compté par convention.</p>
+  </div>
+
+  <h3>Part de la production marchande payée avec de l'argent public</h3>
+  <p class="lead">Même la valeur ajoutée « vendue » contient des ventes dont le client final est l'État ou la Sécurité sociale. Ces montants sont des dépenses (pas de la valeur ajoutée), on les montre donc à côté, sans les soustraire.</p>
+  <div id="achats" class="chart"></div>
+
+  <h3>Les trois façons de mesurer le même PIB</h3>
+  <div class="grid3">
+    <div><h4>Qui produit ?</h4><div id="pib-production" class="chart"></div></div>
+    <div><h4>Qui dépense ?</h4><div id="pib-demande" class="chart"></div></div>
+    <div><h4>Qui touche les revenus ?</h4><div id="pib-revenus" class="chart"></div></div>
+  </div>
+
+  <h3>Valeur ajoutée par activité</h3>
+  <div id="pib-branches" class="chart"></div>
+
+  <h3>Dépenses, recettes publiques et dette depuis 2015</h3>
+  <div id="pib-histo" class="chart"></div>
+</section>
+
+<!-- =============================================================== SANKEY -->
+<section id="argent-public" class="panel">
+  <div class="panel-head">
+    <h2>Qui paie, comment, à qui, pour quoi, qui reçoit</h2>
+    <div class="ctl-row">
+      <label class="ctl">Année <select id="sk-year"></select></label>
+      <div class="seg" id="sk-unit" role="radiogroup" aria-label="Unité">
+        <button data-u="md" aria-pressed="true">Md€</button>
+        <button data-u="pib">% du PIB</button>
+        <button data-u="hab">€ / habitant</button>
+      </div>
+    </div>
+  </div>
+  <div class="kpis" id="sk-kpis"></div>
+  <p class="lead">Chaque bande a l'épaisseur d'un montant. À gauche, les ménages classés en dix tranches de niveau de vie (D1 : les 10 % les plus modestes, D10 : les 10 % les plus aisés). Tous les impôts, y compris ceux payés par les entreprises, finissent par être supportés par des ménages : l'INSEE les leur attribue (via les prix, les salaires, les dividendes). Survolez ou touchez un bloc pour suivre son argent.</p>
+  <div class="sk-scroll"><div id="sankey" class="chart"></div></div>
+  <div class="legend-row" id="sk-legend"></div>
+  <div class="callout small" id="sk-explain"></div>
+</section>
+
+<!-- =============================================================== SIMULATEUR -->
+<section id="simulateur" class="panel">
+  <div class="panel-head">
+    <h2>Couper la dépense fait-il baisser la dette ?</h2>
+  </div>
+  <p class="lead">Quand l'État dépense 1 € de moins, l'activité ralentit d'un montant <em>m</em> (le <strong>multiplicateur</strong>). Moins d'activité, c'est moins d'impôts : la dette baisse donc de moins d'1 €, et le PIB baisse aussi. Le ratio dette/PIB peut finalement monter. Il monte si <strong>m &gt; 1 / (dette/PIB + taux de prélèvements)</strong>.</p>
+  <div class="simu">
+    <div class="simu-ctl">
+      <label><span>Montant de la coupe <output id="o-cut"></output></span><input type="range" id="s-cut" min="5" max="150" step="5" value="40"></label>
+      <label><span>Multiplicateur <em>m</em> <output id="o-m"></output></span><input type="range" id="s-m" min="0" max="2" step="0.05" value="0.8"></label>
+      <label><span>Dette publique (% du PIB) <output id="o-b"></output></span><input type="range" id="s-b" min="20" max="200" step="1"></label>
+      <label><span>Taux de prélèvements (% du PIB) <output id="o-t"></output></span><input type="range" id="s-t" min="20" max="60" step="0.5"></label>
+      <button class="link" id="s-reset">Revenir aux valeurs actuelles de la France</button>
+    </div>
+    <div class="simu-out">
+      <div id="simu-result" class="result"></div>
+      <div id="simu-chart" class="chart"></div>
+    </div>
+  </div>
+  <div class="callout small">
+    <p><strong>Limites.</strong> C'est l'effet de la première année. Le multiplicateur s'estompe ensuite, alors que l'économie réalisée se répète chaque année : à moyen terme une coupe finit généralement par réduire la dette, sauf si la récession laisse des séquelles durables. Les estimations du multiplicateur vont d'environ 0,3 à plus de 1,5. Il est plus élevé en récession, quand la banque centrale ne baisse pas ses taux, et pour l'investissement public. Il est plus faible quand l'économie tourne à plein. Il varie aussi selon la dépense : supprimer un poste de fonctionnaire retire immédiatement sa valeur ajoutée du PIB, alors que baisser une prestation n'agit qu'à travers la consommation de ceux qui la touchent.</p>
+  </div>
+</section>
+
+<!-- =============================================================== PATRIMOINE -->
+<section id="patrimoine" class="panel">
+  <div class="panel-head">
+    <h2>Ce que la France possède et ce qu'elle doit</h2>
+    <label class="ctl">Année <select id="bs-year"></select></label>
+  </div>
+  <div class="kpis" id="bs-kpis"></div>
+  <div id="bs-chart" class="chart"></div>
+  <div class="table-scroll"><table id="bs-table" class="bs"></table></div>
+  <div class="callout small" id="bs-notes"></div>
+</section>
+
+<!-- =============================================================== METHODE -->
+<section id="methode" class="panel prose">
+  <h2>Sources et méthode</h2>
+  <h3>Sources</h3>
+  <ul>
+    <li><a href="https://ec.europa.eu/eurostat/databrowser/view/nama_10_gdp/default/table" target="_blank" rel="noopener">Eurostat nama_10_gdp</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/nasa_10_nf_tr/default/table" target="_blank" rel="noopener">nasa_10_nf_tr</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/nama_10_a10/default/table" target="_blank" rel="noopener">nama_10_a10</a> : PIB, valeur ajoutée par secteur et par branche, amortissement.</li>
+    <li><a href="https://ec.europa.eu/eurostat/databrowser/view/nama_10_co3_p3/default/table" target="_blank" rel="noopener">Eurostat nama_10_co3_p3</a> : loyers imputés des propriétaires occupants.</li>
+    <li><a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_main/default/table" target="_blank" rel="noopener">Eurostat gov_10a_main</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_taxag/default/table" target="_blank" rel="noopener">gov_10a_taxag</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_exp/default/table" target="_blank" rel="noopener">gov_10a_exp</a> (COFOG), <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10dd_edpt1/default/table" target="_blank" rel="noopener">gov_10dd_edpt1</a> : comptes des administrations publiques par sous-secteur, impôts détaillés, dépenses par fonction, dette.</li>
+    <li><a href="https://www.insee.fr/fr/statistiques/8974371" target="_blank" rel="noopener">INSEE, Insee Analyses n° 118 : comptes nationaux distribués 2023</a> : répartition des prélèvements et des transferts par vingtième de niveau de vie.</li>
+    <li><a href="https://ec.europa.eu/eurostat/databrowser/view/nama_10_nfa_bs/default/table" target="_blank" rel="noopener">Eurostat nama_10_nfa_bs</a> et <a href="https://ec.europa.eu/eurostat/databrowser/view/nasa_10_f_bs/default/table" target="_blank" rel="noopener">nasa_10_f_bs</a> : patrimoine non financier (dont terrains) et comptes financiers par secteur.</li>
+  </ul>
+  <h3>Hypothèses du diagramme de flux</h3>
+  <ul>
+    <li>Les montants par impôt, par administration et par fonction sont ceux d'Eurostat pour l'année choisie. La répartition entre tranches de niveau de vie applique à ces montants les proportions de l'INSEE pour 2023 (dernière année publiée).</li>
+    <li>Les flux entre administrations (dotations de l'État aux collectivités, transferts à la Sécurité sociale) sont présentés en net. Les transferts en capital entre administrations sont répartis au prorata des transferts versés et reçus par chacune, faute de matrice détaillée.</li>
+    <li>Les dépenses par fonction de chaque administration sont rendues cohérentes avec le total consolidé par un ajustement proportionnel (méthode RAS).</li>
+    <li>L'emprunt d'une année est le déficit public. Il est attribué à l'administration qui l'a creusé (État, collectivités ; la Sécurité sociale était proche de l'équilibre).</li>
+    <li>Défense, police, économie, environnement et administration générale sont répartis entre tranches selon la clé « dépenses collectives » de l'INSEE (à peu près égale par personne). Les intérêts de la dette vont à un bloc « Prêteurs » : environ la moitié des titres de dette publique française est détenue à l'étranger.</li>
+    <li>Les recettes non fiscales (ventes de services publics, revenus du patrimoine public, fonds européens…) ne sont pas réparties par tranche.</li>
+  </ul>
+  <h3>Mise à jour</h3>
+  <p>Les fichiers bruts sont dans <code>data/sources/</code>. Pour actualiser : <code>bash scripts/fetch.sh</code> puis <code>python3 scripts/build.py</code>, qui regénère <code>data/finances.json</code>.</p>
+  <p class="muted" id="gen-date"></p>
+</section>
+</main>
+
+<div id="tip" class="tip" role="tooltip" hidden></div>
+
+<script src="lib/d3.min.js"></script>
+<script src="lib/d3-sankey.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
