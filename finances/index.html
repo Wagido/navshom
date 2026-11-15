@@ -16,15 +16,28 @@
   <div class="wrap">
     <div class="navbar">
     <nav class="tabs" aria-label="Sections">
+      <span class="tab-group">Économie</span>
       <a href="#pib">Le PIB</a>
       <a href="#argent-public">L'argent public</a>
       <a href="#simulateur">Couper la dépense ?</a>
-      <a href="#duree">Sur 30 ans</a>
+      <a href="#duree">Dette sur 30 ans</a>
       <a href="#patrimoine">Patrimoine</a>
+      <a href="#commerce">Commerce extérieur</a>
       <a href="#comparer">Comparer les pays</a>
+      <span class="tab-group">Ressources</span>
       <a href="#energie">Énergie</a>
       <a href="#matieres">Matières</a>
+      <a href="#eau">Eau</a>
+      <a href="#sols">Sols</a>
+      <a href="#alimentation">Alimentation</a>
+      <a href="#climat">Climat</a>
       <a href="#territoire">Territoire</a>
+      <span class="tab-group">Société</span>
+      <a href="#demographie">Démographie</a>
+      <a href="#immigration">Immigration</a>
+      <a href="#travail">Temps de travail</a>
+      <a href="#justice">Justice</a>
+      <span class="tab-group">·</span>
       <a href="#methode">Méthode</a>
     </nav>
     <label class="ctl geo-ctl">Pays <select id="geo"></select></label>
@@ -33,7 +46,7 @@
 </div>
 
 <main class="wrap">
-
+<h2 class="group-title" id="g-economie">Économie</h2>
 <!-- =============================================================== PIB -->
 <section id="pib" class="panel">
   <div class="panel-head">
@@ -145,6 +158,22 @@
   <div class="callout small" id="bs-notes"></div>
 </section>
 
+<section id="commerce" class="panel">
+  <div class="panel-head">
+    <h2>Commerce extérieur : ce que la France achète et vend <span class="geo-fixed">France</span></h2>
+  </div>
+  <div class="kpis" id="co-kpis"></div>
+  <h3>Les 20 premiers partenaires (milliards d'euros)</h3>
+  <p class="lead">À gauche ce que la France leur achète, à droite ce qu'elle leur vend ; le solde est à droite de chaque ligne. Biens uniquement : les services (tourisme, conseil, finance), où la France est excédentaire, n'y sont pas.</p>
+  <div id="co-partners" class="chart"></div><div class="legend-row" id="co-legend"></div>
+  <div class="grid2">
+    <div><h3>Les plus gros déficits par produit</h3><div id="co-def" class="chart"></div></div>
+    <div><h3>Les plus gros excédents par produit</h3><div id="co-exc" class="chart"></div></div>
+  </div>
+  <h3>Importations, exportations et solde depuis 2002</h3>
+  <div id="co-hist" class="chart"></div>
+</section>
+
 <!-- =============================================================== COMPARER -->
 <section id="comparer" class="panel">
   <div class="panel-head">
@@ -162,6 +191,7 @@
   <div class="callout small" id="cmp-notes"></div>
 </section>
 
+<h2 class="group-title" id="g-ressources">Ressources</h2>
 <!-- =============================================================== ENERGIE -->
 <section id="energie" class="panel">
   <div class="panel-head">
@@ -226,6 +256,56 @@
   <div id="mt-cmp" class="chart"></div>
 </section>
 
+<section id="eau" class="panel">
+  <div class="panel-head">
+    <h2>Eau : ce qui est prélevé, et pour quoi <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="eau-kpis"></div>
+  <p class="lead">Eau douce prélevée dans les rivières et les nappes, en milliards de m³ (km³). L'essentiel de l'eau de refroidissement des centrales est rendu aux rivières, réchauffé ; l'irrigation, elle, est en grande partie évaporée.</p>
+  <div id="eau-chart" class="chart"></div><div class="legend-row" id="eau-legend"></div>
+  <h3>Comparer les pays</h3><div id="eau-cmp" class="chart"></div>
+</section>
+
+<section id="sols" class="panel">
+  <div class="panel-head">
+    <h2>Sols : à quoi sert le territoire <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="so-kpis"></div>
+  <h3>Ce qui couvre le sol (enquête LUCAS, par points d'observation)</h3>
+  <div id="so-chart" class="chart"></div><div class="legend-row" id="so-legend"></div>
+  <div class="grid2">
+    <div><h3>À quoi le sol est utilisé (dernière enquête)</h3><div id="so-usage" class="chart"></div></div>
+    <div><h3>Comparer les pays</h3><div id="so-cmp" class="chart"></div></div>
+  </div>
+</section>
+
+<section id="alimentation" class="panel">
+  <div class="panel-head">
+    <h2>Alimentation : d'où vient ce que l'on mange, et où ça va <span class="geo-tag"></span></h2>
+    <label class="ctl">Année <select id="al-year"></select></label>
+  </div>
+  <div class="kpis" id="al-kpis"></div>
+  <p class="lead">Bilans alimentaires de la FAO, en milliers de tonnes. Une partie des produits est comptée deux fois quand elle est transformée (le colza en huile, la betterave en sucre) : la colonne « Transformation » renvoie vers d'autres produits.</p>
+  <div class="sk-scroll"><div id="al-sankey" class="chart sk-fixed"></div></div>
+  <div class="grid2">
+    <div><h3>Calories disponibles par jour et par personne</h3><div id="al-kcal" class="chart"></div></div>
+    <div><h3>Comparer les pays</h3><div id="al-cmp" class="chart"></div></div>
+  </div>
+</section>
+
+<section id="climat" class="panel">
+  <div class="panel-head">
+    <h2>Climat : les émissions de gaz à effet de serre <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="cl-kpis"></div>
+  <p class="lead">En millions de tonnes d'équivalent CO₂ (chaque gaz est converti selon son effet sur le réchauffement). Ce sont les émissions produites sur le territoire. Celles des produits importés (l'« empreinte carbone ») n'y sont pas, et celles des forêts et des sols sont montrées à part, sous zéro quand elles absorbent du CO₂.</p>
+  <div id="cl-chart" class="chart"></div><div class="legend-row" id="cl-legend"></div>
+  <div class="grid2">
+    <div><h3>Par gaz (dernière année)</h3><div id="cl-gaz" class="chart"></div></div>
+    <div><h3>Comparer les pays</h3><div id="cl-cmp" class="chart"></div></div>
+  </div>
+</section>
+
 <!-- =============================================================== TERRITOIRE -->
 <section id="territoire" class="panel">
   <div class="panel-head">
@@ -252,6 +332,58 @@
   </div>
 </section>
 
+<h2 class="group-title" id="g-societe">Société</h2>
+<section id="demographie" class="panel">
+  <div class="panel-head">
+    <h2>Démographie : la population, son âge, son avenir <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="de-kpis"></div>
+  <div class="grid2">
+    <div><h3>Pyramide des âges</h3><div id="de-pyr" class="chart"></div><div class="legend-row" id="de-pyr-legend"></div></div>
+    <div><h3>Naissances, décès, solde migratoire depuis 1960</h3><div id="de-flux" class="chart"></div>
+      <h3>Projection jusqu'en 2100 (scénario central d'Eurostat)</h3><div id="de-proj" class="chart"></div><div class="legend-row" id="de-proj-legend"></div></div>
+  </div>
+  <h3>Comparer les pays</h3><div id="de-cmp" class="chart"></div>
+</section>
+
+<section id="immigration" class="panel">
+  <div class="panel-head">
+    <h2>Immigration : qui arrive, qui part <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="im-kpis"></div>
+  <p class="lead">« Né à l'étranger » inclut les Français nés hors de France (enfants d'expatriés, rapatriés d'Algérie…). Les flux comptent les personnes qui s'installent ou quittent le pays pour au moins un an.</p>
+  <div class="grid2">
+    <div><h3>Population née à l'étranger</h3><div id="im-stock" class="chart"></div><div class="legend-row" id="im-stock-legend"></div></div>
+    <div><h3>Arrivées et départs par an</h3><div id="im-flux" class="chart"></div></div>
+  </div>
+  <h3>Comparer les pays</h3><div id="im-cmp" class="chart"></div>
+</section>
+
+<section id="travail" class="panel">
+  <div class="panel-head">
+    <h2>Temps de travail : combien d'heures produisent le PIB <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="tt-kpis"></div>
+  <h3>Heures travaillées par an, par secteur</h3>
+  <div id="tt-chart" class="chart"></div><div class="legend-row" id="tt-legend"></div>
+  <h3>Une journée moyenne (enquête emploi du temps)</h3>
+  <div id="tt-jour" class="chart"></div><div class="legend-row" id="tt-jour-legend"></div>
+  <h3>Comparer les pays</h3><div id="tt-cmp" class="chart"></div>
+</section>
+
+<section id="justice" class="panel">
+  <div class="panel-head">
+    <h2>Justice et sécurité <span class="geo-tag"></span></h2>
+  </div>
+  <div class="kpis" id="ju-kpis"></div>
+  <div class="grid2">
+    <div><h3 id="ju-off-title">Infractions enregistrées</h3><div id="ju-off" class="chart"></div>
+      <p class="muted" style="font-size:.85rem">Faits enregistrés par la police et la gendarmerie : ils dépendent aussi des plaintes déposées et des définitions nationales, les comparaisons entre pays sont donc fragiles.</p></div>
+    <div><h3>Détenus et places de prison</h3><div id="ju-pris" class="chart"></div></div>
+  </div>
+  <h3>Comparer les pays</h3><div id="ju-cmp" class="chart"></div>
+</section>
+
 <!-- =============================================================== METHODE -->
 <section id="methode" class="panel prose">
   <h2>Sources et méthode</h2>
@@ -273,6 +405,13 @@
   <ul>
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/env_ac_sd/default/table" target="_blank" rel="noopener">Eurostat env_ac_sd</a> : flux de matières pour l'économie circulaire, les données du diagramme d'Eurostat. Les matières recyclées sont déduites : matières mises en œuvre − extraction − importations. La part « brûlée pour l'énergie » est ce qui n'est ni exporté ni utilisé comme matériau.</li>
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/env_ac_mfa/default/table" target="_blank" rel="noopener">env_ac_mfa</a> (comptes de flux de matières), <a href="https://ec.europa.eu/eurostat/databrowser/view/env_ac_rme/default/table" target="_blank" rel="noopener">env_ac_rme</a> (empreinte matières) et <a href="https://ec.europa.eu/eurostat/databrowser/view/cei_srm030/default/table" target="_blank" rel="noopener">cei_srm030</a> (taux d'utilisation circulaire).</li>
+  </ul>
+  <h3>Commerce, climat, eau, sols, alimentation, société</h3>
+  <ul>
+    <li>Commerce extérieur : <a href="https://ec.europa.eu/eurostat/web/international-trade-in-goods/database" target="_blank" rel="noopener">Eurostat Comext</a> (DS-059341), biens uniquement, par partenaire et par chapitre du système harmonisé.</li>
+    <li>Climat : <a href="https://ec.europa.eu/eurostat/databrowser/view/env_air_gge/default/table" target="_blank" rel="noopener">env_air_gge</a> (inventaires nationaux transmis à l'ONU). Eau : <a href="https://ec.europa.eu/eurostat/databrowser/view/env_wat_abs/default/table" target="_blank" rel="noopener">env_wat_abs</a>. Sols : enquête LUCAS (<a href="https://ec.europa.eu/eurostat/databrowser/view/lan_lcv_ovw/default/table" target="_blank" rel="noopener">lan_lcv_ovw</a>, lan_use_ovw).</li>
+    <li>Alimentation : <a href="https://www.fao.org/faostat/fr/#data/FBS" target="_blank" rel="noopener">FAOSTAT, bilans alimentaires</a> (CC BY 4.0). Les « calories disponibles » comprennent le gaspillage au niveau des ménages.</li>
+    <li>Démographie et immigration : demo_gind, demo_pjan, proj_23np, migr_pop3ctb, migr_imm1ctz, migr_emi1ctz. Temps de travail : nama_10_a10_e (heures travaillées, comptabilité nationale) et l'enquête emploi du temps 2010 (tus_00age). Justice : crim_off_cat, crim_pris_cap, crim_just_job.</li>
   </ul>
   <h3>Autres pays</h3>
   <ul>
@@ -308,5 +447,6 @@
 <script src="energie.js"></script>
 <script src="matieres.js"></script>
 <script src="territoire.js"></script>
+<script src="themes.js"></script>
 </body>
 </html>

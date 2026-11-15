@@ -59,4 +59,34 @@ get matieres/env_ac_mfa.json "$E/env_ac_mfa?sinceTimePeriod=2000&unit=THS_T&unit
 get matieres/env_ac_sd.json  "$E/env_ac_sd?sinceTimePeriod=2010&unit=THS_T$GEO"
 get matieres/env_ac_rme.json "$E/env_ac_rme?sinceTimePeriod=2010&unit=THS_T&unit=T_HAB$GEO&material=TOTAL&material=MF1&material=MF2&material=MF3&material=MF4"
 get matieres/cei_srm030.json "$E/cei_srm030?sinceTimePeriod=2000$GEO"
+# Thèmes : climat, eau, sols, démographie, immigration, temps de travail, justice (Eurostat)
+mkdir -p themes
+CRF=$(for c in TOTX4_MEMO TOTXMEMO CRF1A1 CRF1A2 CRF1A3 CRF1A4A CRF1A4B CRF1A4C CRF1A5 CRF1B CRF2 CRF3 CRF4 CRF5 CRF6 CRF1D1A CRF1D1B; do printf "&src_crf=%s" "$c"; done)
+get themes/env_air_gge.json "$E/env_air_gge?unit=MIO_T&sinceTimePeriod=1990$GEO$CRF&airpol=GHG&airpol=CO2&airpol=CH4_CO2E&airpol=N2O_CO2E&airpol=HFC_PFC_NF3_SF6_CO2E"
+get themes/env_wat_abs.json "$E/env_wat_abs?wat_src=FRW&sinceTimePeriod=2000$GEO"
+get themes/lan_lcv_ovw.json "$E/lan_lcv_ovw?unit=KM2&unit=PC$GEO$(for c in TOTAL A00 A10 A20 A30 B00 C00 C10 C20 C30 D00 E00 F00 G00 H00; do printf "&landcover=%s" "$c"; done)"
+get themes/lan_use_ovw.json "$E/lan_use_ovw?unit=KM2&unit=PC$GEO"
+get themes/demo_gind.json   "$E/demo_gind?sinceTimePeriod=1960$GEO&indic_de=JAN&indic_de=LBIRTH&indic_de=DEATH&indic_de=CNMIGRAT&indic_de=GROW"
+get themes/demo_pjan.json   "$E/demo_pjan?unit=NR&sex=M&sex=F&time=2000&time=2025$GEO"
+get themes/proj_23np.json   "$E/proj_23np?projection=BSL&sex=T&unit=PER$GEO&age=TOTAL&age=Y_LT20&age=Y20-64&age=Y_GE65&age=Y_GE80"
+get themes/migr_pop3ctb.json "$E/migr_pop3ctb?age=TOTAL&sex=T&sinceTimePeriod=2010$GEO&c_birth=TOTAL&c_birth=NAT&c_birth=FOR&c_birth=EU27_2020_FOR&c_birth=NEU27_2020_FOR"
+get themes/migr_imm1ctz.json "$E/migr_imm1ctz?age=TOTAL&sex=T&agedef=COMPLET&sinceTimePeriod=2010$GEO&citizen=TOTAL&citizen=NAT&citizen=EU27_2020_FOR&citizen=NEU27_2020_FOR"
+get themes/migr_emi1ctz.json "$E/migr_emi1ctz?age=TOTAL&sex=T&agedef=COMPLET&sinceTimePeriod=2010$GEO&citizen=TOTAL&citizen=NAT"
+get themes/nama_10_a10_e.json "$E/nama_10_a10_e?na_item=EMP_DC&unit=THS_HW&unit=THS_PER&sinceTimePeriod=1995$GEO"
+get themes/tus_00age.json   "$E/tus_00age?unit=TIME_SP&sex=T&age=TOTAL$GEO"
+get themes/crim_off_cat.json "$E/crim_off_cat?sinceTimePeriod=2008$GEO"
+get themes/crim_just_job.json "$E/crim_just_job?sex=T&sinceTimePeriod=2008$GEO"
+get themes/crim_pris_cap.json "$E/crim_pris_cap?sinceTimePeriod=2008$GEO"
+
+# Commerce extérieur de la France (Comext) : par partenaire et par chapitre de produits
+C="https://ec.europa.eu/eurostat/api/comext/dissemination/statistics/1.0/data/DS-059341"
+YR=$(date +%Y); LAST=$((YR-1))
+get themes/comext_partenaires.json "$C?reporter=FR&freq=A&time=$LAST&flow=1&flow=2&product=TOTAL&indicators=VALUE_EUR&indicators=QUANTITY_KG"
+get themes/comext_produits.json "$C?reporter=FR&freq=A&time=$LAST&flow=1&flow=2&partner=WORLD&partner=INT_EU27_2020&partner=EXT_EU27_2020&indicators=VALUE_EUR&indicators=QUANTITY_KG$(for i in $(seq -w 1 99); do printf "&product=%s" "$i"; done)"
+get themes/comext_historique.json "$C?reporter=FR&freq=A&sinceTimePeriod=2002&flow=1&flow=2&partner=WORLD&product=TOTAL&indicators=VALUE_EUR&indicators=QUANTITY_KG"
+
+# Alimentation : bilans alimentaires FAOSTAT (Europe), filtrés
+TMPZ=$(mktemp)
+get "$TMPZ" "https://bulks-faostat.fao.org/production/FoodBalanceSheets_E_Europe.zip"
+python3 "$SCRIPTS/filter_fao.py" "$TMPZ" themes/fao_fbs.csv && rm -f "$TMPZ"
 echo "OK"

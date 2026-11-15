@@ -188,3 +188,17 @@ table.cmp-t tr.me td { font-weight: 700; background: var(--callout); }
 
 .tr-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(240px, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 860px) { .tr-grid { grid-template-columns: 1fr; } }
+
+/* groupes de thèmes */
+.tab-group { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 8px 2px 8px 10px; white-space: nowrap; align-self: center; }
+.tab-group:first-child { padding-left: 0; }
+.tabs a { padding: 6px 9px; }
+.group-title { font-size: .85rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 36px 0 -6px; padding-top: 6px; border-top: 2px solid var(--line); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+#al-sankey { min-width: 900px; }
+#al-sankey .link { fill: none; stroke-opacity: var(--link-opacity); }
+#al-sankey .link:hover { stroke-opacity: .85; }
+#al-sankey .node text { font-size: 11.5px; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+#al-sankey .node text .amt { fill: var(--muted); }
+#al-sankey .colhead { font-size: 11px; font-weight: 700; letter-spacing: .06em; fill: var(--muted); text-transform: uppercase; }
