@@ -24,6 +24,7 @@
       <a href="#comparer">Comparer les pays</a>
       <a href="#energie">Énergie</a>
       <a href="#matieres">Matières</a>
+      <a href="#territoire">Territoire</a>
       <a href="#methode">Méthode</a>
     </nav>
     <label class="ctl geo-ctl">Pays <select id="geo"></select></label>
@@ -225,6 +226,32 @@
   <div id="mt-cmp" class="chart"></div>
 </section>
 
+<!-- =============================================================== TERRITOIRE -->
+<section id="territoire" class="panel">
+  <div class="panel-head">
+    <h2>Le territoire : qui produit, qui consomme <span class="geo-fixed">France</span></h2>
+    <div class="ctl-row">
+      <div class="seg" id="tr-view" role="radiogroup" aria-label="Indicateur">
+        <button data-v="elec" aria-pressed="true">Électricité</button>
+        <button data-v="pib_hab">PIB / hab.</button>
+        <button data-v="revenu_hab">Revenu / hab.</button>
+        <button data-v="ratio">Revenu ÷ PIB</button>
+        <button data-v="pop">Population</button>
+      </div>
+      <label class="ctl">Année <select id="tr-year"></select></label>
+    </div>
+  </div>
+  <div class="kpis" id="tr-kpis"></div>
+  <div class="tr-grid">
+    <div><div id="tr-map" class="chart"></div><div class="legend-row" id="tr-legend"></div></div>
+    <div id="tr-side"></div>
+  </div>
+  <div class="callout small">
+    <p><b>Électricité.</b> RTE publie, pour chaque région, sa production, sa consommation et son solde d'échanges, mais pas les flux d'une région à l'autre. Les flèches sont donc une <em>estimation</em> : chaque région excédentaire alimente d'abord les régions déficitaires les plus proches, et ce qui reste part à l'étranger. La Corse a son propre réseau et n'est pas couverte.</p>
+    <p><b>PIB et revenu.</b> Le PIB est produit là où sont les entreprises et les administrations. Le revenu disponible des ménages, lui, est perçu là où ils habitent : salaires des navetteurs, retraites, prestations, après impôts. En Île-de-France, le revenu ne représente qu'environ 45 % du PIB, contre 65 à 70 % dans la plupart des autres régions. C'est la mesure la plus directe de la redistribution entre territoires (sièges sociaux, impôts, retraités qui s'installent ailleurs).</p>
+  </div>
+</section>
+
 <!-- =============================================================== METHODE -->
 <section id="methode" class="panel prose">
   <h2>Sources et méthode</h2>
@@ -280,5 +307,6 @@
 <script src="app.js"></script>
 <script src="energie.js"></script>
 <script src="matieres.js"></script>
+<script src="territoire.js"></script>
 </body>
 </html>

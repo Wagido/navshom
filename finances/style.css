@@ -185,3 +185,6 @@ table.cmp-t tr.me td { font-weight: 700; background: var(--callout); }
 .dbar { position: relative; display: inline-block; width: 90px; height: 10px; vertical-align: middle; margin-left: 6px; background: var(--bg); border-radius: 2px; }
 .dbar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
 .dbar span { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+
+.tr-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(240px, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .tr-grid { grid-template-columns: 1fr; } }
