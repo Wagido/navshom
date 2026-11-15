@@ -22,6 +22,7 @@
       <a href="#duree">Sur 30 ans</a>
       <a href="#patrimoine">Patrimoine</a>
       <a href="#comparer">Comparer les pays</a>
+      <a href="#energie">Énergie</a>
       <a href="#methode">Méthode</a>
     </nav>
     <label class="ctl geo-ctl">Pays <select id="geo"></select></label>
@@ -159,6 +160,47 @@
   <div class="callout small" id="cmp-notes"></div>
 </section>
 
+<!-- =============================================================== ENERGIE -->
+<section id="energie" class="panel">
+  <div class="panel-head">
+    <h2>L'énergie : d'où elle vient, où elle va <span class="geo-tag"></span></h2>
+    <div class="ctl-row">
+      <label class="ctl">Année <select id="en-year"></select></label>
+      <div class="seg" id="en-unit" role="radiogroup" aria-label="Unité">
+        <button data-u="twh" aria-pressed="true">TWh</button>
+        <button data-u="pct">% du total</button>
+        <button data-u="hab">kWh / habitant</button>
+      </div>
+    </div>
+  </div>
+  <div class="kpis" id="en-kpis"></div>
+  <p class="lead">Toute l'énergie qui entre dans le pays ou y est produite, et ce qu'elle devient : transformée en électricité ou en carburants, consommée par les logements, les transports, l'industrie, ou perdue en chaleur. Le nucléaire est compté comme la chaleur produite dans les réacteurs : environ deux tiers sont perdus (rejetés dans les rivières ou l'air) pour un tiers transformé en électricité. Survolez un bloc pour suivre ses flux.</p>
+  <div class="sk-scroll"><div id="en-sankey" class="chart"></div></div>
+
+  <h3>Depuis 1965 : la consommation d'énergie primaire par source</h3>
+  <div class="ctl-row" style="margin-bottom:6px">
+    <div class="seg" id="en-hist-kind" role="radiogroup" aria-label="Série">
+      <button data-k="primaire" aria-pressed="true">Énergie primaire</button>
+      <button data-k="electricite">Production d'électricité</button>
+    </div>
+  </div>
+  <div id="en-hist" class="chart"></div>
+  <div class="legend-row" id="en-hist-legend"></div>
+
+  <div id="en-live-wrap">
+    <h3>L'électricité française en direct (7 derniers jours, pas de 15 minutes)</h3>
+    <p class="lead">Données RTE éCO2mix, chargées à l'ouverture de la page depuis le portail ODRÉ. Production par filière (empilée), consommation (trait noir) et intensité carbone du kWh produit en France.</p>
+    <div id="en-live" class="chart"><p class="empty">Chargement…</p></div>
+    <div class="legend-row" id="en-live-legend"></div>
+  </div>
+
+  <h3>Comparer les pays (dernière année publiée)</h3>
+  <div id="en-cmp" class="chart"></div>
+  <div class="callout small">
+    <p><b>Lire ces chiffres.</b> « Indépendance » = production nationale ÷ énergie disponible. Elle compte le nucléaire comme national, bien que l'uranium soit importé : c'est la convention internationale. La Norvège dépasse 100 % parce qu'elle exporte son pétrole et son gaz. Les « pertes de conversion » mesurent la chaleur qui n'est pas transformée en électricité dans les centrales thermiques et nucléaires. Elles sont élevées en France à cause du nucléaire, faibles dans les pays où l'électricité vient de l'hydraulique ou de l'éolien, qui n'ont pas de pertes thermiques.</p>
+  </div>
+</section>
+
 <!-- =============================================================== METHODE -->
 <section id="methode" class="panel prose">
   <h2>Sources et méthode</h2>
@@ -169,6 +211,12 @@
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_main/default/table" target="_blank" rel="noopener">Eurostat gov_10a_main</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_taxag/default/table" target="_blank" rel="noopener">gov_10a_taxag</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_exp/default/table" target="_blank" rel="noopener">gov_10a_exp</a> (COFOG), <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10dd_edpt1/default/table" target="_blank" rel="noopener">gov_10dd_edpt1</a> : comptes des administrations publiques par sous-secteur, impôts détaillés, dépenses par fonction, dette.</li>
     <li><a href="https://www.insee.fr/fr/statistiques/8974371" target="_blank" rel="noopener">INSEE, Insee Analyses n° 118 : comptes nationaux distribués 2023</a> : répartition des prélèvements et des transferts par vingtième de niveau de vie.</li>
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/nama_10_nfa_bs/default/table" target="_blank" rel="noopener">Eurostat nama_10_nfa_bs</a> et <a href="https://ec.europa.eu/eurostat/databrowser/view/nasa_10_f_bs/default/table" target="_blank" rel="noopener">nasa_10_f_bs</a> : patrimoine non financier (dont terrains) et comptes financiers par secteur.</li>
+  </ul>
+  <h3>Énergie</h3>
+  <ul>
+    <li><a href="https://ec.europa.eu/eurostat/databrowser/view/nrg_bal_c/default/table" target="_blank" rel="noopener">Eurostat nrg_bal_c</a> : bilans énergétiques complets (production, échanges, transformation, consommation finale par secteur), en TWh. C'est la source du diagramme de flux d'Eurostat. Les transformations secondaires (hauts fourneaux, injection de biométhane, mélange des biocarburants) sont comptées en net. Pas de bilan publié pour la Suisse.</li>
+    <li><a href="https://github.com/owid/energy-data" target="_blank" rel="noopener">Our World in Data, energy-data</a> (licence CC BY) : consommation d'énergie primaire et production d'électricité par source depuis 1965 (méthode de substitution pour les renouvelables, différente d'Eurostat).</li>
+    <li><a href="https://odre.opendatasoft.com/explore/dataset/eco2mix-national-tr/" target="_blank" rel="noopener">ODRÉ, éCO2mix national temps réel</a> (RTE, Licence Ouverte) : production, consommation, échanges et taux de CO2 au pas de 15 minutes.</li>
   </ul>
   <h3>Autres pays</h3>
   <ul>
@@ -201,5 +249,6 @@
 <script src="lib/d3.min.js"></script>
 <script src="lib/d3-sankey.min.js"></script>
 <script src="app.js"></script>
+<script src="energie.js"></script>
 </body>
 </html>

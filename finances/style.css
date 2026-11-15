@@ -90,15 +90,15 @@ button.link { background: none; border: 0; color: var(--accent); font: inherit; 
 
 /* sankey */
 .sk-scroll { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
-#sankey { min-width: 980px; }
-#sankey .link { fill: none; stroke-opacity: var(--link-opacity); transition: stroke-opacity .15s; }
-#sankey .link.dim { stroke-opacity: .06; }
-#sankey .link.hi { stroke-opacity: .85; }
-#sankey .node rect { shape-rendering: crispEdges; cursor: pointer; }
-#sankey .node text { font-size: 11.5px; pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
-#sankey .node text .amt { fill: var(--muted); font-variant-numeric: tabular-nums; }
-#sankey .node.dim { opacity: .3; }
-#sankey .colhead { font-size: 11px; font-weight: 700; letter-spacing: .06em; fill: var(--muted); text-transform: uppercase; }
+#sankey, #en-sankey { min-width: 980px; }
+#sankey .link , #en-sankey .link { fill: none; stroke-opacity: var(--link-opacity); transition: stroke-opacity .15s; }
+#sankey .link.dim, #en-sankey .link.dim { stroke-opacity: .06; }
+#sankey .link.hi, #en-sankey .link.hi { stroke-opacity: .85; }
+#sankey .node rect , #en-sankey .node rect { shape-rendering: crispEdges; cursor: pointer; }
+#sankey .node text , #en-sankey .node text { font-size: 11.5px; pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+#sankey .node text .amt , #en-sankey .node text .amt { fill: var(--muted); font-variant-numeric: tabular-nums; }
+#sankey .node.dim , #en-sankey .node.dim { opacity: .3; }
+#sankey .colhead , #en-sankey .colhead { font-size: 11px; font-weight: 700; letter-spacing: .06em; fill: var(--muted); text-transform: uppercase; }
 .legend-row { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .82rem; color: var(--muted); margin-top: 8px; }
 .legend-row span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-row i { width: 22px; height: 0; border-top: 6px solid var(--muted); display: inline-block; opacity: .7; }

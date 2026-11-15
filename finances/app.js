@@ -84,6 +84,7 @@ async function setGeo(g) {
   document.querySelectorAll(".geo-tag").forEach(t => t.textContent = C().nom);
   fnOnly = null;
   initPib(); resetSimu(); drawInterets(); drawFonctions(); drawCompare();
+  document.dispatchEvent(new CustomEvent("geochange", { detail: g }));
 }
 
 /* ================================================================= PIB */

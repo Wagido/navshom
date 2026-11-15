@@ -2,7 +2,8 @@
 # Télécharge les données brutes (Eurostat + INSEE) dans data/sources/.
 # Usage : bash scripts/fetch.sh   (depuis le dossier finances/)
 set -euo pipefail
-cd "$(dirname "$0")/../data/sources"
+SCRIPTS="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPTS/../data/sources"
 E="https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data"
 get() { echo "→ $1"; curl -fsSL --retry 3 -A "Mozilla/5.0" "$2" -o "$1"; }
 
@@ -43,4 +44,12 @@ get pays/gov_10a_exp.json    "$E/gov_10a_exp?unit=MIO_EUR&na_item=TE&sector=S13&
 get pays/nama_10_nfa_bs.json "$E/nama_10_nfa_bs?unit=CP_MEUR&sinceTimePeriod=2015$GEO&sector=S1&sector=S11&sector=S12&sector=S13&sector=S14_S15&asset10=N111N&asset10=N211N&asset10=N112N&asset10=N11MN&asset10=N117N&asset10=N12N&asset10=N13N&asset10=N1N&asset10=N2N"
 get pays/nasa_10_f_bs.json   "$E/nasa_10_f_bs?unit=MIO_EUR&co_nco=NCO&sinceTimePeriod=2015$GEO&sector=S11&sector=S12&sector=S13&sector=S14_S15&sector=S2&na_item=F&na_item=F2&na_item=F3&na_item=F4&na_item=F5&na_item=F6"
 get pays/gov_10dd_edpt1.json "$E/gov_10dd_edpt1?unit=PC_GDP&unit=MIO_EUR&na_item=GD&sector=S13&sinceTimePeriod=1995$GEO"
+# Énergie : bilans Eurostat (GWh) et séries longues Our World in Data
+mkdir -p energie
+NB=$(for n in PPRD RCV_RCY IMP EXP STK_CHG GAE GIC INTMARB INTAVI TI_E TI_EHG_E TI_RPI_E TO TO_EHG TO_RPI NRG_E DL FC_NE FC_IND_E FC_TRA_E FC_OTH_HH_E FC_OTH_CP_E FC_OTH_AF_E FC_OTH_FISH_E FC_OTH_NSP_E STATDIFF FC_E FEC_EED PEC_EED GEP; do printf "&nrg_bal=%s" "$n"; done)
+SI=$(for s in TOTAL C0000X0350-0370 C0350-0370 P1000 S2000 G3000 O4000XBIO O4100_TOT O4200 O4300 O4400X4410 O4500 N900H RA100 RA200 RA300 RA410 RA420 RA500 RA600 BIOE R5210P R5210B R5220P R5220B R5230P R5230B R5290 R5300 W6100_6220 E7000 H8000; do printf "&siec=%s" "$s"; done)
+get energie/nrg_bal_c.json "$E/nrg_bal_c?unit=GWH&sinceTimePeriod=2015$GEO$NB$SI"
+TMP=$(mktemp)
+get "$TMP" "https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv"
+python3 "$SCRIPTS/filter_owid.py" "$TMP" energie/owid_europe.csv && rm -f "$TMP"
 echo "OK"
