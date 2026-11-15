@@ -41,16 +41,26 @@ function barList(el, items, total, opts = {}) {
     </div>`).join("")}</div>`;
 }
 
-let DATA;
-fetch("data/finances.json").then(r => r.json()).then(d => { DATA = d; init(); })
+let DATA, CMP, GEO = "FR";
+const CACHE = {};
+const C = () => CACHE[GEO];
+Promise.all([fetch("data/finances.json").then(r => r.json()), fetch("data/comparaison.json").then(r => r.json())])
+  .then(([d, c]) => { DATA = d; CMP = c; CACHE.FR = { nom: "France", pib: d.pib, historique: d.historique, interets: d.interets, fonctions_hist: d.fonctions_hist, simulateur: d.simulateur }; init(); })
   .catch(e => { document.querySelector("main").insertAdjacentHTML("afterbegin", `<p class="panel">Impossible de charger les données (${esc(e.message)}).</p>`); });
 
 function init() {
+  const sel = $("#geo");
+  const pays = [...CMP.pays].sort((a, b) => a.code === "FR" ? -1 : b.code === "FR" ? 1 : a.nom.localeCompare(b.nom, "fr"));
+  sel.innerHTML = pays.map(p => `<option value="${p.code}">${esc(p.nom)}</option>`).join("");
+  try { const g = localStorage.getItem("geo"); if (g && pays.some(p => p.code === g)) sel.value = g; } catch (e) {}
+  sel.onchange = () => setGeo(sel.value);
+  initCompare();
   initPib();
   initSankey();
   initSimu();
   initBilan();
   drawInterets(); drawFonctions();
+  if (sel.value !== "FR") setGeo(sel.value);
   $("#gen-date").textContent = `Données générées le ${new Date(DATA.genere_le).toLocaleDateString("fr-FR", { dateStyle: "long" })}.`;
   // onglet actif selon la section visible
   const links = [...document.querySelectorAll(".tabs a")];
@@ -59,21 +69,42 @@ function init() {
   }), { rootMargin: "-40% 0px -55% 0px" });
   document.querySelectorAll("section.panel").forEach(s => io.observe(s));
   let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawSankey(); drawSimu(); drawHisto(); drawBilan(); drawInterets(); drawFonctions(); }, 150); });
+  document.querySelectorAll(".geo-tag").forEach(t => t.textContent = "France");
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { drawSankey(); drawSimu(); drawHisto(); drawBilan(); drawInterets(); drawFonctions(); });
+}
+
+async function setGeo(g) {
+  if (!CACHE[g]) {
+    try { CACHE[g] = await fetch(`data/pays/${g}.json`).then(r => r.json()); }
+    catch (e) { return; }
+  }
+  GEO = g;
+  try { localStorage.setItem("geo", g); } catch (e) {}
+  $("#geo").value = g;
+  document.querySelectorAll(".geo-tag").forEach(t => t.textContent = C().nom);
+  fnOnly = null;
+  initPib(); resetSimu(); drawInterets(); drawFonctions(); drawCompare();
 }
 
 /* ================================================================= PIB */
 function initPib() {
-  const years = Object.keys(DATA.pib).sort();
+  const years = Object.keys(C().pib).sort();
   const sel = $("#pib-year");
   fillSelect(sel, years, years.at(-1));
   sel.onchange = drawPib;
+  sel.disabled = !years.length;
   drawPib();
   drawHisto();
 }
 
 function drawPib() {
-  const y = $("#pib-year").value, P = DATA.pib[y], prev = DATA.pib[String(+y - 1)];
+  const body = $("#pib-body");
+  if (!Object.keys(C().pib).length) {
+    $("#pib-kpis").innerHTML = `<p class="empty">Eurostat ne publie pas la valeur ajoutée par secteur pour ${esc(C().nom)} : la décomposition du PIB n'est pas disponible.</p>`;
+    body.hidden = true; return;
+  }
+  body.hidden = false;
+  const y = $("#pib-year").value, P = C().pib[y], prev = C().pib[String(+y - 1)];
   const parHab = P.pib * 1e9 / P.population;
   kpis($("#pib-kpis"), [
     [md(P.pib), `PIB ${y}`],
@@ -83,9 +114,9 @@ function drawPib() {
   ]);
 
   // --- cascade
-  const C = P.cascade;
+  const CAS = P.cascade;
   let run = 0;
-  const rows = C.map(c => {
+  const rows = CAS.map(c => {
     let from, to;
     if (c.type === "total") { from = 0; to = c.v; run = c.v; }
     else { from = run + c.v; to = run; run = from; }
@@ -103,7 +134,7 @@ function drawPib() {
   // --- achats publics
   const ach = P.achats_publics, tot = d3.sum(ach, d => d.v);
   barList($("#achats"), ach, P.pib, { max: P.pib * 0.1 });
-  $("#achats").insertAdjacentHTML("beforeend", `<p class="muted" style="font-size:.88rem;margin:8px 0 0">Total : <b>${md(tot)}</b>, soit ${pct(100 * tot / P.pib)} du PIB, à rapprocher des ${md(C.at(-1).v)} de valeur ajoutée nette vendue.</p>`);
+  $("#achats").insertAdjacentHTML("beforeend", `<p class="muted" style="font-size:.88rem;margin:8px 0 0">Total : <b>${md(tot)}</b>, soit ${pct(100 * tot / P.pib)} du PIB, à rapprocher des ${md(CAS.at(-1).v)} de valeur ajoutée nette vendue.</p>`);
 
   // --- trois optiques
   const pal = d3.schemeTableau10;
@@ -117,11 +148,13 @@ function drawPib() {
 
 function drawHisto() {
   const el = $("#pib-histo"); if (!DATA) return;
-  const H = DATA.historique.map(d => ({ ...d, dep: 100 * d.depenses / d.pib, rec: 100 * d.recettes / d.pib }));
+  const H = C().historique.map(d => ({ ...d, dep: 100 * d.depenses / d.pib, rec: 100 * d.recettes / d.pib }));
   const w = Math.max(320, el.clientWidth), h = 260, m = { t: 16, r: 54, b: 26, l: 40 };
   const x = d3.scalePoint(H.map(d => d.annee), [m.l, w - m.r]).padding(.3);
-  const y = d3.scaleLinear([40, 65], [h - m.b, m.t]);
-  const y2 = d3.scaleLinear([50, 130], [h - m.b, m.t]);
+  const lo = d3.min(H, d => Math.min(d.dep, d.rec)), hi = d3.max(H, d => Math.max(d.dep, d.rec));
+  const y = d3.scaleLinear([Math.floor((lo - 3) / 5) * 5, Math.ceil((hi + 3) / 5) * 5], [h - m.b, m.t]);
+  const dMax = d3.max(H, d => d.dette_pct) || 100;
+  const y2 = d3.scaleLinear([0, Math.ceil(dMax * 1.1 / 10) * 10], [h - m.b, m.t]);
   const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
   svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line")
     .attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
@@ -297,17 +330,27 @@ function drawSankey() {
 }
 
 /* ================================================================= SIMULATEUR */
+function simuOf() {
+  if (C().simulateur) return C().simulateur;
+  const h = C().historique.at(-1);
+  return { annee: h.annee, dette_pct: null, prelevements_pct: Math.round(100 * h.recettes / h.pib), manque: true };
+}
+function resetSimu() {
+  const S = simuOf();
+  $("#s-b").value = Math.round(S.dette_pct ?? 60); $("#s-t").value = S.prelevements_pct ?? 40; $("#s-m").value = 0.8; $("#s-cut").value = 40;
+  drawSimu();
+}
 function initSimu() {
-  const S = DATA.simulateur;
-  const reset = () => { $("#s-b").value = Math.round(S.dette_pct); $("#s-t").value = S.prelevements_pct; $("#s-m").value = 0.8; $("#s-cut").value = 40; drawSimu(); };
   ["#s-cut", "#s-m", "#s-b", "#s-t"].forEach(s => $(s).oninput = drawSimu);
-  $("#s-reset").onclick = reset;
-  reset();
+  $("#s-reset").onclick = resetSimu;
+  resetSimu();
 }
 
 function drawSimu() {
   if (!DATA) return;
-  const S = DATA.simulateur, P = DATA.pib[S.annee];
+  const S = simuOf();
+  const hist = C().historique.find(h => h.annee === S.annee) || C().historique.at(-1);
+  const P = { pib: hist.pib };
   const cut = +$("#s-cut").value, m = +$("#s-m").value, b = +$("#s-b").value / 100, t = +$("#s-t").value / 100;
   $("#o-cut").textContent = md(cut);
   $("#o-m").textContent = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(m);
@@ -316,7 +359,7 @@ function drawSimu() {
   const dY = -m * cut, dRec = -t * m * cut, dDebt = -(cut + dRec);
   const r0 = B / Y, r1 = (B + dDebt) / (Y + dY);
   const thr = 1 / (b + t), up = r1 > r0 + 1e-9;
-  $("#simu-result").innerHTML = `<div class="verdict ${up ? "up" : "down"}">${up ? "La coupe fait MONTER le ratio dette/PIB" : "La coupe fait baisser le ratio dette/PIB"}</div>
+  $("#simu-result").innerHTML = (S.manque ? `<p class="empty" style="margin:0 0 6px">Dette publique non publiée par Eurostat pour ce pays : réglez-la avec le curseur.</p>` : "") + `<div class="verdict ${up ? "up" : "down"}">${up ? "La coupe fait MONTER le ratio dette/PIB" : "La coupe fait baisser le ratio dette/PIB"}</div>
     <p style="margin:0 0 8px">Seuil : m* = 1 / (${nf1.format(b * 100)} % + ${nf1.format(t * 100)} %) = <b>${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(thr)}</b>. Avec m = ${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(m)}, on est ${m > thr ? "au-dessus" : "en dessous"}.</p>
     <table>
       <tr><td>Dépenses publiques</td><td>− ${md(cut)}</td></tr>
@@ -343,21 +386,25 @@ function drawSimu() {
   svg.append("text").attr("x", x(150)).attr("y", yy(1.65)).attr("text-anchor", "middle").attr("fill", css("--neg")).attr("font-size", 12).attr("font-weight", 600).text("la coupe fait monter le ratio");
   svg.append("text").attr("x", x(60)).attr("y", yy(0.2)).attr("text-anchor", "middle").attr("fill", css("--pos")).attr("font-size", 12).attr("font-weight", 600).text("la coupe fait baisser le ratio");
   svg.append("circle").attr("cx", x(Math.min(200, Math.max(20, b * 100)))).attr("cy", yy(Math.min(2, m))).attr("r", 7).attr("fill", css("--accent")).attr("stroke", css("--surface")).attr("stroke-width", 2);
-  svg.append("text").attr("x", x(Math.min(200, Math.max(20, b * 100))) + 10).attr("y", yy(Math.min(2, m)) - 8).attr("font-size", 12).attr("font-weight", 650).attr("fill", css("--accent")).text(`France ${S.annee} (hypothèse m)`);
+  svg.append("text").attr("x", x(Math.min(200, Math.max(20, b * 100))) + 10).attr("y", yy(Math.min(2, m)) - 8).attr("font-size", 12).attr("font-weight", 650).attr("fill", css("--accent")).text(`${C().nom} ${S.annee} (hypothèse m)`);
   el.replaceChildren(svg.node());
 }
 
 /* ================================================================= SUR 30 ANS */
 function drawInterets() {
   if (!DATA) return;
-  const I = DATA.interets, last = I.at(-1), first = I[0];
+  const I = C().interets;
+  if (!I.length) { $("#int-kpis").innerHTML = ""; $("#int-lead").textContent = "Données non disponibles pour ce pays."; $("#int-chart").replaceChildren(); return; }
+  const last = I.at(-1), first = I[0];
+  const dFirst = I.find(d => d.dette), mult = dFirst && last.dette ? last.dette / dFirst.dette : null;
+  $("#int-lead").innerHTML = `${mult ? `Entre ${dFirst.annee} et ${last.annee}, la dette publique a été multipliée par ${nf1.format(mult)}, et les intérêts payés par ${nf1.format(last.interets / first.interets)}. ` : ""}Le <strong>taux apparent</strong> (intérêts de l'année ÷ dette de fin d'année précédente) mesure le coût moyen de la dette. Il réagit lentement aux taux du marché, car la dette se renouvelle progressivement à mesure que les anciens emprunts arrivent à échéance.`;
   const peak = I.reduce((a, b) => b.pct_recettes > a.pct_recettes ? b : a);
-  const lowT = I.filter(d => d.taux_apparent != null).reduce((a, b) => b.taux_apparent < a.taux_apparent ? b : a);
+  const lowT = I.filter(d => d.taux_apparent != null).reduce((a, b) => (!a || b.taux_apparent < a.taux_apparent) ? b : a, null);
   kpis($("#int-kpis"), [
     [md(last.interets), `intérêts payés en ${last.annee} (${md(first.interets)} en ${first.annee})`],
     [pct(last.pct_recettes), `des recettes publiques (maximum : ${pct(peak.pct_recettes)} en ${peak.annee})`],
-    [pct(last.taux_apparent, 2), `taux apparent (minimum : ${pct(lowT.taux_apparent, 2)} en ${lowT.annee})`],
-    [md(last.dette), `dette publique fin ${last.annee} (${md(first.dette)} en ${first.annee})`],
+    [last.taux_apparent != null ? pct(last.taux_apparent, 2) : "–", lowT ? `taux apparent (minimum : ${pct(lowT.taux_apparent, 2)} en ${lowT.annee})` : "taux apparent"],
+    [last.dette ? md(last.dette) : "–", `dette publique fin ${last.annee}${dFirst ? ` (${md(dFirst.dette)} en ${dFirst.annee})` : ""}`],
   ]);
   const el = $("#int-chart");
   const w = Math.max(320, el.clientWidth), h = 300, m = { t: 16, r: 46, b: 26, l: 46 };
@@ -394,7 +441,8 @@ function drawInterets() {
 let fnOnly = null;
 function drawFonctions() {
   if (!DATA) return;
-  const FH = DATA.fonctions_hist, A = FH.annees, keys = FH.fonctions.map(f => f[0]);
+  const FH = C().fonctions_hist, A = FH.annees, keys = FH.fonctions.map(f => f[0]);
+  if (!A.length) { $("#fn-chart").innerHTML = `<p class="empty">Données non disponibles pour ce pays.</p>`; $("#fn-legend").innerHTML = ""; $("#fn-var").innerHTML = ""; $("#fn-var-title").textContent = ""; return; }
   const lab = Object.fromEntries(FH.fonctions);
   const col = Object.fromEntries(keys.map((k, i) => [k, FUNC_PAL[i % FUNC_PAL.length]]));
   const shown = fnOnly ? [fnOnly] : keys;
@@ -428,6 +476,135 @@ function drawFonctions() {
       <span class="val">${d.v >= 0 ? "+" : "−"}${nf1.format(Math.abs(d.v)).replace(/^0,0$/, "0,0")} pt · ${pct(d.a)} → ${pct(d.b)}</span>
       <span class="track"><span class="fill" style="left:${d.v < 0 ? 50 - 50 * Math.abs(d.v) / mx : 50}%;width:${50 * Math.abs(d.v) / mx}%;background:${d.v < 0 ? css("--pos") : css("--neg")}"></span><span style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--muted)"></span></span>
     </div>`).join("")}</div>`;
+}
+
+/* ================================================================= COMPARAISON */
+let cmpView = "cascade";
+const CASC_PARTS = [
+  ["reste", "Vendu à des clients (net)", "#2f8f5b"],
+  ["amortissement", "Usure du capital des entreprises", "#9aa5b8"],
+  ["loyers_imputes", "Loyers imputés", "#d4a6c8"],
+  ["isblsm", "Associations (au coût)", "#f2b880"],
+  ["apu", "Services publics (au coût)", "#3b6fd6"],
+  ["impots_produits", "Impôts nets sur les produits", "#c2413a"],
+];
+function initCompare() {
+  document.querySelectorAll("#cmp-view button").forEach(b => b.onclick = () => {
+    cmpView = b.dataset.v;
+    document.querySelectorAll("#cmp-view button").forEach(o => o.setAttribute("aria-pressed", o === b));
+    drawCompare();
+  });
+  drawCompare();
+}
+
+function stackRows(rows, parts, opts) {
+  // rows: [{code, nom, annee, vals:{k:v}, total, note}] ; parts: [[k,label,color]]
+  const max = opts.max ?? d3.max(rows, r => d3.sum(parts, p => Math.max(0, r.vals[p[0]] || 0)));
+  return `<div class="cmp">${rows.map(r => `
+    <div class="cmp-row${r.code === GEO ? " me" : ""}" data-code="${r.code}">
+      <span class="cmp-name">${esc(r.nom)}<small>${r.annee || ""}${r.note || ""}</small></span>
+      <span class="cmp-stack" style="width:${(100 * d3.sum(parts, p => Math.max(0, r.vals[p[0]] || 0)) / max).toFixed(2)}%">${parts.map(([k, l, c]) => {
+        const v = Math.max(0, r.vals[k] || 0); if (!v) return "";
+        return `<span style="flex:${v} 0 0;background:${c}" data-tip="${esc(r.nom)}|${esc(l)}|${v}"></span>`; }).join("")}</span>
+      <span class="cmp-val">${opts.val(r)}</span>
+    </div>`).join("")}</div>`;
+}
+
+function bindStackTips(el, fmt) {
+  el.querySelectorAll("[data-tip]").forEach(sp => {
+    sp.onpointermove = ev => { const [n, l, v] = sp.dataset.tip.split("|"); showTip(`<b>${n}</b><br>${l} : ${fmt(+v)}`, ev); };
+    sp.onpointerleave = hideTip;
+  });
+  el.querySelectorAll(".cmp-row").forEach(r => r.onclick = () => setGeo(r.dataset.code));
+}
+
+function legend(parts) {
+  $("#cmp-legend").innerHTML = parts.map(([k, l, c]) => `<span><i style="border-top-color:${c};opacity:1;border-top-width:10px;width:14px"></i>${esc(l)}</span>`).join("");
+}
+
+function drawCompare() {
+  if (!CMP) return;
+  const el = $("#cmp-chart"), L = CMP.comparaison;
+  if (cmpView === "cascade") {
+    const rows = L.filter(c => c.pib).map(c => {
+      const P = c.pib, vals = {};
+      CASC_PARTS.forEach(([k]) => vals[k] = 100 * Math.abs(P.cascade[k]) / P.pib);
+      return { code: c.code, nom: c.nom, annee: P.annee, vals, note: P.loyers_estimes === null ? " · sans loyers imputés" : "" };
+    }).sort((a, b) => b.vals.reste - a.vals.reste);
+    $("#cmp-lead").textContent = "Part du PIB qui correspond à des ventes à des clients (en vert), et parts comptées par convention : services publics et associations évalués à leur coût, loyers fictifs des propriétaires, impôts inclus dans les prix, remplacement du capital usé. Chaque barre fait 100 % du PIB. Cliquez sur un pays pour l'afficher dans les autres sections.";
+    el.innerHTML = stackRows(rows, CASC_PARTS, { max: 100, val: r => pct(r.vals.reste, 0) + " vendu" });
+    bindStackTips(el, v => pct(v) + " du PIB");
+    legend(CASC_PARTS);
+    $("#cmp-notes").innerHTML = `<p>Les pays où l'État produit lui-même beaucoup de services (pays nordiques, France) ont une part « vendue » plus faible. Ce n'est pas forcément moins de richesse : ces services existent, ils sont simplement payés par l'impôt plutôt qu'au guichet, et donc comptés à leur coût. Inversement, une santé ou une éducation privées apparaissent comme « vendues ».</p><p>L'Irlande et le Luxembourg ont un PIB gonflé par les profits de multinationales, ce qui augmente mécaniquement leur part « vendue ».</p>`;
+  } else if (cmpView === "fonctions") {
+    const F = CMP.fonctions, parts = F.map(([k, l], i) => [k, l, FUNC_PAL[i % FUNC_PAL.length]]);
+    const rows = L.filter(c => c.fonctions).map(c => ({ code: c.code, nom: c.nom, annee: c.fonctions.annee, vals: c.fonctions.pct, tot: d3.sum(F, f => c.fonctions.pct[f[0]]) }))
+      .sort((a, b) => b.tot - a.tot);
+    $("#cmp-lead").textContent = "Dépenses de toutes les administrations publiques (État, collectivités, sécurité sociale), par fonction, en % du PIB. Survolez un segment pour le détail.";
+    el.innerHTML = stackRows(rows, parts, { val: r => pct(r.tot, 1) });
+    bindStackTips(el, v => pct(v, 2) + " du PIB");
+    legend(parts);
+    const fr = rows.find(r => r.code === "FR"), de = rows.find(r => r.code === "DE");
+    $("#cmp-notes").innerHTML = fr && de ? `<p>Écart France − Allemagne : ${nf1.format(fr.tot - de.tot)} points de PIB, dont retraites ${nf1.format(fr.vals.retraites - de.vals.retraites)} pt, santé ${nf1.format(fr.vals.sante - de.vals.sante)} pt, économie ${nf1.format(fr.vals.economie - de.vals.economie)} pt, enseignement ${nf1.format(fr.vals.enseignement - de.vals.enseignement)} pt.</p><p>Une partie des écarts tient aux systèmes : quand la retraite ou la santé passent par des assurances privées obligatoires (Pays-Bas, Suisse), elles sortent de la dépense publique.</p>` : "";
+  } else if (cmpView === "apu") {
+    const cols = [
+      { k: "depenses_pct", l: "Dépenses publiques", f: d => d.apu?.depenses_pct, max: 65, c: "#c2413a" },
+      { k: "recettes_pct", l: "Recettes publiques", f: d => d.apu?.recettes_pct, max: 65, c: "#2f8f5b" },
+      { k: "solde", l: "Solde public", f: d => d.apu ? d.apu.recettes_pct - d.apu.depenses_pct : null, div: 8 },
+      { k: "dette_pct", l: "Dette publique", f: d => d.apu?.dette_pct, max: 160, c: "#3b6fd6" },
+      { k: "int_pib", l: "Intérêts", f: d => d.interets?.pct_pib, max: 5, c: "#d7a32a" },
+      { k: "int_rec", l: "Intérêts / recettes", f: d => d.interets?.pct_recettes, max: 10, c: "#d7a32a" },
+      { k: "taux", l: "Taux apparent", f: d => d.interets?.taux_apparent, max: 6, c: "#8e5bd0" },
+    ];
+    drawTable(el, L.filter(c => c.apu), cols, "dette_pct", r => r.apu.annee, "%");
+    $("#cmp-lead").textContent = "Dépenses, recettes, solde et dette des administrations publiques, en % du PIB, et charge d'intérêts. Cliquez sur un en-tête pour trier, sur un pays pour l'afficher dans les autres sections.";
+    $("#cmp-legend").innerHTML = "";
+    $("#cmp-notes").innerHTML = `<p>La dette au sens de Maastricht n'est pas publiée pour la Norvège, la Suisse et l'Islande dans cette série. Le taux apparent rapporte les intérêts de l'année à la dette de fin d'année précédente.</p>`;
+  } else {
+    const B = L.filter(c => c.bilan).map(c => ({ ...c, b: c.bilan }));
+    const p = (r, v) => v == null ? null : 100 * v / r.b.pib;
+    const S = (r, s) => r.b.secteurs[s];
+    const cols = [
+      { k: "men_fa", l: "Ménages : actifs financiers", f: r => p(r, S(r, "menages").fa), max: 450, c: "#3b6fd6" },
+      { k: "men_fl", l: "Ménages : dettes", f: r => p(r, S(r, "menages").fl), max: 120, c: "#c2413a" },
+      { k: "men_nf", l: "Ménages : biens réels", f: r => p(r, S(r, "menages").nf), max: 500, c: "#c9772b" },
+      { k: "snf_net", l: "Entreprises : solde financier", f: r => p(r, S(r, "snf").fa - S(r, "snf").fl), div: 250 },
+      { k: "apu_fl", l: "État & adm. : passifs", f: r => p(r, S(r, "apu").fl), max: 180, c: "#c2413a" },
+      { k: "apu_net", l: "État & adm. : solde financier", f: r => p(r, S(r, "apu").fa - S(r, "apu").fl), div: 150 },
+      { k: "ext", l: "Position face à l'étranger", f: r => p(r, r.b.position_ext), div: 250 },
+    ];
+    drawTable(el, B, cols, "men_fa", r => r.b.annee, "%");
+    $("#cmp-lead").textContent = "Actifs et passifs par grand secteur, en % du PIB. Le « solde financier » est ce que le secteur détient en actifs financiers moins ce qu'il doit. La position face à l'étranger est la somme de tous ces soldes : positive, le pays prête au reste du monde ; négative, il lui emprunte.";
+    $("#cmp-legend").innerHTML = "";
+    $("#cmp-notes").innerHTML = `<p>Les biens réels (logements, terrains) ne sont publiés que pour une poignée de pays, et sans les terrains pour la plupart : la colonne est souvent vide. Les passifs des entreprises comprennent leurs actions à la valeur de marché, d'où un solde financier très négatif dans les pays à grandes entreprises cotées. Cela reflète la valeur de ces entreprises, pas un endettement.</p><p>La Norvège (fonds pétrolier), la Suisse, l'Allemagne et les Pays-Bas prêtent massivement au reste du monde. La France est proche de l'équilibre.</p>`;
+  }
+}
+
+let cmpSort = null;
+function drawTable(el, data, cols, defSort, yearFn, unit) {
+  if (!cmpSort || !cols.some(c => c.k === cmpSort.k)) cmpSort = { k: defSort, dir: -1 };
+  const col = cols.find(c => c.k === cmpSort.k);
+  const rows = [...data].sort((a, b) => {
+    const va = col.f(a), vb = col.f(b);
+    if (va == null) return 1; if (vb == null) return -1;
+    return cmpSort.dir * (va - vb);
+  });
+  const cell = (c, r) => {
+    const v = c.f(r); if (v == null) return `<td class="muted">–</td>`;
+    const txt = pct(v, Math.abs(v) < 10 ? 1 : 0);
+    if (c.div) {
+      const w = Math.min(50, 50 * Math.abs(v) / c.div);
+      return `<td>${txt}<span class="dbar"><span style="${v < 0 ? `right:50%` : `left:50%`};width:${w}%;background:${v < 0 ? "var(--neg)" : "var(--pos)"}"></span></span></td>`;
+    }
+    return `<td>${txt}<span class="ibar" style="width:${Math.min(70, 70 * v / c.max)}px;background:${c.c}"></span></td>`;
+  };
+  el.innerHTML = `<div class="table-scroll"><table class="cmp-t"><thead><tr><th>Pays</th>${cols.map(c => `<th data-k="${c.k}" class="${c.k === cmpSort.k ? "sorted" : ""}">${esc(c.l)}${c.k === cmpSort.k ? (cmpSort.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(r => `<tr class="${r.code === GEO ? "me" : ""}" data-code="${r.code}" style="cursor:pointer"><td>${esc(r.nom)} <small class="muted">${yearFn(r)}</small></td>${cols.map(c => cell(c, r)).join("")}</tr>`).join("")}</tbody></table></div>`;
+  el.querySelectorAll("th[data-k]").forEach(th => th.onclick = () => {
+    cmpSort = cmpSort.k === th.dataset.k ? { k: th.dataset.k, dir: -cmpSort.dir } : { k: th.dataset.k, dir: -1 };
+    drawCompare();
+  });
+  el.querySelectorAll("tr[data-code]").forEach(tr => tr.onclick = () => setGeo(tr.dataset.code));
 }
 
 /* ================================================================= PATRIMOINE */

@@ -27,4 +27,20 @@ get gov_10dd_edpt1.json "$E/gov_10dd_edpt1?geo=FR&unit=PC_GDP&unit=MIO_EUR&na_it
 
 # INSEE : comptes nationaux distribués 2023 (Insee Analyses n° 118)
 get insee_IA118.xlsx    "https://www.insee.fr/fr/statistiques/fichier/8974371/IA118.xlsx"
+# Autres pays (sections PIB, simulateur et séries longues) : mêmes séries Eurostat,
+# une requête par série pour tous les pays.
+PAYS="BE BG CZ DK DE EE IE EL ES FR HR IT CY LV LT LU HU MT NL AT PL PT RO SI SK FI SE IS NO CH"
+GEO=$(for g in $PAYS; do printf "&geo=%s" "$g"; done)
+mkdir -p pays
+get pays/nama_10_gdp.json    "$E/nama_10_gdp?unit=CP_MEUR&sinceTimePeriod=1995$GEO&na_item=B1GQ&na_item=B2A3G&na_item=D1&na_item=D2X3&na_item=P31_S14&na_item=P31_S15&na_item=P31_S13&na_item=P32_S13&na_item=P52_P53&na_item=P6X7&na_item=P6&na_item=P7"
+get pays/nama_10_a10.json    "$E/nama_10_a10?unit=CP_MEUR&na_item=B1G&sinceTimePeriod=2015$GEO"
+get pays/nasa_10_nf_tr.json  "$E/nasa_10_nf_tr?unit=CP_MEUR&sinceTimePeriod=2015$GEO&na_item=B1G&na_item=P51C&na_item=P51G&sector=S11&sector=S12&sector=S13&sector=S14&sector=S15&sector=S14_S15"
+get pays/nama_10_co3_p3.json "$E/nama_10_co3_p3?unit=CP_MEUR&sinceTimePeriod=2010$GEO&coicop=CP042"
+get pays/nama_10_pe.json     "$E/nama_10_pe?unit=THS_PER&na_item=POP_NC&sinceTimePeriod=2015$GEO"
+get pays/gov_10a_main.json   "$E/gov_10a_main?unit=MIO_EUR&sector=S13&sinceTimePeriod=1995$GEO&na_item=TE&na_item=TR&na_item=D41PAY&na_item=P2&na_item=D632PAY&na_item=P51G&na_item=D3PAY"
+get pays/gov_10a_taxag.json  "$E/gov_10a_taxag?unit=MIO_EUR&sector=S13&sinceTimePeriod=2015$GEO&na_item=D2_D5_D91_D61_M_D995"
+get pays/gov_10a_exp.json    "$E/gov_10a_exp?unit=MIO_EUR&na_item=TE&sector=S13&sinceTimePeriod=1995$GEO"
+get pays/nama_10_nfa_bs.json "$E/nama_10_nfa_bs?unit=CP_MEUR&sinceTimePeriod=2015$GEO&sector=S1&sector=S11&sector=S12&sector=S13&sector=S14_S15&asset10=N111N&asset10=N211N&asset10=N112N&asset10=N11MN&asset10=N117N&asset10=N12N&asset10=N13N&asset10=N1N&asset10=N2N"
+get pays/nasa_10_f_bs.json   "$E/nasa_10_f_bs?unit=MIO_EUR&co_nco=NCO&sinceTimePeriod=2015$GEO&sector=S11&sector=S12&sector=S13&sector=S14_S15&sector=S2&na_item=F&na_item=F2&na_item=F3&na_item=F4&na_item=F5&na_item=F6"
+get pays/gov_10dd_edpt1.json "$E/gov_10dd_edpt1?unit=PC_GDP&unit=MIO_EUR&na_item=GD&sector=S13&sinceTimePeriod=1995$GEO"
 echo "OK"

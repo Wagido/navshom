@@ -14,14 +14,18 @@
 </header>
 <div class="top">
   <div class="wrap">
+    <div class="navbar">
     <nav class="tabs" aria-label="Sections">
       <a href="#pib">Le PIB</a>
       <a href="#argent-public">L'argent public</a>
       <a href="#simulateur">Couper la dépense ?</a>
       <a href="#duree">Sur 30 ans</a>
       <a href="#patrimoine">Patrimoine</a>
+      <a href="#comparer">Comparer les pays</a>
       <a href="#methode">Méthode</a>
     </nav>
+    <label class="ctl geo-ctl">Pays <select id="geo"></select></label>
+    </div>
   </div>
 </div>
 
@@ -30,10 +34,11 @@
 <!-- =============================================================== PIB -->
 <section id="pib" class="panel">
   <div class="panel-head">
-    <h2>Le PIB et ce qu'il contient vraiment</h2>
+    <h2>Le PIB et ce qu'il contient vraiment <span class="geo-tag"></span></h2>
     <label class="ctl">Année <select id="pib-year"></select></label>
   </div>
   <div class="kpis" id="pib-kpis"></div>
+  <div id="pib-body">
 
   <h3>Ce qui, dans le PIB, correspond à des ventes à des clients</h3>
   <p class="lead">Le PIB additionne des choses de nature très différente. Une partie correspond à des biens et services vendus à un prix à des clients qui les ont choisis. Une autre est comptée par <em>convention</em> : services publics évalués à ce qu'ils coûtent, loyers fictifs des propriétaires, impôts inclus dans les prix, remplacement du matériel usé. Cette cascade retire ces conventions une à une.</p>
@@ -57,6 +62,7 @@
   <h3>Valeur ajoutée par activité</h3>
   <div id="pib-branches" class="chart"></div>
 
+  </div>
   <h3>Dépenses, recettes publiques et dette depuis 1995</h3>
   <div id="pib-histo" class="chart"></div>
 </section>
@@ -64,7 +70,7 @@
 <!-- =============================================================== SANKEY -->
 <section id="argent-public" class="panel">
   <div class="panel-head">
-    <h2>Qui paie, comment, à qui, pour quoi, qui reçoit</h2>
+    <h2>Qui paie, comment, à qui, pour quoi, qui reçoit <span class="geo-fixed">France</span></h2>
     <div class="ctl-row">
       <label class="ctl">Année <select id="sk-year"></select></label>
       <div class="seg" id="sk-unit" role="radiogroup" aria-label="Unité">
@@ -84,7 +90,7 @@
 <!-- =============================================================== SIMULATEUR -->
 <section id="simulateur" class="panel">
   <div class="panel-head">
-    <h2>Couper la dépense fait-il baisser la dette ?</h2>
+    <h2>Couper la dépense fait-il baisser la dette ? <span class="geo-tag"></span></h2>
   </div>
   <p class="lead">Quand l'État dépense 1 € de moins, l'activité ralentit d'un montant <em>m</em> (le <strong>multiplicateur</strong>). Moins d'activité, c'est moins d'impôts : la dette baisse donc de moins d'1 €, et le PIB baisse aussi. Le ratio dette/PIB peut finalement monter. Il monte si <strong>m &gt; 1 / (dette/PIB + taux de prélèvements)</strong>.</p>
   <div class="simu">
@@ -93,7 +99,7 @@
       <label><span>Multiplicateur <em>m</em> <output id="o-m"></output></span><input type="range" id="s-m" min="0" max="2" step="0.05" value="0.8"></label>
       <label><span>Dette publique (% du PIB) <output id="o-b"></output></span><input type="range" id="s-b" min="20" max="200" step="1"></label>
       <label><span>Taux de prélèvements (% du PIB) <output id="o-t"></output></span><input type="range" id="s-t" min="20" max="60" step="0.5"></label>
-      <button class="link" id="s-reset">Revenir aux valeurs actuelles de la France</button>
+      <button class="link" id="s-reset">Revenir aux valeurs actuelles du pays</button>
     </div>
     <div class="simu-out">
       <div id="simu-result" class="result"></div>
@@ -108,12 +114,12 @@
 <!-- =============================================================== SUR LA DUREE -->
 <section id="duree" class="panel">
   <div class="panel-head">
-    <h2>Sur 30 ans : la charge de la dette et ce que finance l'argent public</h2>
+    <h2>Sur 30 ans : la charge de la dette et ce que finance l'argent public <span class="geo-tag"></span></h2>
   </div>
 
   <h3>La charge d'intérêts de la dette publique</h3>
   <div class="kpis" id="int-kpis"></div>
-  <p class="lead">La dette a été multipliée par près de cinq depuis 1995, mais les intérêts payés n'ont pas suivi : la baisse des taux a absorbé la hausse de la dette jusqu'en 2021. Le <strong>taux apparent</strong> (intérêts de l'année ÷ dette de fin d'année précédente) mesure ce coût moyen. Il remonte lentement, car la dette se renouvelle progressivement aux taux actuels.</p>
+  <p class="lead" id="int-lead"></p>
   <div id="int-chart" class="chart"></div>
 
   <h3>Les dépenses publiques par fonction, en % du PIB</h3>
@@ -127,13 +133,30 @@
 <!-- =============================================================== PATRIMOINE -->
 <section id="patrimoine" class="panel">
   <div class="panel-head">
-    <h2>Ce que la France possède et ce qu'elle doit</h2>
+    <h2>Ce que la France possède et ce qu'elle doit <span class="geo-fixed">France</span></h2>
     <label class="ctl">Année <select id="bs-year"></select></label>
   </div>
   <div class="kpis" id="bs-kpis"></div>
   <div id="bs-chart" class="chart"></div>
   <div class="table-scroll"><table id="bs-table" class="bs"></table></div>
   <div class="callout small" id="bs-notes"></div>
+</section>
+
+<!-- =============================================================== COMPARER -->
+<section id="comparer" class="panel">
+  <div class="panel-head">
+    <h2>Comparer les pays</h2>
+    <div class="seg" id="cmp-view" role="radiogroup" aria-label="Indicateur">
+      <button data-v="cascade" aria-pressed="true">Que contient le PIB ?</button>
+      <button data-v="fonctions">Dépenses par fonction</button>
+      <button data-v="apu">Dette et intérêts</button>
+      <button data-v="bilan">Actifs et passifs</button>
+    </div>
+  </div>
+  <p class="lead" id="cmp-lead"></p>
+  <div id="cmp-chart" class="chart"></div>
+  <div class="legend-row" id="cmp-legend"></div>
+  <div class="callout small" id="cmp-notes"></div>
 </section>
 
 <!-- =============================================================== METHODE -->
@@ -146,6 +169,12 @@
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_main/default/table" target="_blank" rel="noopener">Eurostat gov_10a_main</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_taxag/default/table" target="_blank" rel="noopener">gov_10a_taxag</a>, <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10a_exp/default/table" target="_blank" rel="noopener">gov_10a_exp</a> (COFOG), <a href="https://ec.europa.eu/eurostat/databrowser/view/gov_10dd_edpt1/default/table" target="_blank" rel="noopener">gov_10dd_edpt1</a> : comptes des administrations publiques par sous-secteur, impôts détaillés, dépenses par fonction, dette.</li>
     <li><a href="https://www.insee.fr/fr/statistiques/8974371" target="_blank" rel="noopener">INSEE, Insee Analyses n° 118 : comptes nationaux distribués 2023</a> : répartition des prélèvements et des transferts par vingtième de niveau de vie.</li>
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/nama_10_nfa_bs/default/table" target="_blank" rel="noopener">Eurostat nama_10_nfa_bs</a> et <a href="https://ec.europa.eu/eurostat/databrowser/view/nasa_10_f_bs/default/table" target="_blank" rel="noopener">nasa_10_f_bs</a> : patrimoine non financier (dont terrains) et comptes financiers par secteur.</li>
+  </ul>
+  <h3>Autres pays</h3>
+  <ul>
+    <li>Les 27 pays de l'Union européenne, la Norvège, la Suisse et l'Islande, à partir des mêmes séries Eurostat (montants convertis en euros pour les pays hors zone euro). Le diagramme de flux et le bilan détaillé n'existent que pour la France : la répartition par tranche de niveau de vie vient de l'INSEE.</li>
+    <li>Chaque pays est montré à la dernière année publiée, qui peut différer d'un pays à l'autre (indiquée à côté de son nom). Quand Eurostat ne publie pas les loyers imputés d'un pays, ils sont laissés à zéro et signalés.</li>
+    <li>Le PIB de l'Irlande et, dans une moindre mesure, du Luxembourg est gonflé par les bénéfices de multinationales qui y sont domiciliées : tous les ratios en % du PIB y sont tirés vers le bas.</li>
   </ul>
   <h3>Séries longues</h3>
   <ul>

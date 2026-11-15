@@ -15,8 +15,14 @@ OUT = os.path.join(HERE, "..", "data", "finances.json")
 
 
 # ---------------------------------------------------------------- lecture JSON-stat
-def jstat(name):
-    d = json.load(open(os.path.join(SRC, name)))
+_cache = {}
+
+
+def jstat(name, src=None, geo=None):
+    path = os.path.join(src or SRC, name)
+    if path not in _cache:
+        _cache[path] = json.load(open(path))
+    d = _cache[path]
     ids, size = d["id"], d["size"]
     cats = []
     for i in ids:
@@ -24,37 +30,40 @@ def jstat(name):
         if isinstance(idx, list):
             idx = {k: n for n, k in enumerate(idx)}
         cats.append(sorted(idx, key=idx.get))
+    single = {ids[j]: cats[j][0] for j in range(len(ids)) if size[j] == 1 and ids[j] != "time"}
+    gi = ids.index("geo") if (geo and "geo" in ids) else None
+    if gi is not None:
+        single["geo"] = geo
     out = {}
     for k, v in d["value"].items():
         k = int(k)
         coord = []
-        for s in reversed(size):
-            coord.append(k % s)
-            k //= s
+        for s_ in reversed(size):
+            coord.append(k % s_)
+            k //= s_
         coord.reverse()
-        key = tuple((ids[j], cats[j][coord[j]]) for j in range(len(ids)) if size[j] > 1 or ids[j] == "time")
+        if gi is not None and cats[gi][coord[gi]] != geo:
+            continue
+        key = tuple((ids[j], cats[j][coord[j]]) for j in range(len(ids)) if ids[j] not in single)
         out[frozenset(key)] = v
+    out["__single__"] = single
     return out
 
 
 def getter(tab):
-    def g(**kw):
-        kw = {k: str(v) for k, v in kw.items()}
-        for key, v in tab.items():
-            dk = dict(key)
-            if all(dk.get(k) == x for k, x in kw.items()):
-                return v
-        return None
-    # index plus rapide
-    idx = {}
-    for key, v in tab.items():
-        idx[frozenset(key)] = v
+    single = tab.get("__single__", {})
+    idx = {k: v for k, v in tab.items() if k != "__single__"}
 
     def fast(**kw):
-        k = frozenset((a, str(b)) for a, b in kw.items())
-        if k in idx:
-            return idx[k]
-        return g(**kw)
+        q = {}
+        for a_, b_ in kw.items():
+            b_ = str(b_)
+            if a_ in single:
+                if single[a_] != b_:
+                    return None
+            else:
+                q[a_] = b_
+        return idx.get(frozenset(q.items()))
     return fast
 
 
@@ -64,25 +73,31 @@ def md(x):
 
 
 def years_of(tab):
-    return sorted({dict(k)["time"] for k in tab})
+    return sorted({dict(k)["time"] for k in tab if k != "__single__"})
 
 
 # ---------------------------------------------------------------- sources
-gdp = getter(jstat("nama_10_gdp.json"))
-a10 = getter(jstat("nama_10_a10.json"))
-nftr = getter(jstat("nasa_10_nf_tr.json"))
-co3 = getter(jstat("nama_10_co3_p3.json"))
-pe_t = jstat("nama_10_pe.json"); pe = getter(pe_t)
-main_t = jstat("gov_10a_main.json"); main = getter(main_t)
-tax = getter(jstat("gov_10a_taxag.json"))
-exp_t = jstat("gov_10a_exp.json"); exp = getter(exp_t)
+def use(src, geo=None):
+    """Charge les séries d'un pays (dossier src, et code pays si fichiers multi-pays)."""
+    global gdp, a10, nftr, co3, pe, main, exp, debt, tax, exp_t, gdp_years, pib_years
+    J = lambda n: jstat(n, src, geo)
+    gdp = getter(J("nama_10_gdp.json"))
+    a10 = getter(J("nama_10_a10.json"))
+    nftr = getter(J("nasa_10_nf_tr.json"))
+    co3 = getter(J("nama_10_co3_p3.json"))
+    pe = getter(J("nama_10_pe.json"))
+    main = getter(J("gov_10a_main.json"))
+    tax = getter(J("gov_10a_taxag.json"))
+    exp_t = J("gov_10a_exp.json"); exp = getter(exp_t)
+    debt = getter(J("gov_10dd_edpt1.json"))
+    gdp_years = [y for y in years_of(J("nama_10_gdp.json")) if gdp(na_item="B1GQ", time=y)]
+    # années disponibles dans toutes les sources du PIB détaillé
+    pib_years = [y for y in gdp_years if nftr(sector="S11", na_item="B1G", direct="PAID", time=y) or nftr(sector="S11", na_item="B1G", direct="RECV", time=y)]
+
+
+use(SRC)
 nfa_t = jstat("nama_10_nfa_bs.json"); nfa = getter(nfa_t)
 fbs_t = jstat("nasa_10_f_bs.json"); fbs = getter(fbs_t)
-debt_t = jstat("gov_10dd_edpt1.json"); debt = getter(debt_t)
-
-gdp_years = [y for y in years_of(jstat("nama_10_gdp.json")) if gdp(na_item="B1GQ", time=y)]
-# années disponibles dans toutes les sources du PIB détaillé
-pib_years = [y for y in gdp_years if nftr(sector="S11", na_item="B1G", direct="PAID", time=y) or nftr(sector="S11", na_item="B1G", direct="RECV", time=y)]
 
 
 def pop(y):
@@ -100,6 +115,8 @@ def imputed_rents(y):
     if v is not None:
         return v, False
     known = sorted(t for t in range(2010, int(y)) if co3(coicop="CP042", time=t) is not None)
+    if len(known) < 2:
+        return 0.0, None   # non publié pour ce pays
     last, first = known[-1], known[max(0, len(known) - 8)]
     g = (co3(coicop="CP042", time=last) / co3(coicop="CP042", time=first)) ** (1 / (last - first))
     return co3(coicop="CP042", time=last) * g ** (int(y) - last), True
@@ -118,85 +135,99 @@ A10_LABELS = {
     "R-U": "Arts, loisirs, autres services",
 }
 
-pib = {}
-for y in pib_years:
-    G = lambda i: gdp(na_item=i, time=y)
-    S = lambda sec, i: nftr(sector=sec, na_item=i, direct="PAID", time=y) or nftr(sector=sec, na_item=i, direct="RECV", time=y)
-    total = G("B1GQ")
-    rents, rents_est = imputed_rents(y)
-    va = {s: S(s, "B1G") for s in ["S11", "S12", "S13", "S14", "S15"]}
-    ccf = {s: S(s, "P51C") for s in ["S11", "S12", "S13", "S14", "S15"]}
-    taxes_net_products = total - sum(va.values())
-    gfcf = {s: S(s, "P51G") for s in ["S11", "S12", "S13", "S14", "S15"]}
-    # achats de production marchande payés par de l'argent public
-    p2_s13 = main(sector="S13", na_item="P2", time=y)
-    d632 = main(sector="S13", na_item="D632PAY", time=y)
-    p51g_s13 = main(sector="S13", na_item="P51G", time=y)
-    d3 = main(sector="S13", na_item="D3PAY", time=y)
+def build_pib():
+    pib = {}
+    for y in pib_years:
+        G = lambda i: gdp(na_item=i, time=y)
+        S = lambda sec, i: nftr(sector=sec, na_item=i, direct="PAID", time=y) or nftr(sector=sec, na_item=i, direct="RECV", time=y)
+        total = G("B1GQ")
+        rents, rents_est = imputed_rents(y)
 
-    rec = {
-        "pib": md(total),
-        "population": pop(y),
-        "dette_maastricht_pct": debt(unit="PC_GDP", time=y),
-        # --- optique demande
-        "demande": [
-            {"id": "conso_menages", "label": "Consommation des ménages", "v": md(G("P31_S14"))},
-            {"id": "conso_isblsm", "label": "Consommation des associations (ISBLSM)", "v": md(G("P31_S15"))},
-            {"id": "conso_apu_indiv", "label": "Consommation publique individualisable (santé, école…)", "v": md(G("P31_S13"))},
-            {"id": "conso_apu_coll", "label": "Consommation publique collective (défense, police…)", "v": md(G("P32_S13"))},
-            {"id": "inv_entreprises", "label": "Investissement des entreprises", "v": md(gfcf["S11"] + gfcf["S12"])},
-            {"id": "inv_menages", "label": "Investissement des ménages (logement)", "v": md(gfcf["S14"] + gfcf["S15"])},
-            {"id": "inv_apu", "label": "Investissement public", "v": md(gfcf["S13"])},
-            {"id": "stocks", "label": "Variation des stocks", "v": md(G("P52_P53"))},
-            {"id": "solde_ext", "label": "Solde extérieur (exportations − importations)", "v": md(G("P6X7"))},
-        ],
-        "exports": md(G("P6")), "imports": md(G("P7")),
-        # --- optique revenus
-        "revenus": [
-            {"id": "salaires", "label": "Rémunération des salariés (salaires + cotisations employeurs)", "v": md(G("D1"))},
-            {"id": "ebe", "label": "Excédent brut d'exploitation et revenu mixte", "v": md(G("B2A3G"))},
-            {"id": "impots_prod", "label": "Impôts sur la production et les importations, nets des subventions", "v": md(G("D2X3"))},
-        ],
-        # --- optique production (qui produit ?)
-        "production": [
-            {"id": "snf", "label": "Entreprises non financières", "v": md(va["S11"])},
-            {"id": "sf", "label": "Banques et assurances", "v": md(va["S12"])},
-            {"id": "menages", "label": "Ménages : entrepreneurs individuels et loyers imputés", "v": md(va["S14"])},
-            {"id": "isblsm", "label": "Associations (ISBLSM)", "v": md(va["S15"])},
-            {"id": "apu", "label": "Administrations publiques", "v": md(va["S13"])},
-            {"id": "impots_produits", "label": "Impôts nets sur les produits (TVA, accises…)", "v": md(taxes_net_products)},
-        ],
-        "branches": [
-            {"id": k, "label": lab, "v": md(a10(nace_r2=k, time=y))} for k, lab in A10_LABELS.items()
-        ],
-        # --- lecture « ce qui est vendu à des clients » (cascade)
-        "cascade": [
-            {"id": "pib", "label": "PIB", "v": md(total), "type": "total"},
-            {"id": "impots_produits", "label": "Impôts nets sur les produits", "v": md(-taxes_net_products),
-             "note": "La TVA et les accises gonflent le prix payé sans rien ajouter à ce qui est produit : le PIB « aux prix du marché » les inclut."},
-            {"id": "apu", "label": "Services publics comptés à leur coût", "v": md(-va["S13"]),
-             "note": "Les services non vendus (école, police, hôpital public…) n'ont pas de prix : on les compte pour ce qu'ils coûtent (salaires + usure du capital). Utiles ou non, ils pèsent ce qu'on y dépense."},
-            {"id": "isblsm", "label": "Associations comptées à leur coût", "v": md(-va["S15"]),
-             "note": "Même convention que pour les administrations."},
-            {"id": "loyers_imputes", "label": "Loyers que les propriétaires « se versent »", "v": md(-rents),
-             "note": "Un propriétaire occupant est censé se louer son logement : ce loyer fictif est ajouté au PIB sans aucune transaction. (Montant brut : il inclut les frais d'entretien, il surestime donc un peu la valeur ajoutée correspondante.)"
-                     + (" Montant prolongé à partir de la dernière année publiée." if rents_est else "")},
-            {"id": "amortissement", "label": "Usure du capital des entreprises", "v": md(-(ccf["S11"] + ccf["S12"])),
-             "note": "Une partie de la production sert seulement à remplacer les machines et bâtiments usés : ce n'est pas un enrichissement net. (L'usure des logements des ménages est déjà comprise dans les loyers imputés ; celle des entrepreneurs individuels n'est pas retirée ici.)"},
-            {"id": "reste", "label": "Valeur ajoutée nette vendue à des clients", "type": "total",
-             "note": "Ce qui reste : la production des entreprises et indépendants, vendue à un prix, nette de l'usure du capital. Elle inclut encore des ventes payées par de l'argent public (voir ci-dessous)."},
-        ],
-        "achats_publics": [
-            {"id": "d632", "label": "Soins et médicaments remboursés (achetés au privé)", "v": md(d632)},
-            {"id": "p2", "label": "Achats courants des administrations", "v": md(p2_s13)},
-            {"id": "p51g", "label": "Investissement public (travaux, équipements)", "v": md(p51g_s13)},
-            {"id": "d3", "label": "Subventions aux entreprises", "v": md(d3)},
-        ],
-        "loyers_imputes_estimes": rents_est,
-    }
-    s = sum(c["v"] for c in rec["cascade"] if c.get("type") != "total")
-    rec["cascade"][-1]["v"] = round(md(total) + s, 2)
-    pib[y] = rec
+        def sect(item):
+            v = {s: S(s, item) for s in ["S11", "S12", "S13", "S14", "S15"]}
+            if v["S14"] is None or v["S15"] is None:      # certains pays ne séparent pas ménages et associations
+                v["S14"], v["S15"] = S("S14_S15", item), 0.0
+            return v
+        va, ccf, gfcf = sect("B1G"), sect("P51C"), sect("P51G")
+        if total is None or any(v is None for v in va.values()):
+            continue
+        ccf = {k: v or 0.0 for k, v in ccf.items()}
+        gfcf = {k: v or 0.0 for k, v in gfcf.items()}
+        taxes_net_products = total - sum(va.values())
+        # achats de production marchande payés par de l'argent public
+        p2_s13 = main(sector="S13", na_item="P2", time=y) or 0.0
+        d632 = main(sector="S13", na_item="D632PAY", time=y) or 0.0
+        p51g_s13 = main(sector="S13", na_item="P51G", time=y) or 0.0
+        d3 = main(sector="S13", na_item="D3PAY", time=y) or 0.0
+
+        rec = {
+            "pib": md(total),
+            "population": pop(y),
+            "dette_maastricht_pct": debt(unit="PC_GDP", time=y),
+            # --- optique demande
+            "demande": [
+                {"id": "conso_menages", "label": "Consommation des ménages", "v": md(G("P31_S14"))},
+                {"id": "conso_isblsm", "label": "Consommation des associations (ISBLSM)", "v": md(G("P31_S15"))},
+                {"id": "conso_apu_indiv", "label": "Consommation publique individualisable (santé, école…)", "v": md(G("P31_S13"))},
+                {"id": "conso_apu_coll", "label": "Consommation publique collective (défense, police…)", "v": md(G("P32_S13"))},
+                {"id": "inv_entreprises", "label": "Investissement des entreprises", "v": md(gfcf["S11"] + gfcf["S12"])},
+                {"id": "inv_menages", "label": "Investissement des ménages (logement)", "v": md(gfcf["S14"] + gfcf["S15"])},
+                {"id": "inv_apu", "label": "Investissement public", "v": md(gfcf["S13"])},
+                {"id": "stocks", "label": "Variation des stocks", "v": md(G("P52_P53"))},
+                {"id": "solde_ext", "label": "Solde extérieur (exportations − importations)", "v": md(G("P6X7"))},
+            ],
+            "exports": md(G("P6")), "imports": md(G("P7")),
+            # --- optique revenus
+            "revenus": [
+                {"id": "salaires", "label": "Rémunération des salariés (salaires + cotisations employeurs)", "v": md(G("D1"))},
+                {"id": "ebe", "label": "Excédent brut d'exploitation et revenu mixte", "v": md(G("B2A3G"))},
+                {"id": "impots_prod", "label": "Impôts sur la production et les importations, nets des subventions", "v": md(G("D2X3"))},
+            ],
+            # --- optique production (qui produit ?)
+            "production": [
+                {"id": "snf", "label": "Entreprises non financières", "v": md(va["S11"])},
+                {"id": "sf", "label": "Banques et assurances", "v": md(va["S12"])},
+                {"id": "menages", "label": "Ménages : entrepreneurs individuels et loyers imputés", "v": md(va["S14"])},
+                {"id": "isblsm", "label": "Associations (ISBLSM)", "v": md(va["S15"])},
+                {"id": "apu", "label": "Administrations publiques", "v": md(va["S13"])},
+                {"id": "impots_produits", "label": "Impôts nets sur les produits (TVA, accises…)", "v": md(taxes_net_products)},
+            ],
+            "branches": [
+                {"id": k, "label": lab, "v": md(a10(nace_r2=k, time=y))} for k, lab in A10_LABELS.items()
+            ],
+            # --- lecture « ce qui est vendu à des clients » (cascade)
+            "cascade": [
+                {"id": "pib", "label": "PIB", "v": md(total), "type": "total"},
+                {"id": "impots_produits", "label": "Impôts nets sur les produits", "v": md(-taxes_net_products),
+                 "note": "La TVA et les accises gonflent le prix payé sans rien ajouter à ce qui est produit : le PIB « aux prix du marché » les inclut."},
+                {"id": "apu", "label": "Services publics comptés à leur coût", "v": md(-va["S13"]),
+                 "note": "Les services non vendus (école, police, hôpital public…) n'ont pas de prix : on les compte pour ce qu'ils coûtent (salaires + usure du capital). Utiles ou non, ils pèsent ce qu'on y dépense."},
+                {"id": "isblsm", "label": "Associations comptées à leur coût", "v": md(-va["S15"]),
+                 "note": "Même convention que pour les administrations."},
+                {"id": "loyers_imputes", "label": "Loyers que les propriétaires « se versent »", "v": md(-rents),
+                 "note": "Un propriétaire occupant est censé se louer son logement : ce loyer fictif est ajouté au PIB sans aucune transaction. (Montant brut : il inclut les frais d'entretien, il surestime donc un peu la valeur ajoutée correspondante.)"
+                         + (" Montant prolongé à partir de la dernière année publiée." if rents_est else "")
+                         + (" Non publié par Eurostat pour ce pays : laissé à zéro." if rents_est is None else "")},
+                {"id": "amortissement", "label": "Usure du capital des entreprises", "v": md(-(ccf["S11"] + ccf["S12"])),
+                 "note": "Une partie de la production sert seulement à remplacer les machines et bâtiments usés : ce n'est pas un enrichissement net. (L'usure des logements des ménages est déjà comprise dans les loyers imputés ; celle des entrepreneurs individuels n'est pas retirée ici.)"},
+                {"id": "reste", "label": "Valeur ajoutée nette vendue à des clients", "type": "total",
+                 "note": "Ce qui reste : la production des entreprises et indépendants, vendue à un prix, nette de l'usure du capital. Elle inclut encore des ventes payées par de l'argent public (voir ci-dessous)."},
+            ],
+            "achats_publics": [
+                {"id": "d632", "label": "Soins et médicaments remboursés (achetés au privé)", "v": md(d632)},
+                {"id": "p2", "label": "Achats courants des administrations", "v": md(p2_s13)},
+                {"id": "p51g", "label": "Investissement public (travaux, équipements)", "v": md(p51g_s13)},
+                {"id": "d3", "label": "Subventions aux entreprises", "v": md(d3)},
+            ],
+            "loyers_imputes_estimes": rents_est,
+        }
+        s = sum(c["v"] for c in rec["cascade"] if c.get("type") != "total")
+        rec["cascade"][-1]["v"] = round(md(total) + s, 2)
+        pib[y] = rec
+    return pib
+
+
+pib = build_pib()
 
 
 # ================================================================= 2. CND (INSEE)
@@ -501,54 +532,68 @@ for y in bs_years:
                      "pib": md(gdp(na_item="B1GQ", time=y)), "population": pop(y),
                      "dette_maastricht_pct": debt(unit="PC_GDP", time=y)}
 
-# ================================================================= 5. Simulateur multiplicateur
-last = gdp_years[-1]
-simu = {
-    "annee": last,
-    "dette_pct": debt(unit="PC_GDP", time=last),
-    "recettes_pct": round(100 * main(sector="S13", na_item="TR", time=last) / gdp(na_item="B1GQ", time=last), 1),
-    "prelevements_pct": round(100 * tax(sector="S13", na_item="D2_D5_D91_D61_M_D995", time=last) / gdp(na_item="B1GQ", time=last), 1),
-    "depenses_pct": round(100 * main(sector="S13", na_item="TE", time=last) / gdp(na_item="B1GQ", time=last), 1),
-}
+def build_series():
+    # ================================================================= 5. Simulateur multiplicateur
+    pct = lambda a_, b_: round(100 * a_ / b_, 1) if a_ is not None and b_ else None
+    ok = [y for y in gdp_years if main(sector="S13", na_item="TR", time=y) and debt(unit="PC_GDP", time=y)]
+    simu = None
+    if ok:
+        last = ok[-1]
+        g = gdp(na_item="B1GQ", time=last)
+        simu = {
+            "annee": last,
+            "dette_pct": debt(unit="PC_GDP", time=last),
+            "recettes_pct": pct(main(sector="S13", na_item="TR", time=last), g),
+            "prelevements_pct": pct(tax(sector="S13", na_item="D2_D5_D91_D61_M_D995", time=last), g)
+                                or pct(main(sector="S13", na_item="TR", time=last), g),
+            "depenses_pct": pct(main(sector="S13", na_item="TE", time=last), g),
+        }
 
-# ---------------------------------------------------------------- séries longues
-interets = []
-prev_debt = None
-for y in gdp_years:
-    i = main(sector="S13", na_item="D41PAY", time=y)
-    dmd = debt(unit="MIO_EUR", time=y)
-    tr = main(sector="S13", na_item="TR", time=y)
-    if i is None or tr is None:
+    # ---------------------------------------------------------------- séries longues
+    interets = []
+    prev_debt = None
+    for y in gdp_years:
+        i = main(sector="S13", na_item="D41PAY", time=y)
+        dmd = debt(unit="MIO_EUR", time=y)
+        tr = main(sector="S13", na_item="TR", time=y)
+        g = gdp(na_item="B1GQ", time=y)
+        if i is None or not tr or not g:
+            prev_debt = dmd
+            continue
+        interets.append({
+            "annee": y, "interets": md(i), "pib": md(g), "recettes": md(tr),
+            "dette": md(dmd), "dette_pct": debt(unit="PC_GDP", time=y),
+            "pct_recettes": round(100 * i / tr, 2),
+            "pct_pib": round(100 * i / g, 2),
+            "taux_apparent": round(100 * i / prev_debt, 2) if prev_debt else None,
+        })
         prev_debt = dmd
-        continue
-    interets.append({
-        "annee": y, "interets": md(i), "pib": md(gdp(na_item="B1GQ", time=y)), "recettes": md(tr),
-        "dette": md(dmd), "dette_pct": debt(unit="PC_GDP", time=y),
-        "pct_recettes": round(100 * i / tr, 2),
-        "pct_pib": round(100 * i / gdp(na_item="B1GQ", time=y), 2),
-        "taux_apparent": round(100 * i / prev_debt, 2) if prev_debt else None,
-    })
-    prev_debt = dmd
 
-fonctions_hist = {"fonctions": [[f[0], f[1]] for f in FUNCS], "annees": []}
-for y in gdp_years:
-    if not exp(sector="S13", cofog99="TOTAL", time=y):
-        continue
-    def fv(codes):
-        v = 0.0
-        for c in codes:
-            x = exp(sector="S13", cofog99=c.lstrip("-"), time=y) or 0.0
-            v += -x if c.startswith("-") else x
-        return v
-    g = gdp(na_item="B1GQ", time=y)
-    fonctions_hist["annees"].append({"annee": y, "pib": md(g), "md": {f[0]: md(fv(f[2])) for f in FUNCS},
-                                     "pct": {f[0]: round(100 * fv(f[2]) / g, 3) for f in FUNCS}})
+    fonctions_hist = {"fonctions": [[f[0], f[1]] for f in FUNCS], "annees": []}
+    for y in gdp_years:
+        if not exp(sector="S13", cofog99="TOTAL", time=y):
+            continue
+        def fv(codes):
+            v = 0.0
+            for c in codes:
+                x = exp(sector="S13", cofog99=c.lstrip("-"), time=y) or 0.0
+                v += -x if c.startswith("-") else x
+            return v
+        g = gdp(na_item="B1GQ", time=y)
+        fonctions_hist["annees"].append({"annee": y, "pib": md(g), "md": {f[0]: md(fv(f[2])) for f in FUNCS},
+                                         "pct": {f[0]: round(100 * fv(f[2]) / g, 3) for f in FUNCS}})
 
-historique = []
-for y in gdp_years:
-    te, tr = main(sector="S13", na_item="TE", time=y), main(sector="S13", na_item="TR", time=y)
-    historique.append({"annee": y, "pib": md(gdp(na_item="B1GQ", time=y)),
-                       "depenses": md(te), "recettes": md(tr), "dette_pct": debt(unit="PC_GDP", time=y)})
+    historique = []
+    for y in gdp_years:
+        te, tr = main(sector="S13", na_item="TE", time=y), main(sector="S13", na_item="TR", time=y)
+        if te is None or tr is None:
+            continue
+        historique.append({"annee": y, "pib": md(gdp(na_item="B1GQ", time=y)),
+                           "depenses": md(te), "recettes": md(tr), "dette_pct": debt(unit="PC_GDP", time=y)})
+    return simu, interets, fonctions_hist, historique
+
+
+simu, interets, fonctions_hist, historique = build_series()
 
 out = {
     "genere_le": __import__("datetime").date.today().isoformat(),
@@ -566,6 +611,89 @@ out = {
     },
 }
 json.dump(out, open(OUT, "w"), ensure_ascii=False, separators=(",", ":"))
+
+# ================================================================= 6. Autres pays + comparaison
+PAYS = {
+    "FR": "France", "DE": "Allemagne", "AT": "Autriche", "BE": "Belgique", "BG": "Bulgarie", "CY": "Chypre",
+    "HR": "Croatie", "DK": "Danemark", "ES": "Espagne", "EE": "Estonie", "FI": "Finlande", "EL": "Grèce",
+    "HU": "Hongrie", "IE": "Irlande", "IT": "Italie", "LV": "Lettonie", "LT": "Lituanie", "LU": "Luxembourg",
+    "MT": "Malte", "NL": "Pays-Bas", "PL": "Pologne", "PT": "Portugal", "CZ": "Tchéquie", "RO": "Roumanie",
+    "SK": "Slovaquie", "SI": "Slovénie", "SE": "Suède", "IS": "Islande", "NO": "Norvège", "CH": "Suisse",
+}
+PSRC = os.path.join(SRC, "pays")
+pdir = os.path.join(os.path.dirname(OUT), "pays")
+os.makedirs(pdir, exist_ok=True)
+nfa_p, fbs_p = "nama_10_nfa_bs.json", "nasa_10_f_bs.json"
+BS_SECS = [("menages", "S14_S15"), ("snf", "S11"), ("sf", "S12"), ("apu", "S13")]
+FCODES = ["F2", "F3", "F4", "F5", "F6"]
+
+
+def bilan_pays(geo):
+    nf = getter(jstat(nfa_p, PSRC, geo)); fb = getter(jstat(fbs_p, PSRC, geo))
+    years = [y for y in range(2015, 2027) if fb(sector="S14_S15", finpos="ASS", na_item="F", time=y)]
+    if not years:
+        return None
+    full = [y for y in years if nf(sector="S1", asset10="N1N", time=y) is not None]
+    # on préfère une année où les biens réels sont aussi publiés, si elle n'est pas trop ancienne
+    y = str(full[-1] if full and full[-1] >= years[-1] - 2 else years[-1])
+    g = gdp(na_item="B1GQ", time=y)
+    secs = {}
+    for sid, sc in BS_SECS:
+        fa, fl = fb(sector=sc, finpos="ASS", na_item="F", time=y), fb(sector=sc, finpos="LIAB", na_item="F", time=y)
+        nfv = None
+        if nf(sector=sc, asset10="N1N", time=y) is not None:
+            nfv = (nf(sector=sc, asset10="N1N", time=y) or 0) + (nf(sector=sc, asset10="N2N", time=y) or 0)
+        secs[sid] = {"fa": md(fa), "fl": md(fl), "nf": md(nfv),
+                     "fa_det": {c: md(fb(sector=sc, finpos="ASS", na_item=c, time=y)) for c in FCODES},
+                     "fl_det": {c: md(fb(sector=sc, finpos="LIAB", na_item=c, time=y)) for c in FCODES}}
+    rdm_net = None
+    a_, l_ = fb(sector="S2", finpos="ASS", na_item="F", time=y), fb(sector="S2", finpos="LIAB", na_item="F", time=y)
+    if a_ is not None and l_ is not None:
+        rdm_net = md(l_ - a_)    # position du pays vis-à-vis de l'étranger
+    has_land = nf(sector="S1", asset10="N211N", time=y) is not None
+    return {"annee": y, "pib": md(g), "secteurs": secs, "position_ext": rdm_net, "terrains_inclus": has_land}
+
+
+index, comparaison = [], []
+for geo, nom in PAYS.items():
+    use(PSRC, geo)
+    if not gdp_years:
+        print(geo, "pas de données"); continue
+    c_simu, c_int, c_fn, c_hist = build_series()
+    c_pib = build_pib()
+    if geo != "FR":
+        c = {"pays": geo, "nom": nom, "genere_le": out["genere_le"], "pib": c_pib, "historique": c_hist,
+             "interets": c_int, "fonctions_hist": c_fn, "simulateur": c_simu}
+        json.dump(c, open(os.path.join(pdir, geo + ".json"), "w"), ensure_ascii=False, separators=(",", ":"))
+    index.append({"code": geo, "nom": nom, "pib": bool(c_pib), "series": bool(c_int or c_fn)})
+    # instantané pour la comparaison (dernière année disponible de chaque bloc)
+    snap = {"code": geo, "nom": nom}
+    if c_pib:
+        y = sorted(c_pib)[-1]; P = c_pib[y]
+        snap["pib"] = {"annee": y, "pib": P["pib"], "population": P["population"],
+                       "cascade": {x["id"]: x["v"] for x in P["cascade"]},
+                       "loyers_estimes": P["loyers_imputes_estimes"],
+                       "production": {x["id"]: x["v"] for x in P["production"]},
+                       "demande": {x["id"]: x["v"] for x in P["demande"]},
+                       "achats_publics": sum(x["v"] or 0 for x in P["achats_publics"])}
+    if c_hist:
+        h = c_hist[-1]
+        snap["apu"] = {"annee": h["annee"], "depenses_pct": round(100 * h["depenses"] / h["pib"], 2),
+                       "recettes_pct": round(100 * h["recettes"] / h["pib"], 2), "dette_pct": h["dette_pct"]}
+    if c_int:
+        i = c_int[-1]
+        snap["interets"] = {"annee": i["annee"], "pct_pib": i["pct_pib"], "pct_recettes": i["pct_recettes"], "taux_apparent": i["taux_apparent"]}
+    if c_fn["annees"]:
+        f = c_fn["annees"][-1]
+        snap["fonctions"] = {"annee": f["annee"], "pct": f["pct"]}
+    b = bilan_pays(geo)
+    if b:
+        snap["bilan"] = b
+    comparaison.append(snap)
+    print(geo, "pib" if c_pib else "-", "séries" if c_int else "-", "bilan" if b else "-")
+
+json.dump({"genere_le": out["genere_le"], "pays": index, "fonctions": [[f[0], f[1]] for f in FUNCS], "comparaison": comparaison},
+          open(os.path.join(os.path.dirname(OUT), "comparaison.json"), "w"), ensure_ascii=False, separators=(",", ":"))
 print("écrit", OUT, os.path.getsize(OUT), "octets")
 print("PIB", {y: pib[y]["pib"] for y in pib})
 for y, s in sankey.items():
