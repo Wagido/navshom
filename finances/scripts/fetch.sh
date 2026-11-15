@@ -52,4 +52,11 @@ get energie/nrg_bal_c.json "$E/nrg_bal_c?unit=GWH&sinceTimePeriod=2015$GEO$NB$SI
 TMP=$(mktemp)
 get "$TMP" "https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv"
 python3 "$SCRIPTS/filter_owid.py" "$TMP" energie/owid_europe.csv && rm -f "$TMP"
+# Matières : comptes de flux de matières (Eurostat), en milliers de tonnes
+mkdir -p matieres
+MAT=$(for m in TOTAL MF1 MF11 MF12 MF13 MF14 MF15 MF16 MF2 MF21 MF22 MF221 MF227 MF228 MF23 MF3 MF31 MF32 MF34 MF35 MF36 MF37 MF38 MF3B MF4 MF41 MF42 MF43 MF44 MF45 MF5 MF6; do printf "&material=%s" "$m"; done)
+get matieres/env_ac_mfa.json "$E/env_ac_mfa?sinceTimePeriod=2000&unit=THS_T&unit=T_HAB$GEO$MAT&indic_env=DE&indic_env=IMP&indic_env=EXP&indic_env=DMC"
+get matieres/env_ac_sd.json  "$E/env_ac_sd?sinceTimePeriod=2010&unit=THS_T$GEO"
+get matieres/env_ac_rme.json "$E/env_ac_rme?sinceTimePeriod=2010&unit=THS_T&unit=T_HAB$GEO&material=TOTAL&material=MF1&material=MF2&material=MF3&material=MF4"
+get matieres/cei_srm030.json "$E/cei_srm030?sinceTimePeriod=2000$GEO"
 echo "OK"

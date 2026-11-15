@@ -23,6 +23,7 @@
       <a href="#patrimoine">Patrimoine</a>
       <a href="#comparer">Comparer les pays</a>
       <a href="#energie">Énergie</a>
+      <a href="#matieres">Matières</a>
       <a href="#methode">Méthode</a>
     </nav>
     <label class="ctl geo-ctl">Pays <select id="geo"></select></label>
@@ -201,6 +202,29 @@
   </div>
 </section>
 
+<!-- =============================================================== MATIERES -->
+<section id="matieres" class="panel">
+  <div class="panel-head">
+    <h2>Les matières : ce que le pays extrait, importe, accumule et jette <span class="geo-tag"></span></h2>
+    <label class="ctl">Année <select id="mt-year"></select></label>
+  </div>
+  <div class="kpis" id="mt-kpis"></div>
+  <p class="lead">En millions de tonnes (Mt). Tout ce qui entre dans l'économie : récoltes, bois, minerais, sable, pétrole… extraits sur le territoire ou importés, plus les matières recyclées. Puis ce que ces matières deviennent : brûlées pour l'énergie, exportées, ou utilisées comme matériaux. Dans ce dernier cas, elles s'ajoutent au stock (bâtiments, routes, objets durables) ou finissent en déchets.</p>
+  <div class="sk-scroll"><div id="mt-sankey" class="chart"></div></div>
+
+  <h3 id="mt-detail-title">Le détail par matière</h3>
+  <p class="lead">Extraction sur le territoire, importations et exportations, en millions de tonnes. Les importations comptent le poids des produits tels qu'ils passent la frontière : un lingot d'aluminium pèse bien moins que la bauxite qu'il a fallu extraire pour le produire.</p>
+  <div id="mt-detail" class="chart"></div>
+
+  <h3>Consommation de matières par habitant depuis 2000</h3>
+  <p class="lead">Tonnes par habitant et par an. Les aires montrent la consommation apparente (extraction + importations − exportations), par matière. Le trait noir est l'<strong>empreinte matières</strong> : elle compte aussi tout ce qu'il a fallu extraire à l'étranger pour fabriquer nos importations. Le trait bleu (axe de droite) est le taux de recyclage : la part des matières utilisées qui viennent de déchets recyclés.</p>
+  <div id="mt-hist" class="chart"></div>
+  <div class="legend-row" id="mt-hist-legend"></div>
+
+  <h3>Comparer les pays</h3>
+  <div id="mt-cmp" class="chart"></div>
+</section>
+
 <!-- =============================================================== METHODE -->
 <section id="methode" class="panel prose">
   <h2>Sources et méthode</h2>
@@ -217,6 +241,11 @@
     <li><a href="https://ec.europa.eu/eurostat/databrowser/view/nrg_bal_c/default/table" target="_blank" rel="noopener">Eurostat nrg_bal_c</a> : bilans énergétiques complets (production, échanges, transformation, consommation finale par secteur), en TWh. C'est la source du diagramme de flux d'Eurostat. Les transformations secondaires (hauts fourneaux, injection de biométhane, mélange des biocarburants) sont comptées en net. Pas de bilan publié pour la Suisse.</li>
     <li><a href="https://github.com/owid/energy-data" target="_blank" rel="noopener">Our World in Data, energy-data</a> (licence CC BY) : consommation d'énergie primaire et production d'électricité par source depuis 1965 (méthode de substitution pour les renouvelables, différente d'Eurostat).</li>
     <li><a href="https://odre.opendatasoft.com/explore/dataset/eco2mix-national-tr/" target="_blank" rel="noopener">ODRÉ, éCO2mix national temps réel</a> (RTE, Licence Ouverte) : production, consommation, échanges et taux de CO2 au pas de 15 minutes.</li>
+  </ul>
+  <h3>Matières</h3>
+  <ul>
+    <li><a href="https://ec.europa.eu/eurostat/databrowser/view/env_ac_sd/default/table" target="_blank" rel="noopener">Eurostat env_ac_sd</a> : flux de matières pour l'économie circulaire, les données du diagramme d'Eurostat. Les matières recyclées sont déduites : matières mises en œuvre − extraction − importations. La part « brûlée pour l'énergie » est ce qui n'est ni exporté ni utilisé comme matériau.</li>
+    <li><a href="https://ec.europa.eu/eurostat/databrowser/view/env_ac_mfa/default/table" target="_blank" rel="noopener">env_ac_mfa</a> (comptes de flux de matières), <a href="https://ec.europa.eu/eurostat/databrowser/view/env_ac_rme/default/table" target="_blank" rel="noopener">env_ac_rme</a> (empreinte matières) et <a href="https://ec.europa.eu/eurostat/databrowser/view/cei_srm030/default/table" target="_blank" rel="noopener">cei_srm030</a> (taux d'utilisation circulaire).</li>
   </ul>
   <h3>Autres pays</h3>
   <ul>
@@ -250,5 +279,6 @@
 <script src="lib/d3-sankey.min.js"></script>
 <script src="app.js"></script>
 <script src="energie.js"></script>
+<script src="matieres.js"></script>
 </body>
 </html>
