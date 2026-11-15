@@ -617,20 +617,21 @@ function initBilan() {
 
 function drawBilan() {
   if (!DATA) return;
+  document.querySelector(".bs-why")?.remove();
   const y = $("#bs-year").value, B = DATA.patrimoine[y], secs = B.secteurs;
   const L = DATA.labels;
   const sum = o => d3.sum(Object.values(o));
   const nfTot = d3.sum(secs, s => sum(s.nf));
   const netTot = d3.sum(secs, s => s.net);
   const extNet = d3.sum(secs, s => sum(s.fa) - sum(s.fl));
+  const faTot = d3.sum(secs, s => sum(s.fa)), flTot = d3.sum(secs, s => sum(s.fl));
   kpis($("#bs-kpis"), [
-    [md(netTot), `patrimoine net de la France fin ${y}`],
-    [eur(netTot * 1e9 / B.population), "par habitant"],
-    [nf1.format(netTot / B.pib) + " ans", "de PIB"],
-    [md(nfTot), "biens réels (logements, terrains, équipements…)"],
-    [md(nfTot + d3.sum(secs, s => sum(s.fa))) + " / " + md(d3.sum(secs, s => sum(s.fl))), "total des actifs / total des passifs"],
-    [(extNet >= 0 ? "+" : "−") + md(Math.abs(extNet)), "position financière nette face à l'étranger"],
+    [md(nfTot + faTot), `total des actifs (brut) : ${md(nfTot)} de biens réels + ${md(faTot)} d'actifs financiers`],
+    ["− " + md(flTot), "total des dettes et passifs"],
+    ["= " + md(netTot), `patrimoine net de la France fin ${y}, soit ${eur(netTot * 1e9 / B.population)} par habitant et ${nf1.format(netTot / B.pib)} années de PIB`],
+    [(extNet >= 0 ? "+" : "−") + md(Math.abs(extNet)), "dont position financière nette face à l'étranger (le reste, ce sont les biens réels)"],
   ]);
+  $("#bs-kpis").insertAdjacentHTML("afterend", `<p class="muted bs-why" style="font-size:.86rem;margin:-2px 0 10px;max-width:100ch">Pourquoi ${md(nfTot + faTot)} d'actifs mais seulement ${md(netTot)} de patrimoine ? Un dépôt bancaire est à la fois un actif (pour le déposant) et une dette (pour la banque) : les ${md(faTot)} d'actifs financiers sont presque entièrement compensés par les ${md(flTot)} de dettes. À l'échelle du pays, le patrimoine net se réduit aux biens réels plus le solde avec l'étranger.</p>`);
 
   // --- graphique : actifs à droite, passifs à gauche
   const el = $("#bs-chart");
