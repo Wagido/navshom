@@ -628,41 +628,78 @@ function drawBilan() {
     [eur(netTot * 1e9 / B.population), "par habitant"],
     [nf1.format(netTot / B.pib) + " ans", "de PIB"],
     [md(nfTot), "biens réels (logements, terrains, équipements…)"],
+    [md(nfTot + d3.sum(secs, s => sum(s.fa))) + " / " + md(d3.sum(secs, s => sum(s.fl))), "total des actifs / total des passifs"],
     [(extNet >= 0 ? "+" : "−") + md(Math.abs(extNet)), "position financière nette face à l'étranger"],
   ]);
 
-  // --- graphique : actifs à droite, passifs à gauche, par secteur
+  // --- graphique : actifs à droite, passifs à gauche
   const el = $("#bs-chart");
-  const w = Math.max(320, el.clientWidth), rowH = 46, mg = { t: 24, r: 12, b: 10, l: w < 600 ? 110 : 190 };
-  const h = mg.t + rowH * secs.length + mg.b;
-  const maxA = d3.max(secs, s => s.actifs), maxL = d3.max(secs, s => s.passifs);
-  const x = d3.scaleLinear([-maxL, maxA], [mg.l, w - mg.r]);
-  const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
-  const colNF = d3.scaleOrdinal(L.nf.map(d => d[0]), ["#c9772b", "#8a6d3b", "#d9a05b", "#a8875a", "#e3c08d", "#b5a48a", "#f0c419", "#d6cbb5"]);
-  const colF = d3.scaleOrdinal(L.f.map(d => d[0]), ["#3b6fd6", "#5a8de0", "#7aa7e8", "#2a4f9e", "#8e5bd0", "#b9a2e3", "#9aa5b8"]);
-  svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", mg.t - 6).attr("y2", h - mg.b).attr("stroke", css("--ink"));
-  svg.append("text").attr("x", x(0) + 6).attr("y", 12).attr("font-size", 11).attr("fill", css("--muted")).text("Ce qu'ils possèdent →");
-  svg.append("text").attr("x", x(0) - 6).attr("y", 12).attr("text-anchor", "end").attr("font-size", 11).attr("fill", css("--muted")).text("← Ce qu'ils doivent");
-  secs.forEach((s, i) => {
-    const yy = mg.t + i * rowH + 8, bh = rowH - 20;
-    svg.append("text").attr("x", 0).attr("y", yy + bh / 2).attr("dy", "-.15em").attr("font-size", 12).attr("font-weight", 600).text(s.label.length > 22 && w < 600 ? s.label.split(" ")[0] : s.label);
-    svg.append("text").attr("x", 0).attr("y", yy + bh / 2).attr("dy", "1.05em").attr("font-size", 11).attr("fill", s.net < 0 ? css("--neg") : css("--muted")).text(`net ${s.net >= 0 ? "" : "−"}${md(Math.abs(s.net))}`);
-    let acc = 0;
-    const segs = [...L.nf.map(([k, l]) => ({ k, l, v: s.nf[k], c: colNF(k), g: "Bien réel" })), ...L.f.map(([k, l]) => ({ k, l, v: s.fa[k], c: colF(k), g: "Actif financier" }))].filter(d => d.v > 0);
-    segs.forEach(d => {
-      svg.append("rect").attr("x", x(acc)).attr("y", yy).attr("width", x(acc + d.v) - x(acc)).attr("height", bh).attr("fill", d.c)
-        .on("pointermove", ev => showTip(`<b>${esc(s.label)}</b><br>${d.g} : ${esc(d.l)}<br>${md(d.v)}`, ev)).on("pointerleave", hideTip);
-      acc += d.v;
+  const NF_COL = { logements: "#e07b39", terrains: "#8c5a2b", batiments: "#f2b544", machines: "#c0392b", pi: "#e8a0a0", stocks: "#a8a032", valeur: "#ffd84d", autres_nf: "#cdb89a" };
+  const F_COL = { depots: "#1f78b4", titres: "#8fc3e8", credits: "#17a2b8", actions: "#3949ab", assurance: "#8e5bd0", derives: "#c9b3e6", autres_f: "#90a4ae" };
+  const SHORT = { logements: "Logements", terrains: "Terrains", batiments: "Bâtiments", machines: "Équipements", pi: "Logiciels, R&D", stocks: "Stocks", valeur: "Valeur", autres_nf: "Autres",
+                  depots: "Dépôts", titres: "Obligations", credits: "Crédits", actions: "Actions", assurance: "Assurance-vie", derives: "Dérivés", autres_f: "Autres" };
+  const total = { label: "France entière", nf: {}, fa: {}, fl: {} };
+  L.nf.forEach(([k]) => total.nf[k] = d3.sum(secs, s => s.nf[k]));
+  L.f.forEach(([k]) => { total.fa[k] = d3.sum(secs, s => s.fa[k]); total.fl[k] = d3.sum(secs, s => s.fl[k]); });
+  total.actifs = sum(total.nf) + sum(total.fa); total.passifs = sum(total.fl); total.net = total.actifs - total.passifs;
+
+  const w = Math.max(320, el.clientWidth), narrow = w < 640;
+  const mg = { l: narrow ? 44 : 236, r: 52 };
+  const tx = c => `<span style="color:var(--muted)">${c}</span>`;
+
+  function chart(rows, rowH) {
+    const top = narrow ? 34 : 22;
+    const h = top + rows.length * rowH + 6;
+    const maxA = d3.max(rows, s => s.actifs), maxL = d3.max(rows, s => s.passifs);
+    const x = d3.scaleLinear([-maxL, maxA], [mg.l, w - mg.r]);
+    const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
+    const defs = svg.append("defs");
+    Object.entries(F_COL).forEach(([k, c]) => {
+      const pt = defs.append("pattern").attr("id", "hatch-" + k).attr("patternUnits", "userSpaceOnUse").attr("width", 6).attr("height", 6).attr("patternTransform", "rotate(45)");
+      pt.append("rect").attr("width", 6).attr("height", 6).attr("fill", c).attr("opacity", .35);
+      pt.append("rect").attr("width", 2.5).attr("height", 6).attr("fill", c);
     });
-    let accL = 0;
-    L.f.map(([k, l]) => ({ k, l, v: s.fl[k], c: colF(k) })).filter(d => d.v > 0).forEach(d => {
-      svg.append("rect").attr("x", x(-(accL + d.v))).attr("y", yy).attr("width", x(-accL) - x(-(accL + d.v))).attr("height", bh).attr("fill", d.c).attr("opacity", .55)
-        .on("pointermove", ev => showTip(`<b>${esc(s.label)}</b><br>Passif : ${esc(d.l)}<br>${md(d.v)}`, ev)).on("pointerleave", hideTip);
-      accL += d.v;
+    svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", top - 4).attr("y2", h).attr("stroke", css("--ink"));
+    svg.append("text").attr("x", x(0) + 6).attr("y", 11).attr("font-size", 11).attr("fill", css("--muted")).text("Ce qu'ils possèdent →");
+    svg.append("text").attr("x", x(0) - 6).attr("y", 11).attr("text-anchor", "end").attr("font-size", 11).attr("fill", css("--muted")).text("← Ce qu'ils doivent");
+    rows.forEach((s, i) => {
+      const lab = narrow ? 16 : 0;
+      const yy = top + i * rowH + lab, bh = rowH - 14 - lab;
+      const lx = narrow ? 0 : 0, ly = narrow ? yy - 5 : yy + bh / 2;
+      svg.append("text").attr("x", lx).attr("y", ly).attr("dy", narrow ? 0 : "-.15em").attr("font-size", 12).attr("font-weight", 650)
+        .text(narrow ? `${s.label} · net ${s.net < 0 ? "−" : ""}${md(Math.abs(s.net))}` : s.label);
+      if (!narrow) svg.append("text").attr("x", 0).attr("y", ly).attr("dy", "1.05em").attr("font-size", 11).attr("fill", s.net < 0 ? css("--neg") : css("--muted")).text(`net ${s.net >= 0 ? "" : "−"}${md(Math.abs(s.net))}`);
+      const seg = (x0, x1, fill, k, tipHtml) => {
+        const r = svg.append("rect").attr("x", x(x0)).attr("y", yy).attr("width", Math.max(0, x(x1) - x(x0))).attr("height", bh).attr("fill", fill)
+          .attr("stroke", css("--surface")).attr("stroke-width", .6)
+          .on("pointermove", ev => showTip(tipHtml, ev)).on("pointerleave", hideTip);
+        if (Math.abs(x(x1) - x(x0)) > SHORT[k].length * 6.2 + 8 && bh >= 16)
+          svg.append("text").attr("x", (x(x0) + x(x1)) / 2).attr("y", yy + bh / 2).attr("dy", ".35em").attr("text-anchor", "middle")
+            .attr("font-size", 10.5).attr("fill", String(fill).startsWith("url") ? css("--ink") : "#fff").attr("pointer-events", "none").attr("font-weight", 600)
+            .attr("paint-order", String(fill).startsWith("url") ? "stroke" : null).attr("stroke", String(fill).startsWith("url") ? css("--surface") : null).attr("stroke-width", 3).text(SHORT[k]);
+        return r;
+      };
+      let acc = 0;
+      L.nf.forEach(([k, l]) => { const v = s.nf[k]; if (v > 0) { seg(acc, acc + v, NF_COL[k], k, `<b>${esc(s.label)}</b><br>Bien réel : ${esc(l)}<br>${md(v)}`); acc += v; } });
+      L.f.forEach(([k, l]) => { const v = s.fa[k]; if (v > 0) { seg(acc, acc + v, F_COL[k], k, `<b>${esc(s.label)}</b><br>Actif financier : ${esc(l)}<br>${md(v)}`); acc += v; } });
+      let accL = 0;
+      L.f.forEach(([k, l]) => { const v = s.fl[k]; if (v > 0) { seg(-(accL + v), -accL, `url(#hatch-${k})`, k, `<b>${esc(s.label)}</b><br>Dette / passif : ${esc(l)}<br>${md(v)}`); accL += v; } });
+      svg.append("text").attr("x", x(acc) + 5).attr("y", yy + bh / 2).attr("dy", ".35em").attr("font-size", 11).attr("font-weight", 600).attr("fill", css("--ink"))
+        .text(nf0.format(acc));
+      svg.append("text").attr("x", x(-accL) - 5).attr("y", yy + bh / 2).attr("dy", ".35em").attr("font-size", 11).attr("font-weight", 600).attr("fill", css("--ink"))
+        .attr("text-anchor", "end").text(nf0.format(accL));
     });
-  });
-  el.replaceChildren(svg.node());
-  el.insertAdjacentHTML("beforeend", `<div class="legend-row"><span><i style="border-top-color:#c9772b;opacity:1"></i>Biens réels (logements, terrains, bâtiments, équipements…)</span><span><i style="border-top-color:#3b6fd6;opacity:1"></i>Actifs et passifs financiers (dépôts, crédits, titres, actions, assurance-vie)</span></div>`);
+    return svg.node();
+  }
+
+  el.innerHTML = `<h4 style="margin:8px 0 4px">France entière : ${md(total.actifs)} d'actifs, ${md(total.passifs)} de passifs</h4>`;
+  el.appendChild(chart([total], narrow ? 62 : 52));
+  el.insertAdjacentHTML("beforeend", `<p class="muted" style="font-size:.84rem;margin:2px 0 14px">Les actifs financiers d'un Français sont souvent la dette d'un autre Français (le dépôt d'un ménage est une dette de sa banque) : à l'échelle du pays, ils s'annulent presque. Le patrimoine net (${md(total.net)}) se résume donc aux biens réels (${md(sum(total.nf))}) plus la position face à l'étranger (${extNet >= 0 ? "+" : "−"}${md(Math.abs(extNet))}).</p><h4 style="margin:8px 0 4px">Par secteur (même échelle pour les quatre)</h4>`);
+  el.appendChild(chart(secs, narrow ? 56 : 46));
+  const sw = (c, hatch) => `<i style="width:14px;height:12px;border:0;opacity:1;background:${hatch ? `repeating-linear-gradient(45deg, ${c} 0 2.5px, color-mix(in srgb, ${c} 35%, transparent) 2.5px 6px)` : c}"></i>`;
+  el.insertAdjacentHTML("beforeend", `
+    <div class="legend-row"><b style="color:var(--ink)">Biens réels</b>${L.nf.map(([k, l]) => `<span>${sw(NF_COL[k])}${esc(l)}</span>`).join("")}</div>
+    <div class="legend-row"><b style="color:var(--ink)">Actifs financiers</b> (pleins, à droite) <b style="color:var(--ink)">et dettes</b> (hachurés, à gauche)${L.f.map(([k, l]) => `<span>${sw(F_COL[k])}${sw(F_COL[k], true)}${esc(l)}</span>`).join("")}</div>`);
 
   // --- tableau
   const cols = [...secs.map(s => s.label), "France entière"];
