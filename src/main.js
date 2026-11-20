@@ -1,22 +1,5 @@
 // Balise : l'application (module ES, construit par Vite)
-const $ = id => document.getElementById(id);
-// Site de test /beta/ : stockage et caches séparés de la production (même origine wagido.github.io)
-const BETA = /\/beta\//.test(location.pathname), LSP = BETA ? "navb_" : "nav_", CN = BETA ? "navshom-beta-" : "navshom-";
-const store = {
-  get(k, d){ try{ const v = localStorage.getItem(LSP+k); return v===null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(LSP+k, JSON.stringify(v)); }catch(e){} }
-};
-function toast(msg, ms=2600){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true, ms); }
-const KN = 1.943844, NM = 1852;
-const pad3 = v => String(Math.round(v)%360).padStart(3,"0");
-function dm(v,pos,neg){ const h=v>=0?pos:neg; v=Math.abs(v); const d=Math.floor(v); const m=(v-d)*60; return d+"°"+m.toFixed(3).padStart(6,"0")+"'"+h; }
-const fmtLL = (la,lo) => dm(la,"N","S")+" · "+dm(lo,"E","W");
-const fmtNM = m => m < 0.1*NM ? Math.round(m)+" m" : (m/NM).toFixed(2).replace(".",",")+" M";
-function bearing(a,b){ const r=Math.PI/180, f1=a.lat*r, f2=b.lat*r, dl=(b.lng-a.lng)*r;
-  return (Math.atan2(Math.sin(dl)*Math.cos(f2), Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))/r+360)%360; }
-function fmtDur(h){ if(!isFinite(h)) return "—"; const m=Math.round(h*60); return m<60 ? m+" min" : Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"); }
-const fmtT = t => { const d=new Date(t); return d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"})+" "+d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); };
-function compass(d){ return ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"][Math.round(d/22.5)%16]; }
+import { $, BETA, CN, KN, LSP, NM, bearing, compass, dm, fmtDur, fmtLL, fmtNM, fmtT, pad3, store, toast } from "./utils.js";
 
 /* ================= Carte ================= */
 const ZONE = L.latLngBounds([41.2,-5.9],[51.3,9.8]); // toutes les côtes de France métropolitaine + Corse
@@ -995,7 +978,6 @@ function recPersist(force){ if(force || Date.now()-recSaveT>15000){ recSaveT=Dat
 const fmtPace = kmh => !(kmh>=1.5) ? "–:––" : (()=>{ const sec=Math.round(3600/kmh); return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0"); })();
 const fmtClock = h => { const t=Math.round(h*3600), H=Math.floor(t/3600), M=Math.floor(t%3600/60), Sx=t%60; return (H?H+":"+String(M).padStart(2,"0"):M)+":"+String(Sx).padStart(2,"0"); };
 let activity = store.get("activity","hike");
-
 
 function curSpeed(){ // km/h sur les 30 dernières secondes
   if(!rec||rec.pts.length<2) return 0; const P=rec.pts, tN=P[P.length-1][2]; let d=0, i=P.length-1;
@@ -2101,7 +2083,6 @@ function wxNearest(type, p){ let best=null, bd=1e9;
   return bd<0.04 ? best : null; } // jusqu'à ~20 km de la zone
 function wxTableNearest(p){ let best=null, bd=1e9; for(const id in WXOFF){ (WXOFF[id].tbl||[]).forEach(x=>{ const d=(x.ll[0]-p.lat)**2+(x.ll[1]-p.lng)**2; if(d<bd && d<0.25){ bd=d; best={...x, t:WXOFF[id].t}; } }); } return best; }
 wxLoadAll();
-
 
 /* Menu Plus : tuiles qui ouvrent une rubrique, résumés à jour */
 document.querySelectorAll("#sMenu [data-open]").forEach(b=>b.onclick=()=>{ const d=$(b.dataset.open); d.open=true; setTimeout(()=>d.scrollIntoView({behavior:"smooth",block:"start"}),50); });
