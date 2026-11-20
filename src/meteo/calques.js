@@ -2,7 +2,8 @@
 import { R, map } from "../carte/carte.js";
 import { measuring, stopMeasure } from "../carte/mesure.js";
 import { last } from "../gps/gps.js";
-import { cv, drawCurve, wxLoadAll, wxNearest } from "../main.js";
+import { wxLoadAll, wxNearest } from "../main.js";
+import { cv, drawCurve } from "../mer/courant.js";
 import { drawField, drawLegend, landFrac, startParticles, updatePicker } from "./masque.js";
 import { reduceMotion, stopParticles } from "./particules.js";
 import { radarOff } from "./pluie.js";

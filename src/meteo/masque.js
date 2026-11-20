@@ -1,7 +1,7 @@
 // Masque terre / mer (données GLOBE, ~1 km) : courant, vagues et houle s'arrêtent à la côte
 import { map } from "../carte/carte.js";
 import { meteoHere } from "../carte/point.js";
-import { showCurve } from "../main.js";
+import { showCurve } from "../mer/courant.js";
 import { OVT, drawOverlay, ov } from "./calques.js";
 import { buildGrid, colorAt, field, pRaf, parts, pc, ramp, reduceMotion, sample, sampleS, setField, setPRaf, setParts, stopParticles } from "./particules.js";
 import { $, compass, pad3 } from "../utils.js";

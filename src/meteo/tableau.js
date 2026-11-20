@@ -1,7 +1,8 @@
 // Tableau météo heure par heure, repliable
 import { R, map } from "../carte/carte.js";
 import { last } from "../gps/gps.js";
-import { drawCurve, showCurve, wxLoadAll, wxTableNearest } from "../main.js";
+import { wxLoadAll, wxTableNearest } from "../main.js";
+import { drawCurve, showCurve } from "../mer/courant.js";
 import { OVT, drawOverlay, drawTimeline, getJSON, lastWx, loadOverlay, model, ov, setOverlay, tErrShow } from "./calques.js";
 import { drawField, landFrac } from "./masque.js";
 import { colorAt, stopParticles } from "./particules.js";

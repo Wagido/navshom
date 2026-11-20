@@ -1,22 +1,30 @@
-import { $, CN, bearing, compass, dm, fmtDur, fmtLL, fmtNM, fmtT, pad3, store, toast } from "./utils.js";
+import { $, CN, fmtDur, store, toast } from "./utils.js";
 import { AREA, FRANCE, MODE, R, baseKey, bases, curBase, fmtD, geopf, initCarte, map, seamarks, setCurBase, setMODE, slopes } from "./carte/carte.js";
-import { closeSheets, initPanneaux, markTmp, openSheet, tmpMarker } from "./ui/panneaux.js";
-import { initGps, last, setFollow, sogNow, trackLine } from "./gps/gps.js";
-import { initPoint, mobMk, pointLL, wps } from "./carte/point.js";
+import { closeSheets, initPanneaux, openSheet } from "./ui/panneaux.js";
+import { initGps, last, setFollow, trackLine } from "./gps/gps.js";
+import { initPoint, mobMk, wps } from "./carte/point.js";
 import { drawMeasure, initMesure, mPts, measuring, stopMeasure } from "./carte/mesure.js";
-import { OVT, drawOverlay, fetchSeries, getJSON, initCalques, model, ov, setOverlay } from "./meteo/calques.js";
-import { crowdCheck, fixTl, initTableau, loadTable, tbl } from "./meteo/tableau.js";
-import { colorAt, initParticules } from "./meteo/particules.js";
-import { initMasque, landFrac } from "./meteo/masque.js";
-import { initPrevisions, unsuffix } from "./meteo/previsions.js";
+import { OVT, fetchSeries, getJSON, initCalques, model, ov, setOverlay } from "./meteo/calques.js";
+import { crowdCheck, fixTl, initTableau } from "./meteo/tableau.js";
+import { initParticules } from "./meteo/particules.js";
+import { initMasque } from "./meteo/masque.js";
+import { initCourant } from "./mer/courant.js";
+import { initPrevisions } from "./meteo/previsions.js";
 import { initRecherche } from "./ui/recherche.js";
-import { LNotif, alarmSound, audioCtx, geoStart, hideAlarm, initNatif, notify, setAudioCtx, showAlarm, unlockAudio } from "./gps/natif.js";
+import { initNatif, notify } from "./gps/natif.js";
+import { anchorLayer, initMouillage } from "./mer/mouillage.js";
+import { initRoutes } from "./mer/routes.js";
 import { initSauvegarde, saveFile } from "./ui/sauvegarde.js";
+import { initMarees } from "./mer/marees.js";
 import { autoSatCheck, autoSatOn, initFonds, setShade, setSlopes, shade } from "./carte/fonds.js";
+import { RT, initRoutage } from "./mer/routage.js";
 import { initReglages, wake } from "./ui/reglages.js";
+import { initInstruments, instOpen } from "./mer/instruments.js";
+import { AIS, aisStart, aisStop, initAis } from "./mer/ais.js";
 import { initPluie } from "./meteo/pluie.js";
 import { initBoussole } from "./carte/boussole.js";
 import { LW, initVentDirect, lwDraw } from "./meteo/vent-direct.js";
+import { initMaregraphes, tgSet } from "./mer/maregraphes.js";
 import { initVersion } from "./ui/version.js";
 
 initCarte();
@@ -28,92 +36,7 @@ initCalques();
 initTableau();
 initParticules();
 initMasque();
-
-/* ================= Courbe courant + marée en un point ================= */
-export const cv = {data:null, sel:0, now:0, ll:null};
-export async function showCurve(ll){
-  cv.ll=ll; markTmp(ll); openSheet("sCurve"); showOfficialTide(ll); if(tmpMarker) {} // le point reste visible
-  $("cvTitle").textContent = "Courant et marée · "+dm(ll.lat,"N","S").replace(/\.\d+'/,"'")+" "+dm(ll.lng,"E","W").replace(/\.\d+'/,"'");
-  $("cvBody").hidden=true; $("cvMsg").hidden=false; $("cvMsg").textContent="Chargement…";
-  try{
-    const j = await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${ll.lat.toFixed(3)}&longitude=${ll.lng.toFixed(3)}&hourly=ocean_current_velocity,ocean_current_direction,sea_level_height_msl&timezone=auto&forecast_days=3&cell_selection=sea`);
-    const h=j.hourly, now=Date.now(); let best=1e15, ni=0; h.time.forEach((t,i)=>{ const d=Math.abs(new Date(t)-now); if(d<best){best=d;ni=i;} });
-    const a=Math.max(0,ni-4), b=Math.min(h.time.length,a+31), cut=x=>(x||[]).slice(a,b);
-    cv.data={time:cut(h.time), cur:cut(h.ocean_current_velocity).map(x=>x==null?null:x/1.852), dir:cut(h.ocean_current_direction), sea:cut(h.sea_level_height_msl)};
-    cv.now=ni-a;
-    cv.sel = ov.data ? Math.min(h.time.length-1, Math.max(0, h.time.indexOf(ov.data[0].time[ov.idx]))) : cv.now;
-    if(cv.sel<0) cv.sel=cv.now;
-    $("cvMsg").hidden=true; $("cvBody").hidden=false; drawCurve();
-  }catch(e){ $("cvMsg").textContent="Données indisponibles (réseau ?)"; }
-}
-function extrema(a){ const out=[]; for(let i=1;i<a.length-1;i++){ if(a[i]==null||a[i-1]==null||a[i+1]==null) continue;
-  if(a[i]>=a[i-1]&&a[i]>a[i+1]) out.push({i,hi:true}); else if(a[i]<=a[i-1]&&a[i]<a[i+1]) out.push({i,hi:false}); } return out; }
-// interpolation parabolique de l'heure exacte de PM/BM
-function refine(a,i){ const y0=a[i-1],y1=a[i],y2=a[i+1], den=y0-2*y1+y2; if(!den) return {dt:0,v:y1}; const dt=.5*(y0-y2)/den; return {dt, v:y1-.25*(y0-y2)*dt}; }
-const CVPAD={l:34,r:38};
-// tracé lissé (courbe passant par les points)
-function smoothPath(g, P){ if(!P.length) return; g.moveTo(P[0][0],P[0][1]);
-  for(let i=0;i<P.length-1;i++){ const p0=P[i-1]||P[i], p1=P[i], p2=P[i+1], p3=P[i+2]||p2;
-    g.bezierCurveTo(p1[0]+(p2[0]-p0[0])/6, p1[1]+(p2[1]-p0[1])/6, p2[0]-(p3[0]-p1[0])/6, p2[1]-(p3[1]-p1[1])/6, p2[0], p2[1]); } }
-export function drawCurve(){
-  const d=cv.data; if(!d) return;
-  const c=$("cvGraph"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W) return;
-  c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
-  const n=d.time.length, L0=CVPAD.l, R0=W-CVPAD.r, X=i=>L0+i*(R0-L0)/(n-1), cw=(R0-L0)/(n-1);
-  // zones : marée (haut) puis courant (bas)
-  const T={top:30,bot:Math.round(H*0.52)}, C={top:Math.round(H*0.62),bot:H-34}, AR=H-24, HX=H-6;
-  const font=w=>`${w} 10px Inter,system-ui,sans-serif`; g.font=font(500); g.textBaseline="alphabetic";
-  // fond nuit + jours + heures
-  d.time.forEach((t,i)=>{ const dt=new Date(t), hr=dt.getHours();
-    if(hr>=21||hr<7){ g.fillStyle="rgba(0,0,0,.22)"; g.fillRect(X(i)-cw/2,14,cw+.5,C.bot-14); }
-    if(hr===0){ g.strokeStyle="rgba(255,255,255,.25)"; g.lineWidth=1; g.beginPath(); g.moveTo(X(i),12); g.lineTo(X(i),C.bot); g.stroke();
-      g.fillStyle="#fff"; g.textAlign="left"; g.font=font(600); g.fillText(dt.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"}),X(i)+4,10); g.font=font(500); }
-    if(hr%3===0){ g.fillStyle="#7f9cc0"; g.textAlign="center"; g.fillText(String(hr).padStart(2,"0")+"h",X(i),HX); } });
-  // --- marée ---
-  const sv=d.sea.filter(v=>v!=null), hasSea=sv.length>1;
-  g.textAlign="left"; g.fillStyle="#9fc0e6"; g.font=font(600); g.fillText("Marée", 2, T.top-16); g.font=font(500);
-  if(hasSea){
-    let lo=Math.min(...sv), hi=Math.max(...sv); const padv=(hi-lo)*0.12||0.5; lo-=padv; hi+=padv;
-    const Y=v=>T.bot-(v-lo)/(hi-lo)*(T.bot-T.top), P=[]; d.sea.forEach((v,i)=>{ if(v!=null) P.push([X(i),Y(v)]); });
-    g.beginPath(); smoothPath(g,P); g.lineTo(P[P.length-1][0],T.bot); g.lineTo(P[0][0],T.bot); g.closePath();
-    const gr=g.createLinearGradient(0,T.top,0,T.bot); gr.addColorStop(0,"rgba(90,180,255,.45)"); gr.addColorStop(1,"rgba(90,180,255,.04)"); g.fillStyle=gr; g.fill();
-    g.beginPath(); smoothPath(g,P); g.strokeStyle="#5ab4ff"; g.lineWidth=2; g.stroke();
-    g.fillStyle="#7fb8ef"; g.textAlign="right"; g.fillText((Math.max(...sv)>=0?"+":"")+Math.max(...sv).toFixed(1)+" m", W-2, Y(Math.max(...sv))+3); g.fillText(Math.min(...sv).toFixed(1)+" m", W-2, Y(Math.min(...sv))+3);
-    extrema(d.sea).forEach(e=>{ const r=refine(d.sea,e.i), x=X(e.i+r.dt), y=Y(r.v), t=new Date(new Date(d.time[e.i]).getTime()+r.dt*3600e3);
-      g.fillStyle="#fff"; g.beginPath(); g.arc(x,y,2.6,0,7); g.fill();
-      const lab=(e.hi?"PM ":"BM ")+t.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-      g.textAlign="center"; g.font=font(600); g.fillStyle="#fff"; const lx=Math.min(Math.max(x,L0+26),R0-26);
-      g.fillText(lab, lx, e.hi?y-7:y+13); g.font=font(500); });
-  } else { g.fillStyle="#9fc0e6"; g.textAlign="center"; g.fillText("Hauteur d'eau non disponible ici", W/2, (T.top+T.bot)/2); }
-  // --- courant : barres colorées ---
-  const cmax=Math.max(1,...d.cur.filter(v=>v!=null)), Yc=v=>C.bot-v/cmax*(C.bot-C.top);
-  g.textAlign="left"; g.fillStyle="#9fc0e6"; g.font=font(600); g.fillText("Courant", 2, C.top-8); g.font=font(500);
-  g.fillStyle="#d9a24e"; g.textAlign="right"; g.fillText(cmax.toFixed(1)+" nd", L0-4, C.top+4);
-  d.cur.forEach((v,i)=>{ if(v==null) return; const col=colorAt(OVT.cur,v), bw=Math.max(2,cw*0.62);
-    g.fillStyle=`rgba(${col[0]|0},${col[1]|0},${col[2]|0},${i===cv.sel?1:.85})`; const y=Yc(v);
-    g.beginPath(); g.roundRect ? g.roundRect(X(i)-bw/2,y,bw,C.bot-y,[2,2,0,0]) : g.rect(X(i)-bw/2,y,bw,C.bot-y); g.fill(); });
-  g.strokeStyle="rgba(255,255,255,.18)"; g.lineWidth=1; g.beginPath(); g.moveTo(L0-cw/2,C.bot+.5); g.lineTo(R0+cw/2,C.bot+.5); g.stroke();
-  // flèches de direction (toutes les 2 h)
-  for(let i=0;i<n;i+=2){ if(d.dir[i]==null||d.cur[i]==null) continue; g.save(); g.translate(X(i),AR); g.rotate(d.dir[i]*Math.PI/180);
-    g.fillStyle="#cfe3ff"; g.beginPath(); g.moveTo(0,-5); g.lineTo(3.5,4); g.lineTo(0,2); g.lineTo(-3.5,4); g.closePath(); g.fill(); g.restore(); }
-  // maintenant + heure choisie
-  g.strokeStyle="#3fd18b"; g.lineWidth=1.5; g.setLineDash([3,3]); g.beginPath(); g.moveTo(X(cv.now),14); g.lineTo(X(cv.now),C.bot); g.stroke(); g.setLineDash([]);
-  g.strokeStyle="#FF7A00"; g.lineWidth=1.5; g.beginPath(); g.moveTo(X(cv.sel),14); g.lineTo(X(cv.sel),C.bot); g.stroke();
-  // infos
-  const i=cv.sel, cu=d.cur[i], se=d.sea[i], se2=d.sea[i+1]??null, se0=d.sea[i-1]??null;
-  $("cvTime").textContent = fmtT(d.time[i]) + (i===cv.now ? " · maintenant" : "");
-  $("cvCur").textContent = cu==null ? "—" : cu.toFixed(1)+" nd"; $("cvDir").textContent = cu==null ? "" : "vers "+pad3(d.dir[i])+"° "+compass(d.dir[i]);
-  $("cvSea").textContent = se==null ? "—" : (se>=0?"+":"")+se.toFixed(2)+" m";
-  $("cvTrend").textContent = se==null ? "" : ((se2!=null?se2:se) > (se0!=null?se0:se) ? "▲ monte" : "▼ descend");
-}
-(function(){ const w=$("cvWrap"); let down=false;
-  const pick = ev => { if(!cv.data) return; const r=w.getBoundingClientRect(), x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, padL=CVPAD.l, padR=CVPAD.r, n=cv.data.time.length;
-    cv.sel=Math.max(0,Math.min(n-1,Math.round((x-padL)/(r.width-padL-padR)*(n-1)))); drawCurve();
-    if(ov.data){ const k=ov.data[0].time.indexOf(cv.data.time[cv.sel]); if(k>=0 && k!==ov.idx){ ov.idx=k; $("tSlider").value=k; drawOverlay(); } } };
-  w.addEventListener("pointerdown", e=>{ down=true; w.setPointerCapture(e.pointerId); pick(e); });
-  w.addEventListener("pointermove", e=>{ if(down) pick(e); });
-  w.addEventListener("pointerup", ()=>down=false); w.addEventListener("pointercancel", ()=>down=false);
-})();
+initCourant();
 initPrevisions();
 
 /* ================= Mode Rando ================= */
@@ -363,123 +286,8 @@ $("bTrack").onclick = () => { if(!$("sTrack").hidden) return closeSheets(); rend
 setInterval(()=>{ if(rec && rec.on && !$("sTrack").hidden) renderRec(); }, 5000);
 initRecherche();
 initNatif();
-
-/* ---------- Alarme de mouillage ---------- */
-export let anchor = store.get("anchor", null), anchorLayer=L.layerGroup(), anchorAlarmOn=false, anchorSnooze=0, lastFixT=Date.now();
-if(!R()) anchorLayer.addTo(map);
-const anchorIcon = L.divIcon({className:"", iconSize:[30,30], iconAnchor:[15,15], html:'<svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="11" fill="#0b2f5b" stroke="#fff" stroke-width="2"/><path d="M12 6v11M8.5 9h7M7 13.5a5 5 0 0 0 10 0" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="12" cy="5.5" r="1.4" fill="#fff"/></svg>'});
-function drawAnchor(){
-  anchorLayer.clearLayers(); $("bAnchor").classList.toggle("on", !!anchor);
-  if(!anchor) return;
-  L.circle([anchor.lat,anchor.lng],{radius:anchor.r, color:anchorAlarmOn?"#e5372b":"#1d6fb8", weight:2, fillOpacity:.08, dashArray:"6 6", interactive:false}).addTo(anchorLayer);
-  L.marker([anchor.lat,anchor.lng],{icon:anchorIcon, draggable:true, zIndexOffset:900}).on("dragend",e=>{ const p=e.target.getLatLng(); anchor.lat=p.lat; anchor.lng=p.lng; store.set("anchor",anchor); drawAnchor(); renderAnchor(); toast("Position de l'ancre ajustée"); }).addTo(anchorLayer);
-}
-function renderAnchor(){
-  $("anR").value = anchor ? anchor.r : store.get("anchorR",40); $("anRv").textContent = $("anR").value+" m";
-  $("anSet").hidden = !!anchor; $("anClear").hidden = !anchor;
-  if(!anchor){ $("anState").textContent="Ancre non mouillée"; $("anDist").textContent="—"; return; }
-  $("anState").textContent = anchorAlarmOn ? "ALARME : le bateau dérape" : "Surveillance active";
-  $("anDist").textContent = last ? Math.round(map.distance(last.ll,[anchor.lat,anchor.lng]))+" m / "+anchor.r+" m" : "GPS en attente";
-}
-$("bAnchor").onclick = () => { if(!$("sAnchor").hidden) return closeSheets(); renderAnchor(); openSheet("sAnchor"); };
-$("anR").oninput = () => { $("anRv").textContent=$("anR").value+" m"; store.set("anchorR", +$("anR").value); if(anchor){ anchor.r=+$("anR").value; store.set("anchor",anchor); drawAnchor(); } };
-$("anSet").onclick = () => { if(!last) return toast("Pas encore de position GPS");
-  anchor={lat:last.ll.lat, lng:last.ll.lng, r:+$("anR").value, t:Date.now()}; store.set("anchor",anchor); anchorAlarmOn=false; drawAnchor(); renderAnchor(); geoStart();
-  try{ setAudioCtx(audioCtx || new (window.AudioContext||window.webkitAudioContext)()); audioCtx.resume(); }catch(e){}
-  if(LNotif) LNotif.requestPermissions().catch(()=>{});
-  toast("Ancre mouillée. Déplacez l'icône d'ancre si elle est tombée plus loin.", 5000); };
-$("anTest").onclick = () => { unlockAudio(); alarmSound(true); if(navigator.vibrate) navigator.vibrate([500,200,500]); setTimeout(()=>alarmSound(false),3000);
-  notify("⚓ Test de l'alarme", "Si vous entendez et voyez ceci, l'alarme fonctionne."); };
-$("anClear").onclick = () => { anchor=null; store.set("anchor",null); anchorAlarmOn=false; hideAlarm(); drawAnchor(); renderAnchor(); toast("Ancre levée"); };
-$("anCenter").onclick = () => { if(anchor){ setFollow(false); map.setView([anchor.lat,anchor.lng], 17); closeSheets(); } };
-$("alarmStop").onclick = () => { anchorSnooze=Date.now()+3*60e3; anchorAlarmOn=false; hideAlarm(); drawAnchor(); renderAnchor(); toast("Alarme coupée 3 minutes"); };
-function anchorTick(ll, c){
-  lastFixT=Date.now(); if(!anchor) return;
-  const d=map.distance(ll,[anchor.lat,anchor.lng]), out = d > anchor.r && c.accuracy < 60;
-  if(out && Date.now()>anchorSnooze){
-    if(!anchorAlarmOn || Date.now()-(anchorTick.n||0)>30e3){ anchorTick.n=Date.now(); anchorAlarmOn=true; drawAnchor(); notify("⚓ Alarme de mouillage", "Le bateau est à "+Math.round(d)+" m de l'ancre (rayon "+anchor.r+" m)"); }
-    showAlarm("ALARME DE MOUILLAGE · "+Math.round(d)+" m de l'ancre (rayon "+anchor.r+" m)"); alarmSound(true); if(navigator.vibrate) navigator.vibrate([500,200,500]);
-  } else if(!out && anchorAlarmOn){ anchorAlarmOn=false; hideAlarm(); drawAnchor(); }
-  if(!$("sAnchor").hidden) renderAnchor();
-}
-setInterval(()=>{ if(anchor && Date.now()-lastFixT>120e3 && Date.now()>anchorSnooze){ showAlarm("Plus de signal GPS depuis "+Math.round((Date.now()-lastFixT)/60e3)+" min · surveillance du mouillage interrompue"); } }, 30e3);
-drawAnchor();
-
-/* ---------- Routes et navigation vers les waypoints ---------- */
-export let routes = store.get("routes", []), navR = store.get("navR", null); // navR = {id, leg, from:[lat,lng]}
-const routeLayer = L.layerGroup().addTo(map);
-const arriveR = () => R() ? 25 : 90;
-function drawRoute(){
-  routeLayer.clearLayers(); const rt = navR && routes.find(r=>r.id===navR.id); $("navcard").hidden=!rt;
-  document.body.classList.toggle("navon", !!rt); if(!rt) return;
-  const P = rt.pts.map(p=>[p[0],p[1]]), geom = rt.geom || P;
-  L.polyline(geom,{color:"#fff",weight:7,opacity:.85,interactive:false}).addTo(routeLayer);
-  L.polyline(geom,{color:"#1c9e47",weight:3,dashArray:"8 6",interactive:false}).addTo(routeLayer);
-  const from = navR.leg>0 ? P[navR.leg-1] : navR.from, to = P[navR.leg];
-  if(from && to) L.polyline([from,to],{color:"#ff7a00",weight:4,interactive:false}).addTo(routeLayer);
-  rt.pts.forEach((p,i)=>L.circleMarker([p[0],p[1]],{radius:i===navR.leg?9:6,color:"#fff",weight:2,fillColor:i<navR.leg?"#90a4ae":i===navR.leg?"#ff7a00":"#1c9e47",fillOpacity:1})
-    .bindTooltip(p[2]||("WP"+(i+1)),{permanent:true,direction:"right",className:"mlabel",offset:[8,0]}).addTo(routeLayer));
-}
-function xte(from, to, pos){ // écart de route en m (+ = à droite de la route)
-  const Re=6371000, d13=map.distance(from,pos)/Re, t13=bearing(L.latLng(from),L.latLng(pos))*Math.PI/180, t12=bearing(L.latLng(from),L.latLng(to))*Math.PI/180;
-  return Math.asin(Math.sin(d13)*Math.sin(t13-t12))*Re;
-}
-const hhmm = ms => new Date(ms).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-export function navTick(ll){
-  anchorTick(ll, last?{accuracy:last.acc||10}:{accuracy:10});
-  const rt = navR && routes.find(r=>r.id===navR.id); if(!rt) return;
-  const P=rt.pts, to=[P[navR.leg][0],P[navR.leg][1]], from = navR.leg>0 ? [P[navR.leg-1][0],P[navR.leg-1][1]] : navR.from;
-  let dist=map.distance(ll,to);
-  if(dist < arriveR()){
-    notify("Waypoint atteint", (P[navR.leg][2]||("WP"+(navR.leg+1)))+(navR.leg<P.length-1?" · cap sur le suivant":" · arrivée"));
-    if(navR.leg>=P.length-1){ toast("Arrivée : fin de la route", 6000); navR=null; store.set("navR",null); drawRoute(); return; }
-    navR.leg++; store.set("navR",navR); drawRoute(); return navTick(ll);
-  }
-  const brg=bearing(ll,L.latLng(to)), x = from ? xte(from,to,ll) : 0;
-  let rest=dist; for(let i=navR.leg;i<P.length-1;i++) rest+=map.distance([P[i][0],P[i][1]],[P[i+1][0],P[i+1][1]]);
-  const sp = sogNow!=null ? sogNow/1.943844 : 0, cogv = parseFloat($("cog").textContent);
-  const vmg = sp>0.2 && !R() && isFinite(cogv) ? sp*Math.cos((cogv-brg)*Math.PI/180) : sp;
-  const eta = vmg>0.2 ? hhmm(Date.now()+dist/vmg*1000) : "—", etaEnd = sp>0.2 ? hhmm(Date.now()+rest/sp*1000) : "—";
-  $("ncWp").textContent = (P[navR.leg][2]||("WP"+(navR.leg+1)))+" ("+(navR.leg+1)+"/"+P.length+")";
-  $("ncDist").textContent = fmtD(dist); $("ncBrg").textContent = pad3(brg)+"°";
-  $("ncXte").textContent = Math.abs(x)<5 ? "sur la route" : fmtD(Math.abs(x))+(x>0?" à droite":" à gauche");
-  $("ncXte").style.color = Math.abs(x) > (R()?60:185) ? "#ff8a80" : "";
-  $("ncWp").dataset.vmg = sp>0.2 ? (vmg*1.943844).toFixed(1).replace(".",",") : "";
-  if(!R() && Math.abs(x)>185 && Date.now()-xteWarnT>3*60e3){ xteWarnT=Date.now(); notify("Hors de la route", "Écart "+fmtD(Math.abs(x))+(x>0?" à droite":" à gauche")+" : revenez au "+pad3(brg)+"°"); try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){} }
-  $("ncEta").textContent = "arrivée WP "+eta+" · fin "+etaEnd+" ("+fmtD(rest)+")";
-}
-function startNav(id){
-  const rt=routes.find(r=>r.id===id); if(!rt) return;
-  navR={id, leg:0, from: last?[last.ll.lat,last.ll.lng]:null}; store.set("navR",navR); drawRoute(); closeSheets(); geoStart();
-  setFollow(true); if(last) navTick(last.ll); toast("Navigation vers "+(rt.pts[0][2]||"WP1"));
-}
-$("ncPrev").onclick=()=>{ if(!navR) return; navR.leg=Math.max(0,navR.leg-1); store.set("navR",navR); drawRoute(); if(last) navTick(last.ll); };
-$("ncNext").onclick=()=>{ const rt=navR&&routes.find(r=>r.id===navR.id); if(!rt) return; navR.leg=Math.min(rt.pts.length-1,navR.leg+1); store.set("navR",navR); drawRoute(); if(last) navTick(last.ll); };
-$("ncStop").onclick=()=>{ navR=null; store.set("navR",null); drawRoute(); toast("Navigation arrêtée"); };
-function saveRouteFromMeasure(){
-  if(mPts.length<2) return toast("Posez au moins deux points");
-  const def=(R()?"Itinéraire":"Route")+" du "+new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"short"});
-  const name=def+" ("+fmtD(mPts.reduce((a,p,i)=>i?a+map.distance(mPts[i-1],p):0,0))+")";
-  const geom = R() && $("mTrail").checked ? measureGeom() : null;
-  routes.unshift({id:Date.now(), name, pts:mPts.map((p,i)=>[+p.lat.toFixed(6),+p.lng.toFixed(6),"WP"+(i+1)]), geom: geom?geom.map(p=>[+p[0].toFixed(5),+p[1].toFixed(5)]):null});
-  store.set("routes",routes); renderRoutes(); toast("Route « "+name+" » enregistrée : Plus › Routes");
-}
-$("mSaveRoute").onclick = saveRouteFromMeasure;
-export function renderRoutes(){
-  const el=$("rtList"); el.innerHTML="";
-  if(!routes.length){ el.innerHTML='<p class="note">Aucune route. Tracez-la avec « Mesurer », puis « Créer la route ».</p>'; return; }
-  routes.forEach(rt=>{ let d=0; for(let i=1;i<rt.pts.length;i++) d+=map.distance([rt.pts[i-1][0],rt.pts[i-1][1]],[rt.pts[i][0],rt.pts[i][1]]);
-    const row=document.createElement("div"), t=document.createElement("span");
-    t.innerHTML="<b></b><br><small style='color:var(--muted)'></small>"; t.querySelector("b").textContent=rt.name; t.querySelector("small").textContent=rt.pts.length+" waypoints · "+fmtD(d);
-    const s=document.createElement("span"); s.style.whiteSpace="nowrap";
-    const go=document.createElement("button"); go.textContent="Naviguer"; go.onclick=()=>startNav(rt.id);
-    const vw=document.createElement("button"); vw.textContent="Voir"; vw.onclick=()=>{ setFollow(false); map.fitBounds(L.latLngBounds(rt.pts.map(p=>[p[0],p[1]])).pad(.2)); closeSheets(); };
-    const del=document.createElement("button"); del.textContent="Suppr."; del.style.color="var(--red)";
-    del.onclick=()=>{ if(del.dataset.armed!=="1"){ del.dataset.armed="1"; del.textContent="Sûr ?"; setTimeout(()=>{ del.dataset.armed=""; del.textContent="Suppr."; },3000); return; }
-      routes=routes.filter(r=>r.id!==rt.id); store.set("routes",routes); if(navR&&navR.id===rt.id){ navR=null; store.set("navR",null); drawRoute(); } renderRoutes(); };
-    s.append(go,vw,del); row.append(t,s); el.append(row); });
-}
-drawRoute();
+initMouillage();
+initRoutes();
 
 /* ---------- Itinéraires sur les sentiers (IGN) ---------- */
 const segCache=new Map(); let trailWarned=false;
@@ -500,273 +308,9 @@ export function measureGeom(){ const out=[]; for(let i=1;i<mPts.length;i++){ con
 $("mTrail").checked = store.get("trail", true);
 $("mTrail").onchange = () => { store.set("trail",$("mTrail").checked); drawMeasure(); };
 initSauvegarde();
-
-/* ---------- Marées officielles SHOM (vignette officielle) ---------- */
-const PORTS = [
-  ["DUNKERQUE","Dunkerque",51.05,2.37],["CALAIS","Calais",50.97,1.87],["BOULOGNE-SUR-MER","Boulogne-sur-Mer",50.73,1.58],["DIEPPE","Dieppe",49.93,1.08],
-  ["FECAMP","Fécamp",49.77,0.37],["LE_HAVRE","Le Havre",49.48,0.11],["HONFLEUR","Honfleur",49.42,0.23],["OUISTREHAM","Ouistreham",49.29,-0.25],
-  ["CHERBOURG","Cherbourg",49.65,-1.63],["GOURY","Goury",49.71,-1.95],["DIELETTE","Diélette",49.55,-1.86],["CARTERET","Carteret",49.37,-1.80],
-  ["ILES_CHAUSEY","Îles Chausey",48.87,-1.82],["SAINT-MALO","Saint-Malo",48.64,-2.03],["SAINT-CAST","Saint-Cast",48.64,-2.25],["ERQUY_PORT","Erquy",48.64,-2.47],
-  ["SAINT-QUAY-PORTRIEUX","Saint-Quay-Portrieux",48.65,-2.83],["PAIMPOL","Paimpol",48.79,-3.04],["PLOUMANACH","Ploumanac'h",48.83,-3.49],["TREBEURDEN","Trébeurden",48.77,-3.58],
-  ["ROSCOFF","Roscoff",48.72,-3.97],["ABER_WRAC_H","L'Aber Wrac'h",48.60,-4.56],["LE_CONQUET","Le Conquet",48.36,-4.78],["BREST","Brest",48.38,-4.49],
-  ["CAMARET-SUR-MER","Camaret-sur-Mer",48.28,-4.60],["DOUARNENEZ","Douarnenez",48.10,-4.33],["AUDIERNE","Audierne",48.02,-4.54],["LE_GUILVINEC","Le Guilvinec",47.79,-4.28],
-  ["CONCARNEAU","Concarneau",47.87,-3.91],["PORT-TUDY","Port-Tudy (Groix)",47.64,-3.45],["LE_PALAIS","Le Palais (Belle-Île)",47.35,-3.15],["LA_TRINITE-SUR-MER","La Trinité-sur-Mer",47.58,-3.03],
-  ["PORT-NAVALO","Port-Navalo",47.55,-2.92],["LE_CROUESTY","Le Crouesty",47.54,-2.90],["LE_CROISIC","Le Croisic",47.30,-2.52],["SAINT-NAZAIRE","Saint-Nazaire",47.27,-2.20],
-  ["PORNIC","Pornic",47.11,-2.11],["PORT-JOINVILLE","Port-Joinville (Yeu)",46.73,-2.35],["LES_SABLES-D_OLONNE","Les Sables-d'Olonne",46.50,-1.79],["LA_ROCHELLE-PALLICE","La Rochelle - La Pallice",46.16,-1.22],
-  ["ILE_D_AIX","Île d'Aix",46.01,-1.17],["ROYAN","Royan",45.62,-1.03],["PORT-BLOC","Pointe de Grave",45.57,-1.06],["CAP_FERRET","Cap Ferret",44.63,-1.25],
-  ["ARCACHON_EYRAC","Arcachon",44.66,-1.16],["BOUCAU-BAYONNE","Boucau-Bayonne",43.53,-1.52],["SOCOA","Saint-Jean-de-Luz",43.39,-1.68],
-  ["PORT-VENDRES","Port-Vendres",42.52,3.11],["SETE","Sète",43.40,3.70],["MARSEILLE","Marseille",43.30,5.35],["TOULON","Toulon",43.12,5.92],
-  ["NICE","Nice",43.69,7.29],["MONACO","Monaco",43.73,7.42],["AJACCIO","Ajaccio",41.92,8.76],["BASTIA","Bastia",42.70,9.45],["CALVI","Calvi",42.57,8.76],
-  ["BONIFACIO","Bonifacio",41.39,9.16],["SAINT_HELIER","Saint-Hélier (Jersey)",49.18,-2.12]
-];
-function portsNear(ll){ return PORTS.map(p=>({id:p[0],name:p[1],d:map.distance(ll,[p[2],p[3]])})).sort((a,b)=>a.d-b.d); }
-let tidePort=null;
-function showOfficialTide(ll, portId){
-  const list=portsNear(ll).slice(0,8), sel=$("tidePort"); sel.innerHTML="";
-  list.forEach(p=>{ const o=document.createElement("option"); o.value=p.id; o.textContent=p.name+" · "+fmtD(p.d); sel.appendChild(o); });
-  tidePort = portId || list[0].id; sel.value=tidePort; renderTideWidget();
-}
-function renderTideWidget(){
-  const box=$("tideBox"), W=box.clientWidth||360, sc=Math.min(1, W/675);
-  box.innerHTML=""; box.style.height=Math.round(900*sc)+"px";
-  if(!navigator.onLine){ box.style.height="auto"; box.innerHTML='<p class="note" style="color:#9fc0e6">Hors ligne : les marées officielles demandent du réseau.</p>'; return; }
-  // cadre « data: » : origine isolée de l'app (pas d'accès à vos données), mais la vignette SHOM peut créer son propre cadre
-  const f=document.createElement("iframe"); f.title="Marées officielles SHOM";
-  f.style.cssText=`width:675px;height:900px;border:0;transform:scale(${sc});transform-origin:0 0;background:#fff;border-radius:8px`;
-  f.src="data:text/html;charset=utf-8,"+encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#fff}</style></head><body><script src="https://services.data.shom.fr/hdm/vignette/grande/${encodeURIComponent(tidePort)}?locale=fr"><\/script></body></html>`);
-  box.appendChild(f);
-}
-$("tidePort").onchange=e=>{ tidePort=e.target.value; renderTideWidget(); };
+initMarees();
 initFonds();
-/* ================= Routage météo (isochrones) ================= */
-// Polaire de base d'un croiseur : fraction de la vitesse de carène, par angle au vent réel (TWA) et force du vent (TWS, nd)
-const POL_TWS=[4,6,8,10,12,14,16,20,25,30];
-const POL_BASE={30:[0,0,0,0,0,0,0,0,0,0],
- 40:[.25,.38,.48,.56,.62,.65,.67,.68,.66,.62], 52:[.33,.48,.6,.7,.77,.81,.83,.84,.83,.8], 60:[.36,.52,.65,.75,.82,.86,.88,.9,.89,.86],
- 75:[.38,.55,.69,.8,.87,.91,.94,.96,.96,.93], 90:[.38,.55,.7,.81,.89,.94,.97,1,1.01,.98], 110:[.37,.54,.69,.8,.88,.94,.98,1.03,1.06,1.04],
- 120:[.35,.52,.67,.78,.87,.93,.98,1.04,1.08,1.07], 135:[.31,.47,.61,.73,.82,.89,.95,1.02,1.08,1.08], 150:[.26,.4,.53,.64,.74,.82,.88,.96,1.03,1.05],
- 165:[.22,.35,.47,.58,.67,.75,.82,.9,.98,1], 180:[.2,.32,.44,.54,.63,.71,.78,.87,.95,.97]};
-const POL_TWA=Object.keys(POL_BASE).map(Number);
-const BOATS=[
- {id:"cr7", name:"Petit croiseur 7 m", L:7, type:"cruiser"},
- {id:"cr9", name:"Croiseur côtier 9 m", L:9, type:"cruiser"},
- {id:"cr11", name:"Croiseur 11 m", L:11, type:"cruiser"},
- {id:"cr13", name:"Grand croiseur 13 m", L:13, type:"cruiser"},
- {id:"race12", name:"Voilier de course 12 m (type Class40)", L:12, type:"racer"},
- {id:"cat12", name:"Catamaran de croisière 12 m", L:12, type:"cat"},
- {id:"custom", name:"Personnalisé", L:10, type:"cruiser"},
- {id:"orc", name:"Modèle de série (ORC)…", L:10, type:"cruiser"}];
-// Rapport vitesse sans spi / avec spi, médiane des bateaux ayant les deux certificats ORC (lignes = angles, colonnes = vents)
-const ORC_TWA=[0, 25, 40, 45, 52, 60, 75, 90, 110, 120, 135, 150, 165, 180], ORC_TWS=[4, 6, 8, 10, 12, 14, 16, 20, 24], NSR={twa:ORC_TWA, tws:ORC_TWS, v:[[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,0.993,0.986,0.986,0.986,0.986,0.972],[1,1,1,1,1,0.987,1,0.987,0.987],[1,1,1,1,1,1,1,1,0.988],[1,1,1,1,1,1,1,1,0.989],[1,1,1,1,1,1,1,1,1],[0.99,0.982,0.981,0.976,0.986,0.987,0.996,1,1],[0.86,0.871,0.89,0.919,0.935,0.942,0.948,0.965,0.979],[0.815,0.839,0.867,0.901,0.922,0.927,0.924,0.928,0.947],[0.788,0.821,0.847,0.873,0.902,0.918,0.917,0.894,0.867],[0.8,0.822,0.841,0.852,0.871,0.892,0.909,0.902,0.886],[0.887,0.886,0.895,0.905,0.912,0.928,0.942,0.95,0.943],[0.947,0.935,0.947,0.954,0.959,0.955,0.966,0.97,0.964]]};
-let ORC_DB=null; const orcDb=()=>ORC_DB||(ORC_DB=fetch("lib/polars-orc.json").then(r=>r.json()));
-export const RT={boat:store.get("rtBoat","cr11"), orc:store.get("rtOrc",null), spi:store.get("rtSpi",true), L:store.get("rtLen",11), polFile:store.get("rtPolar",null), cur:store.get("rtCur",true),
-  start:null, dest:null, layer:L.layerGroup().addTo(map), result:null, busy:false};
-const hullSpeed = L => 1.34*Math.sqrt(L*0.9*3.281);   // nœuds, longueur à la flottaison ≈ 90 % de la longueur hors tout
-function interp1(xs, ys, x){ if(x<=xs[0]) return ys[0]; for(let i=1;i<xs.length;i++) if(x<=xs[i]){ const f=(x-xs[i-1])/(xs[i]-xs[i-1]); return ys[i-1]+(ys[i]-ys[i-1])*f; } return ys[ys.length-1]; }
-function polarTable(twa, tws, tbl){ // interpolation bilinéaire dans une table {twa:[], tws:[], v:[[...]]}
-  const a=Math.min(180,Math.abs(twa)); let i=1; while(i<tbl.twa.length-1 && tbl.twa[i]<a) i++;
-  const f=Math.max(0,Math.min(1,(a-tbl.twa[i-1])/(tbl.twa[i]-tbl.twa[i-1]||1)));
-  return interp1(tbl.tws, tbl.v[i-1], tws)*(1-f)+interp1(tbl.tws, tbl.v[i], tws)*f; }
-const BASE_TBL={twa:POL_TWA, tws:POL_TWS, v:POL_TWA.map(a=>POL_BASE[a])};
-function boatSpeed(twa, tws){ // nœuds sur l'eau
-  if(RT.polFile) return Math.max(0, polarTable(twa, tws, RT.polFile)*(RT.spi?1:polarTable(twa,tws,NSR)));
-  if(RT.boat==="orc" && RT.orc){ const o=RT.orc;
-    if(RT.spi || !o.ns) return Math.max(0, polarTable(twa, tws, {twa:ORC_TWA, tws:ORC_TWS, v:o.s})*(RT.spi?1:polarTable(twa,tws,NSR)));
-    return Math.max(0, polarTable(twa, tws, {twa:ORC_TWA, tws:ORC_TWS, v:o.ns})); }
-  return Math.max(0, boatGeneric(twa,tws)*(RT.spi?1:polarTable(twa,tws,NSR))); }
-function boatGeneric(twa, tws){
-  const b=BOATS.find(x=>x.id===RT.boat)||BOATS[2], Vh=hullSpeed(RT.L), a=Math.abs(twa);
-  let k=polarTable(a, tws, BASE_TBL);
-  if(b.type==="racer"){ k*=1.12; if(a>95) k*=1+Math.max(0,(tws-14)/16)*.45; if(a<45) k*=1.05; }
-  if(b.type==="cat"){ if(a<45) return 0; k*= a<60 ? .88 : a<=145 ? 1.22 : 1.05; }
-  return Math.max(0, k*Vh);
-}
-// Import d'une polaire au format courant (.pol / .csv : 1re ligne = forces de vent, puis une ligne par angle)
-function parsePolar(txt){
-  const rows=txt.split(/\r?\n/).map(l=>l.trim()).filter(l=>l && !l.startsWith("#")).map(l=>l.split(/[\t;,]+|\s+/).filter(Boolean));
-  const tws=rows[0].slice(1).map(Number), twa=[], v=[];
-  rows.slice(1).forEach(r=>{ const a=Number(r[0]); if(!isFinite(a)) return; twa.push(a); v.push(r.slice(1).map(Number).map(x=>isFinite(x)?x:0)); });
-  if(tws.length<2 || twa.length<3 || tws.some(x=>!isFinite(x))) throw new Error("format");
-  if(twa[0]>0){ twa.unshift(0); v.unshift(tws.map(()=>0)); } if(twa[twa.length-1]<180){ twa.push(180); v.push(v[v.length-1].slice()); }
-  return {twa, tws, v};
-}
-function drawPolar(){
-  const c=$("rtPolar"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W) return;
-  c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
-  const TW=[6,10,14,20,25], cols=["#90caf9","#26a69a","#ffb300","#fb8c00","#e53935"];
-  let vmax=1; TW.forEach(t=>{ for(let a=0;a<=180;a+=5) vmax=Math.max(vmax,boatSpeed(a,t)); });
-  const cx=18, cy=H/2, R=Math.min(W-40,H/2-12), sc=R/vmax;
-  g.strokeStyle="rgba(13,27,42,.12)"; g.fillStyle="#5d6e80"; g.font="500 10px Inter,system-ui"; g.textAlign="left";
-  const vs=vmax>12?4:2; for(let v=vs; v<=vmax; v+=vs){ g.beginPath(); g.arc(cx,cy,v*sc,-Math.PI/2,Math.PI/2); g.stroke(); g.fillText(v+" nd", cx+3, cy+v*sc-2); }
-  [45,90,135].forEach(a=>{ const r=a*Math.PI/180; g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+R*Math.sin(r), cy-R*Math.cos(r)); g.stroke(); g.fillText(a+"°", cx+(R+4)*Math.sin(r), cy-(R+4)*Math.cos(r)); });
-  TW.forEach((t,i)=>{ g.beginPath(); for(let a=0;a<=180;a+=3){ const v=boatSpeed(a,t)*sc, r=a*Math.PI/180, x=cx+v*Math.sin(r), y=cy-v*Math.cos(r); a?g.lineTo(x,y):g.moveTo(x,y); }
-    g.strokeStyle=cols[i]; g.lineWidth=2; g.stroke(); g.fillStyle=cols[i]; g.fillText(t+" nd", W-48, 14+i*13); });
-  g.fillStyle="#0d1b2a"; g.fillText("vent ↓", cx-6, 10);
-}
-export function renderRouteParams(){
-  const b=BOATS.find(x=>x.id===RT.boat)||BOATS[2];
-  if(RT.boat==="orc" && RT.orc) RT.L=RT.orc.L;
-  $("rtBoat").value=RT.boat; $("rtLen").value=RT.L; $("rtLen").disabled = RT.boat!=="custom";
-  $("rtOrcBox").hidden = RT.boat!=="orc"; $("rtSpi").checked=RT.spi;
-  if(RT.boat==="orc" && RT.orc && !$("rtOrcQ").value) $("rtOrcQ").placeholder=RT.orc.n+" · changer de modèle…";
-  $("rtHull").textContent = "Vitesse de carène ≈ "+hullSpeed(RT.L).toFixed(1)+" nd"+(b.type==="racer"?" (peut surfer au-delà)":"");
-  const sp = RT.spi ? " · avec spi" : " · sans spi";
-  $("rtPolName").textContent = (RT.polFile ? "Polaire importée ("+RT.polFile.twa.length+" angles × "+RT.polFile.tws.length+" vents)"
-    : RT.boat==="orc" ? (RT.orc ? "Polaire ORC « "+RT.orc.n+" » ("+String(RT.orc.L).replace(".",",")+" m), moyenne de "+RT.orc.k+" certificat"+(RT.orc.k>1?"s":"") : "Cherchez votre modèle ci-dessus")
-    : "Polaire type « "+(b.type==="cat"?"catamaran":b.type==="racer"?"course":"croisière")+" » ajustée à la longueur") + sp;
-  $("rtPolClear").hidden=!RT.polFile; $("rtCur").checked=RT.cur;
-  $("rtFrom").textContent = RT.start ? fmtLL(RT.start.lat,RT.start.lng) : (last ? "Position du bateau (GPS)" : "Centre de la carte");
-  $("rtTo").textContent = RT.dest ? fmtLL(RT.dest.lat,RT.dest.lng) : "Touchez la carte puis « Routage »";
-  requestAnimationFrame(drawPolar);
-}
-BOATS.forEach(b=>{ const o=document.createElement("option"); o.value=b.id; o.textContent=b.name; $("rtBoat").appendChild(o); });
-$("rtBoat").onchange=e=>{ RT.boat=e.target.value; const b=BOATS.find(x=>x.id===RT.boat); if(b.id!=="custom" && b.id!=="orc") RT.L=b.L;
-  if(b.id==="orc"){ orcDb().catch(()=>{}); setTimeout(()=>{ if(!RT.orc) $("rtOrcQ").focus(); },50); } store.set("rtBoat",RT.boat); store.set("rtLen",RT.L); renderRouteParams(); };
-$("rtLen").oninput=e=>{ const v=parseFloat(String(e.target.value).replace(",",".")); if(v>=3 && v<=40){ RT.L=v; store.set("rtLen",v); renderRouteParams(); } };
-$("rtSpi").onchange=e=>{ RT.spi=e.target.checked; store.set("rtSpi",RT.spi); renderRouteParams(); };
-$("rtOrcQ").addEventListener("focus", ()=>orcDb().catch(()=>{}));
-$("rtOrcQ").oninput=async e=>{ const q=e.target.value.toUpperCase().replace(/[\s\-\.\/]/g,""), el=$("rtOrcRes"); if(q.length<2){ el.innerHTML=""; return; }
-  let db; try{ db=await orcDb(); }catch(err){ ORC_DB=null; el.innerHTML='<p class="note">Base ORC indisponible (réseau ?)</p>'; return; }
-  const k=n=>n.toUpperCase().replace(/[\s\-\.\/]/g,""), hits=db.m.filter(m=>k(m.n).includes(q)).sort((a,b)=>(k(b.n).startsWith(q))-(k(a.n).startsWith(q))||b.k-a.k).slice(0,8);
-  el.innerHTML = hits.length ? "" : '<p class="note">Aucun modèle trouvé. Essayez sans le chantier (ex. « 31.7 ») ou choisissez un modèle type.</p>';
-  hits.forEach(m=>{ const r=document.createElement("div"); r.innerHTML='<span style="flex:1;min-width:0"><b></b><small style="display:block;color:var(--muted);font-size:12px"></small></span><button>Choisir</button>';
-    r.querySelector("b").textContent=m.n; r.querySelector("small").textContent=String(m.L).replace(".",",")+" m"+(m.b?" · "+m.b:"")+" · "+m.k+" certificat"+(m.k>1?"s":"")+(m.ns?" · version sans spi":"");
-    r.onclick=()=>{ RT.orc=m; store.set("rtOrc",m); $("rtOrcQ").value=""; el.innerHTML=""; toast("Polaire « "+m.n+" » chargée"); renderRouteParams(); };
-    el.appendChild(r); }); };
-$("rtCur").onchange=e=>{ RT.cur=e.target.checked; store.set("rtCur",RT.cur); };
-$("rtPolIn").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return;
-  try{ RT.polFile=parsePolar(await f.text()); store.set("rtPolar",RT.polFile); toast("Polaire importée"); }catch(err){ toast("Polaire illisible : 1re ligne = vents (nd), puis une ligne par angle"); } renderRouteParams(); };
-$("rtPolClear").onclick=()=>{ RT.polFile=null; store.set("rtPolar",null); renderRouteParams(); };
-for(let h=0;h<=48;h+=h<6?1:h<24?3:6){ const o=document.createElement("option"); o.value=h; o.textContent = h===0?"Maintenant":"Dans "+h+" h"; $("rtDep").appendChild(o); }
-const rtMarks=L.layerGroup().addTo(map);
-export function drawRtMarks(){ rtMarks.clearLayers();
-  if(RT.start) L.circleMarker(RT.start,{radius:8,color:"#fff",weight:3,fillColor:"#0b63b6",fillOpacity:1}).bindTooltip("Départ",{permanent:true,direction:"right",className:"mlabel"}).addTo(rtMarks);
-  if(RT.dest && !RT.result) L.circleMarker(RT.dest,{radius:8,color:"#fff",weight:3,fillColor:"#1c9e47",fillOpacity:1}).bindTooltip("Arrivée",{permanent:true,direction:"right",className:"mlabel"}).addTo(rtMarks); }
-function rtPick(which){ RT.picking=which; closeSheets(); $("pickTxt").textContent = which==="start" ? "Touchez la carte : point de DÉPART" : "Touchez la carte : point d'ARRIVÉE"; $("pickBar").hidden=false; }
-$("rtPickS").onclick=()=>rtPick("start"); $("rtPickE").onclick=()=>rtPick("dest");
-$("rtGps").onclick=()=>{ RT.start=null; drawRtMarks(); renderRouteParams(); };
-$("rtSwap").onclick=()=>{ const s0=RT.start || (last?last.ll:map.getCenter()); if(!RT.dest) return toast("Choisissez d'abord l'arrivée"); RT.start=RT.dest; RT.dest=L.latLng(s0); RT.result=null; RT.layer.clearLayers(); $("rtRes").hidden=true; drawRtMarks(); renderRouteParams(); };
-$("pickCancel").onclick=()=>{ RT.picking=null; $("pickBar").hidden=true; openSheet("sRouting"); };
-function openRouting(dest){
-  if(dest) RT.dest=L.latLng(dest); drawRtMarks(); renderRouteParams(); openSheet("sRouting");
-  $("rtRes").hidden=!RT.result;
-}
-$("aRouting").onclick=()=>{ if(pointLL) openRouting(pointLL); };
-$("bRouting").onclick=()=>openRouting(null);
-
-/* ---- Vent et courant sur une grille couvrant le trajet ---- */
-async function loadGrid(S,E,kind){
-  const pad=Math.max(.08, .35*Math.max(Math.abs(S.lat-E.lat),Math.abs(S.lng-E.lng)));
-  const la0=Math.min(S.lat,E.lat)-pad, la1=Math.max(S.lat,E.lat)+pad, lo0=Math.min(S.lng,E.lng)-pad*1.4, lo1=Math.max(S.lng,E.lng)+pad*1.4, n=6, pts=[];
-  for(let i=0;i<n;i++) for(let j=0;j<n;j++) pts.push([+(la0+(la1-la0)*i/(n-1)).toFixed(3), +(lo0+(lo1-lo0)*j/(n-1)).toFixed(3)]);
-  const la=pts.map(p=>p[0]).join(","), lo=pts.map(p=>p[1]).join(",");
-  let j;
-  if(kind==="wind"){ const u=`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timezone=GMT&forecast_days=3`;
-    j = await getJSON(u+(model!=="best_match"?`&models=${model}`:"")).catch(()=>getJSON(u)); }
-  else j = await getJSON(`https://marine-api.open-meteo.com/v1/marine?latitude=${la}&longitude=${lo}&hourly=ocean_current_velocity,ocean_current_direction&timezone=GMT&forecast_days=3&cell_selection=sea`);
-  if(!Array.isArray(j)) j=[j];
-  const times=j[0].hourly.time.map(t=>Date.parse(t+"Z")), U=[], V=[];
-  j.forEach(d=>{ const h=unsuffix(d.hourly), sp=kind==="wind"?h.wind_speed_10m:h.ocean_current_velocity, dr=kind==="wind"?h.wind_direction_10m:h.ocean_current_direction;
-    U.push(sp.map((s,t)=>{ if(s==null||dr[t]==null) return 0; const v=kind==="wind"?s:s/1.852, to=(kind==="wind"?dr[t]+180:dr[t])*Math.PI/180; return v*Math.sin(to); }));
-    V.push(sp.map((s,t)=>{ if(s==null||dr[t]==null) return 0; const v=kind==="wind"?s:s/1.852, to=(kind==="wind"?dr[t]+180:dr[t])*Math.PI/180; return v*Math.cos(to); })); });
-  return {la0,la1,lo0,lo1,n,times,U,V};
-}
-function gridAt(G,lat,lng,t){ // vecteur (est, nord) en nœuds, interpolé en espace et en temps
-  const fy=Math.max(0,Math.min(G.n-1.001,(lat-G.la0)/(G.la1-G.la0)*(G.n-1))), fx=Math.max(0,Math.min(G.n-1.001,(lng-G.lo0)/(G.lo1-G.lo0)*(G.n-1)));
-  const i=Math.floor(fy), j=Math.floor(fx), dy=fy-i, dx=fx-j;
-  const T=G.times, ft=Math.max(0,Math.min(T.length-1.001,(t-T[0])/3600e3)), k=Math.floor(ft), dt=ft-k;
-  const at=(A)=>{ const c=(ii,jj)=>A[ii*G.n+jj][k]*(1-dt)+A[ii*G.n+jj][k+1]*dt;
-    return c(i,j)*(1-dx)*(1-dy)+c(i,j+1)*dx*(1-dy)+c(i+1,j)*(1-dx)*dy+c(i+1,j+1)*dx*dy; };
-  return [at(G.U), at(G.V)];
-}
-const nm=(a,b)=>map.distance(a,b)/1852;
-/* ---- Isochrones ---- */
-$("rtGo").onclick=async()=>{
-  if(RT.busy) return; if(!RT.dest) return toast("Choisissez l'arrivée : touchez la carte puis « Routage »");
-  const S = RT.start || (last ? last.ll : map.getCenter()), E=RT.dest, D=nm(S,E);
-  if(D<0.3) return toast("Arrivée trop proche"); if(D>350) return toast("Trajet trop long pour 3 jours de prévisions (max ≈ 350 M)");
-  RT.busy=true; $("rtGo").disabled=true; $("rtGo").textContent="Calcul…"; RT.layer.clearLayers();
-  try{
-    const [W, C] = await Promise.all([loadGrid(S,E,"wind"), RT.cur ? loadGrid(S,E,"cur").catch(()=>null) : Promise.resolve(null)]);
-    const dep = Date.now() + (+$("rtDep").value)*3600e3, tEnd = W.times[W.times.length-1];
-    // Grille de cases de mer (≈ 60 à 110 cases dans la plus grande dimension), plus court chemin en temps (Dijkstra dépendant du temps)
-    const pad=Math.max(.06,.3*Math.max(Math.abs(S.lat-E.lat),Math.abs(S.lng-E.lng)));
-    const la0=Math.min(S.lat,E.lat)-pad, la1=Math.max(S.lat,E.lat)+pad, kx=Math.cos((la0+la1)/2*Math.PI/180);
-    const lo0=Math.min(S.lng,E.lng)-pad/kx, lo1=Math.max(S.lng,E.lng)+pad/kx;
-    const cellNm=Math.max(0.35, Math.max((la1-la0)*60,(lo1-lo0)*60*kx)/110), dLa=cellNm/60, dLo=cellNm/60/kx;
-    const NY=Math.ceil((la1-la0)/dLa)+1, NX=Math.ceil((lo1-lo0)/dLo)+1, N=NX*NY;
-    const cLat=i=>la0+i*dLa, cLng=j=>lo0+j*dLo, near=(la,ln)=>nm(L.latLng(la,ln),S)<1.5||nm(L.latLng(la,ln),E)<2.5;
-    const sea=new Uint8Array(N); for(let i=0;i<NY;i++) for(let j=0;j<NX;j++) sea[i*NX+j] = (landFrac(cLat(i),cLng(j))<0.5 || near(cLat(i),cLng(j))) ? 1 : 0;
-    const cellOf=ll=>[Math.round((ll.lat-la0)/dLa), Math.round((ll.lng-lo0)/dLo)];
-    const [si,sj]=cellOf(S), [ei,ej]=cellOf(E), sIdx=si*NX+sj, eIdx=ei*NX+ej; sea[sIdx]=1; sea[eIdx]=1;
-    const MOVES=[]; for(let di=-3;di<=3;di++) for(let dj=-3;dj<=3;dj++){ if(!di&&!dj) continue; const g=(a,b)=>b?g(b,a%b):Math.abs(a); if(g(di,dj)!==1) continue;
-      MOVES.push({di,dj,h:(Math.atan2(dj,di)*180/Math.PI+360)%360, d:Math.hypot(di,dj)*cellNm}); }
-    const segSea=(i,j,m)=>{ const n=Math.max(Math.abs(m.di),Math.abs(m.dj))*2; for(let k=1;k<=n;k++){ const fi=i+m.di*k/n, fj=j+m.dj*k/n; const ii=Math.round(fi), jj=Math.round(fj);
-      if(ii<0||jj<0||ii>=NY||jj>=NX) return false; if(!sea[ii*NX+jj] && landFrac(la0+fi*dLa, lo0+fj*dLo)>0.5) return false; } return true; };
-    const T=new Float64Array(N).fill(Infinity), prev=new Int32Array(N).fill(-1), info=new Array(N);
-    T[sIdx]=dep; const heap=[[dep,sIdx]];
-    const push=x=>{ heap.push(x); let i=heap.length-1; while(i){ const p=(i-1)>>1; if(heap[p][0]<=heap[i][0]) break; [heap[p],heap[i]]=[heap[i],heap[p]]; i=p; } };
-    const pop=()=>{ const top=heap[0], last=heap.pop(); if(heap.length){ heap[0]=last; let i=0; for(;;){ const l=2*i+1, r=l+1; let m=i; if(l<heap.length&&heap[l][0]<heap[m][0]) m=l; if(r<heap.length&&heap[r][0]<heap[m][0]) m=r; if(m===i) break; [heap[m],heap[i]]=[heap[i],heap[m]]; i=m; } } return top; };
-    let popped=0;
-    while(heap.length){
-      const [t,u]=pop(); if(t>T[u]) continue; if(u===eIdx) break; if(t>tEnd) continue;
-      const i=Math.floor(u/NX), j=u%NX, la=cLat(i), ln=cLng(j);
-      const w=gridAt(W,la,ln,t), tws=Math.hypot(w[0],w[1]), twd=(Math.atan2(w[0],w[1])*180/Math.PI+180+360)%360, c=C?gridAt(C,la,ln,t):null;
-      for(const m of MOVES){ const ii=i+m.di, jj=j+m.dj; if(ii<0||jj<0||ii>=NY||jj>=NX) continue; const v=ii*NX+jj; if(!sea[v]) continue;
-        const twa=((m.h-twd+540)%360)-180, bs=boatSpeed(twa,tws); if(bs<0.3) continue;
-        const r=m.h*Math.PI/180, sog=bs+(c?c[0]*Math.sin(r)+c[1]*Math.cos(r):0); if(sog<0.3) continue;
-        const nt=t+m.d/sog*3600e3; if(nt>=T[v]) continue; if(!segSea(i,j,m)) continue;
-        T[v]=nt; prev[v]=u; info[v]={bs,twa,tws}; push([nt,v]); }
-      if(++popped%4000===0){ $("rtGo").textContent="Calcul… "+fmtDur((t-dep)/3600e3); await new Promise(r=>setTimeout(r)); }
-    }
-    if(!isFinite(T[eIdx])){ toast("Aucune route trouvée dans la limite des prévisions (3 jours)", 6000); return; }
-    const path=[]; for(let v=eIdx; v!==-1; v=prev[v]){ const i=Math.floor(v/NX), j=v%NX; path.push({lat:cLat(i),lng:cLng(j),t:T[v],...(info[v]||{})}); }
-    path.reverse(); path[0].lat=S.lat; path[0].lng=S.lng; path[path.length-1].lat=E.lat; path[path.length-1].lng=E.lng;
-    // isochrones : contours horaires approximés par les cases atteintes
-    const iso=[]; const hrs=Math.ceil((T[eIdx]-dep)/3600e3);
-    for(let h=1;h<hrs;h++){ const tt=dep+h*3600e3, segs=[]; for(let i=0;i<NY;i++){ let cur=[]; for(let j=0;j<NX;j++){ const v=i*NX+j; if(isFinite(T[v]) && Math.abs(T[v]-tt)<cellNm/Math.max(2,hullSpeed(RT.L)*.6)*1800e3){ cur.push([cLat(i),cLng(j)]); } } if(cur.length) segs.push(...cur.map(p=>[p,p])); } iso.push(segs); }
-    const dtH=1;
-    RT.result={path, iso, dep, S, E, dtH, D}; rtMarks.clearLayers();
-    showRouting();
-  }catch(e){ toast("Routage impossible : prévisions indisponibles (réseau ?)", 5000); }
-  finally{ RT.busy=false; $("rtGo").disabled=false; $("rtGo").textContent="Calculer la route optimale"; }
-};
-function showRouting(){
-  const r=RT.result; if(!r) return; RT.layer.clearLayers(); const P=r.path;
-  r.iso.forEach(segs=>segs.forEach(pp=>L.circleMarker(pp[0],{radius:1.6,stroke:false,fillColor:"#5d7fa3",fillOpacity:.55,interactive:false}).addTo(RT.layer)));
-  const ll=P.map(p=>[p.lat,p.lng]);
-  L.polyline(ll,{color:"#fff",weight:8,opacity:.85,interactive:false}).addTo(RT.layer);
-  L.polyline(ll,{color:"#FF7A00",weight:4,interactive:false}).addTo(RT.layer);
-  let tacks=0, maxW=0, dist=0, lastH=-1;
-  P.forEach((p,i)=>{ if(i){ dist+=nm(P[i-1],p); if(p.twa!=null && P[i-1].twa!=null && Math.sign(p.twa)!==Math.sign(P[i-1].twa)) tacks++; } if(p.tws>maxW) maxW=p.tws;
-    const hr=Math.floor((p.t-r.dep)/3600e3); if(i>0 && hr!==lastH){ lastH=hr;
-      L.circleMarker([p.lat,p.lng],{radius:4,color:"#fff",weight:1.5,fillColor:"#FF7A00",fillOpacity:1})
-       .bindTooltip(fmtT(p.t)+" · "+p.bs.toFixed(1)+" nd · vent "+Math.round(p.tws)+" nd à "+Math.abs(Math.round(p.twa))+"°",{direction:"top"}).addTo(RT.layer); } });
-  L.circleMarker([r.E.lat,r.E.lng],{radius:8,color:"#fff",weight:3,fillColor:"#1c9e47",fillOpacity:1}).bindTooltip("Arrivée "+fmtT(P[P.length-1].t),{permanent:true,direction:"right",className:"mlabel"}).addTo(RT.layer);
-  const dur=(P[P.length-1].t-r.dep)/3600e3;
-  $("rtSum").innerHTML=`<div><b>Arrivée</b><span>${fmtT(P[P.length-1].t)}</span></div><div><b>Durée</b><span>${fmtDur(dur)}</span></div>
-    <div><b>Distance</b><span>${dist.toFixed(1).replace(".",",")} M</span></div><div><b>Moyenne</b><span>${(dist/dur).toFixed(1)} nd</span></div>
-    <div><b>Vent max</b><span>${Math.round(maxW)} nd</span></div><div><b>Virements / emp.</b><span>${tacks}</span></div>`;
-  $("rtNote").textContent = "Route directe : "+r.D.toFixed(1).replace(".",",")+" M. Isochrones toutes les heures en bleu. Touchez les points orange pour le détail heure par heure.";
-  $("rtRes").hidden=false; $("rtPillT").textContent=hhmm(P[P.length-1].t); $("rtPill").hidden=false; setFollow(false); map.fitBounds(L.latLngBounds(ll).pad(.25));
-}
-function clearRouting(){ RT.result=null; RT.layer.clearLayers(); $("rtRes").hidden=true; $("rtPill").hidden=true; drawRtMarks(); }
-$("rtClear").onclick=clearRouting;
-$("rtPillX").onclick=()=>{ clearRouting(); toast("Routage effacé"); };
-$("rtPillOpen").onclick=()=>{ openSheet("sRouting"); renderRouteParams(); $("rtRes").hidden=!RT.result; };
-$("rtNav").onclick=()=>{ const r=RT.result; if(!r) return; const P=r.path;
-  // Waypoints qui suivent la route calculée : virements/empannages + simplification (écart max 0,3 mille)
-  const keep=new Set([0,P.length-1]), tack=new Set();
-  P.forEach((p,i)=>{ const nx=P[i+1]; if(i>0 && nx && nx.twa!=null && p.twa!=null && Math.sign(nx.twa)!==Math.sign(p.twa)){ keep.add(i); tack.add(i); } });
-  const xt=(a,b,c)=>{ const k=Math.cos(P[a].lat*Math.PI/180), ax=P[a].lng*k*60, ay=P[a].lat*60, bx=P[b].lng*k*60-ax, by=P[b].lat*60-ay, cx=P[c].lng*k*60-ax, cy=P[c].lat*60-ay, L2=bx*bx+by*by;
-    const t=L2?Math.max(0,Math.min(1,(cx*bx+cy*by)/L2)):0; return Math.hypot(cx-bx*t, cy-by*t); };
-  const dp=(a,b)=>{ let m=0, mi=-1; for(let i=a+1;i<b;i++){ const d=xt(a,b,i); if(d>m){ m=d; mi=i; } } if(m>0.3){ keep.add(mi); dp(a,mi); dp(mi,b); } };
-  const ks=[...keep].sort((x,y)=>x-y); for(let k=0;k<ks.length-1;k++) dp(ks[k],ks[k+1]);
-  const idx=[...keep].sort((x,y)=>x-y).filter(i=>i>0); let n=0;
-  const rt={id:Date.now(), name:"Routage "+fmtT(r.dep), pts:idx.map((i,j)=>{ const p=P[i];
-    const nm = j===idx.length-1 ? "Arrivée" : tack.has(i) ? (Math.abs(p.twa)<90?"Virement ":"Empannage ")+(++n) : "WP "+(j+1);
-    return [+p.lat.toFixed(6),+p.lng.toFixed(6), nm+(p.t?" · "+hhmm(p.t):"")]; })};
-  routes.unshift(rt); store.set("routes",routes); renderRoutes(); startNav(rt.id); };
+initRoutage();
 initReglages();
 
 /* ================= Hors ligne ================= */
@@ -954,139 +498,8 @@ async function renderMassifs(){ const el = $("massifList"), list = await massifL
       const r = L.rectangle(b, {color:"#2E7D32", weight:2, dashArray:"6 6", fill:false, interactive:false}).addTo(map); setTimeout(() => map.removeLayer(r), 4000); };
     el.appendChild(row); }); }
 $("cOff").addEventListener("toggle", () => { if($("cOff").open && R()) renderMassifs(); });
-/* ================= Instruments (gros chiffres à la barre) ================= */
-export var instOn=false, xteWarnT=0;
-export function instOpen(){ instOn=true; $("inst").hidden=false; instTick(); if(!tbl.f) loadTable().then(instTick).catch(()=>{}); }
-function instClose(){ instOn=false; $("inst").hidden=true; }
-$("instClose").onclick=instClose;
-export function instTick(){ if(!instOn) return;
-  const T=(id,v,u)=>{ const e=$(id); if(e){ e.querySelector("span").textContent=v; if(u!=null) e.querySelector("i").textContent=u; } };
-  T("iSog", sogNow!=null?sogNow.toFixed(1).replace(".",","):"—"); T("iCog", $("cog").textContent||"—");
-  const rt = navR && routes.find(r=>r.id===navR.id);
-  $("iNav").hidden=!rt; $("iNoNav").hidden=!!rt;
-  if(rt){ $("iWp").textContent=$("ncWp").textContent; T("iDtw",$("ncDist").textContent); T("iBtw",$("ncBrg").textContent.replace("°",""));
-    $("iXte").querySelector("span").textContent=$("ncXte").textContent; $("iXte").classList.toggle("warn", !!$("ncXte").style.color);
-    $("iEta").querySelector("span").textContent=$("ncEta").textContent.replace(/^arrivée WP /,"").split(" · ")[0];
-    const vm=$("ncWp").dataset.vmg; T("iVmg", vm||"—"); }
-  $("iClock").textContent=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-  $("iPos").textContent= last ? fmtLL(last.ll.lat,last.ll.lng) : "GPS en attente";
-  // vent prévu au bateau, si le tableau météo est chargé
-  let w="—"; try{ const h=tbl.f&&tbl.f.hourly; if(h){ const now=Date.now(); let k=0; h.time.forEach((t,i)=>{ if(new Date(t).getTime()<=now) k=i; });
-    w=Math.round(h.wind_speed_10m[k])+" nd (raf. "+Math.round(h.wind_gusts_10m[k])+") "+compass(h.wind_direction_10m[k]); } }catch(e){}
-  $("iWind").textContent=w;
-  try{ instPerf(); }catch(e){}
-}
-// --- performance polaire : vent prévu, vitesse sur l'eau, cible de la polaire
-function instEnv(){ // vent et courant prévus à l'heure courante, au point du tableau météo
-  const h=tbl.f&&tbl.f.hourly; if(!h) return null; const now=Date.now(); let k=0; h.time.forEach((t,i)=>{ if(new Date(t).getTime()<=now) k=i; });
-  const e={tws:h.wind_speed_10m[k], twd:h.wind_direction_10m[k]}; const hm=tbl.m&&tbl.m.hourly;
-  if(hm){ const j=hm.time.indexOf(h.time[k]); if(j>=0 && hm.ocean_current_velocity[j]!=null){ e.cs=hm.ocean_current_velocity[j]/1.852; e.cd=hm.ocean_current_direction[j]; } }
-  return e; }
-const rad=d=>d*Math.PI/180, norm180=a=>((a%360)+540)%360-180;
-function instPerf(){ const c=$("iPolar"); if(!c || !instOn) return; const e=instEnv(), cog=parseFloat($("cog").textContent);
-  const b=BOATS.find(x=>x.id===RT.boat); $("iBoat").textContent = RT.polFile?"polaire importée":(RT.boat==="orc"&&RT.orc)?RT.orc.n:(b?b.name:"—"); $("iBoat").textContent+= RT.spi?"":" · sans spi";
-  // vitesse sur l'eau = vitesse fond - courant
-  let stw=sogNow, hdg=cog;
-  if(e && e.cs!=null && sogNow!=null && isFinite(cog)){ const vx=sogNow*Math.sin(rad(cog))-e.cs*Math.sin(rad(e.cd)), vy=sogNow*Math.cos(rad(cog))-e.cs*Math.cos(rad(e.cd));
-    stw=Math.hypot(vx,vy); hdg=(Math.atan2(vx,vy)*180/Math.PI+360)%360; }
-  const ok = e && stw!=null && isFinite(hdg) && sogNow>0.3, tws=e?e.tws:null;
-  const twaS = ok ? norm180(e.twd-hdg) : null, twa = ok?Math.abs(twaS):null, tgt = ok ? boatSpeed(twa,tws) : null;
-  // meilleurs angles de VMG
-  let up={v:0,a:45}, dn={v:0,a:150}; if(e) for(let a=30;a<=180;a+=1){ const v=boatSpeed(a,tws), vm=v*Math.cos(rad(a)); if(a<=90 && vm>up.v) up={v:vm,a,s:v}; if(a>=90 && -vm>dn.v) dn={v:-vm,a,s:v}; }
-  const pct = ok && tgt>0.3 ? Math.round(stw/tgt*100) : null;
-  $("iPct").textContent = pct!=null ? pct+" %" : "—"; $("iPct").style.color = pct==null?"":pct>=95?"#2E7D32":pct>=80?"#E65100":"#C62828";
-  const f1=v=>v.toFixed(1).replace(".",",");
-  $("iPerf").innerHTML = !e ? "Ouvrez le panneau Météo une fois (réseau) pour charger le vent prévu."
-    : !ok ? `Vent prévu <b>${Math.round(tws)} nd du ${pad3(e.twd)}°</b>. En attente de vitesse et de cap GPS.`
-    : `Vent prévu <b>${Math.round(tws)} nd du ${pad3(e.twd)}°</b> · angle <b>${Math.round(twa)}°</b> ${twaS>0?"tribord":"bâbord"} amures<br>`
-      +`Cible <b>${f1(tgt)} nd</b> · vous <b>${f1(stw)} nd</b> sur l'eau`+(e.cs!=null?` (fond ${f1(sogNow)} nd)`:"")+`<br>`
-      +`Meilleur près <b>${up.a}°</b> (${f1(up.s)} nd) · meilleur portant <b>${dn.a}°</b> (${f1(dn.s)} nd)`
-      +(twa<90 && twa<up.a-4 ? "<br><b>Trop serré</b> : abattez un peu" : twa>up.a+6 && twa<up.a+18 ? "<br>Si vous remontez au vent : <b>lofez</b> vers "+up.a+"°" : twa>90 && twa>dn.a+8 ? "<br>Trop arrivé : <b>lofez</b> un peu" : "");
-  // dessin de la polaire au vent du moment
-  const dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W) return; c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
-  if(!e) return; let vmax=1; for(let a=0;a<=180;a+=5) vmax=Math.max(vmax,boatSpeed(a,tws)); if(ok) vmax=Math.max(vmax,stw);
-  const cx=W*0.18, cy=H/2, Rr=Math.min(W-cx-14,H/2-14), sc=Rr/vmax, P=(a,v)=>[cx+v*sc*Math.sin(rad(a)), cy-v*sc*Math.cos(rad(a))];
-  g.font="500 11px Inter,system-ui,sans-serif"; g.strokeStyle="rgba(11,47,91,.12)"; g.fillStyle="#6B7C90";
-  const st=vmax>10?4:2; for(let v=st;v<=vmax;v+=st){ g.beginPath(); g.arc(cx,cy,v*sc,-Math.PI/2,Math.PI/2); g.stroke(); g.fillText(v+" nd",cx+3,cy+v*sc-3); }
-  [up.a,90,dn.a].forEach(a=>{ g.beginPath(); g.moveTo(cx,cy); g.lineTo(...P(a,vmax)); g.stroke(); });
-  g.beginPath(); for(let a=0;a<=180;a+=2){ const [x,y]=P(a,boatSpeed(a,tws)); a?g.lineTo(x,y):g.moveTo(x,y); } g.strokeStyle="#1D6FB8"; g.lineWidth=2.5; g.stroke();
-  g.fillStyle="#0B2F5B"; g.textAlign="center"; g.fillText("vent "+Math.round(tws)+" nd ↓",cx,12);
-  if(ok){ const [tx,ty]=P(twa,tgt), [bx,by]=P(twa,stw); g.setLineDash([4,4]); g.strokeStyle="#6B7C90"; g.lineWidth=1.5; g.beginPath(); g.moveTo(cx,cy); g.lineTo(...P(twa,vmax)); g.stroke(); g.setLineDash([]);
-    g.fillStyle="#fff"; g.strokeStyle="#1D6FB8"; g.lineWidth=2.5; g.beginPath(); g.arc(tx,ty,6,0,7); g.fill(); g.stroke();
-    g.fillStyle="#E5372B"; g.beginPath(); g.arc(bx,by,7,0,7); g.fill(); g.textAlign="left"; g.fillStyle="#0B2F5B"; g.font="600 12px Inter,system-ui"; g.fillText("vous",bx-38,by+4); }
-  // cap à suivre en tenant compte du courant (navigation en cours)
-  const ctsBox=$("iCts"); ctsBox.hidden=true;
-  if(navR && e && e.cs!=null && e.cs>0.2 && sogNow>1){ const btw=parseFloat($("ncBrg").textContent), s=stw||sogNow, x=e.cs*Math.sin(rad(e.cd-btw))/s;
-    if(isFinite(btw) && Math.abs(x)<1){ const cts=(btw-Math.asin(x)*180/Math.PI+360)%360; ctsBox.hidden=false; ctsBox.querySelector("span").textContent=pad3(cts)+"° (route "+pad3(btw)+"°, courant "+f1(e.cs)+" nd)"; } }
-}
-setInterval(instTick, 5000);
-$("bInst").onclick=()=>{ closeSheets(); instOpen(); };
-
-/* ================= Balisage : infos des bouées et des feux (OpenStreetMap / OpenSeaMap) ================= */
-const SM_TYPE={buoy_lateral:"Bouée latérale",beacon_lateral:"Balise latérale",buoy_cardinal:"Bouée cardinale",beacon_cardinal:"Balise cardinale",
-  buoy_isolated_danger:"Danger isolé",beacon_isolated_danger:"Danger isolé",buoy_safe_water:"Eaux saines",buoy_special_purpose:"Bouée spéciale",beacon_special_purpose:"Balise spéciale",
-  light_major:"Phare",light_minor:"Feu",light_vessel:"Bateau-feu",light_float:"Feu flottant",landmark:"Amer",harbour:"Port",rock:"Roche",wreck:"Épave",mooring:"Coffre / mouillage",
-  anchorage:"Zone de mouillage",small_craft_facility:"Installation plaisance",pile:"Pieu",signal_station_traffic:"Sémaphore",bridge:"Pont",fog_signal:"Signal de brume",radio_station:"Station radio"};
-const SM_CAT={port:"bâbord (rouge)",starboard:"tribord (vert)",preferred_channel_port:"chenal préféré à bâbord",preferred_channel_starboard:"chenal préféré à tribord",
-  north:"Nord",south:"Sud",east:"Est",west:"Ouest"};
-const SM_COL={red:"R",green:"G",white:"W",yellow:"Y",blue:"Bu",orange:"Or",violet:"Vi"};
-function lightChar(t, p){ const g=k=>t["seamark:light"+p+":"+k]; const ch=g("character"); if(!ch) return null;
-  const col=(g("colour")||"").split(";").map(c=>SM_COL[c]||"").join(""), grp=g("group"), per=g("period"), rng=g("range"), sec=g("sector_start")!=null?` (${g("sector_start")}°–${g("sector_end")}°)`:"";
-  return ch+(grp?"("+grp+")":"")+(col?" "+col:"")+(per?" "+per+"s":"")+(rng?" "+rng+"M":"")+sec; }
-function seamarkText(t){ const ty=t["seamark:type"], name=t["seamark:name"]||t.name||"";
-  let what=SM_TYPE[ty]||ty.replace(/_/g," "); const cat=t["seamark:"+ty+":category"]; if(cat && SM_CAT[cat]) what+=" "+SM_CAT[cat];
-  const lights=[]; const l0=lightChar(t,""); if(l0) lights.push(l0); for(let i=1;i<=8;i++){ const l=lightChar(t,":"+i); if(l) lights.push(l); }
-  const top=t["seamark:topmark:shape"]; return {name, what, lights, top}; }
-async function seamarksNear(ll){
-  const r=Math.max(60, Math.min(600, 40*156543*Math.cos(ll.lat*Math.PI/180)/2**map.getZoom()));
-  const q=`[out:json][timeout:15];node(around:${Math.round(r)},${ll.lat.toFixed(5)},${ll.lng.toFixed(5)})["seamark:type"];out tags center 12;`;
-  const res=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+encodeURIComponent(q),headers:{"Content-Type":"application/x-www-form-urlencoded"}});
-  if(!res.ok) throw new Error(res.status); const j=await res.json();
-  return j.elements.filter(e=>e.tags).map(e=>({d:map.distance(ll,[e.lat,e.lon]), ...seamarkText(e.tags)}))
-    .filter(x=>!/^(harbour|small_craft_facility)$/.test(x.what)).sort((a,b)=>a.d-b.d).slice(0,4); }
-export function showSeamarks(ll){ const box=$("pSea"); box.hidden=true; if(R()) return;
-  seamarksNear(ll).then(list=>{ if(pointLL!==ll || !list.length) return;
-    box.innerHTML='<b>Balisage à proximité</b>'+list.map(s=>`<div class="sm"><div><strong></strong><small></small></div><span class="lc"></span></div>`).join("");
-    box.querySelectorAll(".sm").forEach((el,i)=>{ const s=list[i]; el.querySelector("strong").textContent=s.name||s.what; el.querySelector("small").textContent=(s.name?s.what+" · ":"")+Math.round(s.d)+" m";
-      el.querySelector(".lc").textContent=s.lights.join(" / "); });
-    box.hidden=false; }).catch(()=>{}); }
-
-/* ================= AIS : navires autour (aisstream.io, clé gratuite) ================= */
-const AIS={ws:null, ships:new Map(), layer:L.layerGroup(), key:store.get("aisKey",""), on:store.get("aisOn",false), warned:new Map(), sub:null};
-function aisIcon(s){ const c=s.sog>0.5?"#7B1FA2":"#9E9E9E"; return L.divIcon({className:"",iconSize:[22,22],iconAnchor:[11,11],
-  html:`<svg viewBox="-11 -11 22 22" width="22" height="22" style="transform:rotate(${s.cog||0}deg)"><path d="M0 -9 6 8 0 4 -6 8Z" fill="${c}" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>`}); }
-function cpa(s){ if(!last || sogNow==null) return null; // point de rapprochement le plus proche (approximation plane)
-  const k=Math.cos(last.ll.lat*Math.PI/180), toXY=ll=>[(ll[1]-last.ll.lng)*k*60, (ll[0]-last.ll.lat)*60];
-  const p=toXY([s.lat,s.lng]), cg=parseFloat($("cog").textContent)||0, v0=[sogNow*Math.sin(cg*Math.PI/180), sogNow*Math.cos(cg*Math.PI/180)], v1=[(s.sog||0)*Math.sin((s.cog||0)*Math.PI/180),(s.sog||0)*Math.cos((s.cog||0)*Math.PI/180)];
-  const dv=[v1[0]-v0[0],v1[1]-v0[1]], dv2=dv[0]**2+dv[1]**2; const t=dv2<1e-6?0:Math.max(0,-(p[0]*dv[0]+p[1]*dv[1])/dv2);
-  const d=Math.hypot(p[0]+dv[0]*t, p[1]+dv[1]*t); return {d, t:t*60}; } // milles, minutes
-function aisDraw(s){ if(!s.mk){ s.mk=L.marker([s.lat,s.lng],{icon:aisIcon(s),zIndexOffset:800}).addTo(AIS.layer).on("click",()=>{
-      const c=cpa(s); toast((s.name||"MMSI "+s.mmsi)+" · "+(s.sog!=null?s.sog.toFixed(1)+" nd":"")+" · cap "+Math.round(s.cog||0)+"°"+(last?" · à "+fmtNM(map.distance(last.ll,[s.lat,s.lng])):"")+(c&&c.t>0?" · CPA "+c.d.toFixed(2)+" M dans "+Math.round(c.t)+" min":""),6000); });
-    if(s.name) s.mk.bindTooltip(s.name,{permanent:map.getZoom()>=12,direction:"right",className:"mlabel",offset:[8,0]}); }
-  else { s.mk.setLatLng([s.lat,s.lng]).setIcon(aisIcon(s)); if(s.name && !s.mk.getTooltip()) s.mk.bindTooltip(s.name,{permanent:map.getZoom()>=12,direction:"right",className:"mlabel",offset:[8,0]}); }
-  const c=cpa(s); if(c && c.d<0.5 && c.t>0 && c.t<15 && Date.now()-(AIS.warned.get(s.mmsi)||0)>10*60e3){ AIS.warned.set(s.mmsi,Date.now());
-    notify("Risque de collision", (s.name||"Navire "+s.mmsi)+" : passage à "+c.d.toFixed(2)+" M dans "+Math.round(c.t)+" min"); try{ navigator.vibrate&&navigator.vibrate([300,150,300]); }catch(e){} } }
-function aisBox(){ const b=map.getBounds().pad(0.5); return [[[b.getSouth(),b.getWest()],[b.getNorth(),b.getEast()]]]; }
-function aisSubscribe(){ if(AIS.ws && AIS.ws.readyState===1) AIS.ws.send(JSON.stringify({APIKey:AIS.key, BoundingBoxes:aisBox(), FilterMessageTypes:["PositionReport","StandardClassBPositionReport","ShipStaticData","StaticDataReport"]})); }
-function aisStart(){ aisStop(); if(!AIS.on || !AIS.key || R()) return; AIS.layer.addTo(map); $("aisState").textContent="Connexion…";
-  try{ AIS.ws=new WebSocket("wss://stream.aisstream.io/v0/stream"); }catch(e){ $("aisState").textContent="Connexion impossible"; return; }
-  AIS.ws.onopen=()=>{ aisSubscribe(); $("aisState").textContent="Connecté : en attente des navires…"; };
-  AIS.ws.onmessage=async ev=>{ let m; try{ m=JSON.parse(typeof ev.data==="string"?ev.data:await ev.data.text()); }catch(e){ return; }
-    if(m.error){ $("aisState").textContent="Erreur : "+m.error; return; }
-    const md=m.MetaData||{}, id=md.MMSI; if(!id) return; let s=AIS.ships.get(id); if(!s){ s={mmsi:id}; AIS.ships.set(id,s); }
-    if(md.ShipName && md.ShipName.trim()) s.name=md.ShipName.trim();
-    const pr=m.Message&&(m.Message.PositionReport||m.Message.StandardClassBPositionReport);
-    if(pr){ s.lat=pr.Latitude??md.latitude; s.lng=pr.Longitude??md.longitude; s.sog=pr.Sog; s.cog=(pr.TrueHeading!=null&&pr.TrueHeading<360)?pr.TrueHeading:pr.Cog; s.t=Date.now(); }
-    if(s.lat!=null){ aisDraw(s); $("aisState").textContent="Connecté · "+AIS.ships.size+" navire"+(AIS.ships.size>1?"s":""); } };
-  AIS.ws.onerror=()=>{ $("aisState").textContent="Erreur de connexion (clé ? réseau ?)"; };
-  AIS.ws.onclose=()=>{ if(AIS.on && AIS.ws){ setTimeout(()=>{ if(AIS.on && (!AIS.ws||AIS.ws.readyState>1)) aisStart(); },15000); } }; }
-function aisStop(){ if(AIS.ws){ const w=AIS.ws; AIS.ws=null; try{ w.close(); }catch(e){} } }
-setInterval(()=>{ const now=Date.now(); AIS.ships.forEach((s,k)=>{ if(now-(s.t||0)>12*60e3){ if(s.mk) AIS.layer.removeLayer(s.mk); AIS.ships.delete(k); } }); }, 60e3);
-map.on("moveend", ()=>{ clearTimeout(AIS._t); AIS._t=setTimeout(aisSubscribe, 1500); });
-$("aisOn").checked=AIS.on; $("aisKey").value=AIS.key;
-$("aisOn").onchange=e=>{ AIS.on=e.target.checked; store.set("aisOn",AIS.on); if(AIS.on && !AIS.key){ toast("Collez d'abord votre clé aisstream.io"); } AIS.on?aisStart():(aisStop(),map.removeLayer(AIS.layer),$("aisState").textContent="Désactivé"); };
-$("aisSave").onclick=()=>{ AIS.key=$("aisKey").value.trim(); store.set("aisKey",AIS.key); toast(AIS.key?"Clé AIS enregistrée":"Clé effacée"); if(AIS.on) aisStart(); };
-if(AIS.on) setTimeout(aisStart, 3000);
+initInstruments();
+initAis();
 
 /* ================= Météo hors ligne : prévisions 3 jours sur les zones téléchargées ================= */
 const WXOFF={};   // id de zone -> {t, types:{type:{pts,series}}, tbl:[{ll,f,m}]}
@@ -1188,27 +601,7 @@ RANDO_OVL.geol.eachLayer(l=>l.on("load", ()=>{ clearTimeout(geoT); geoT=setTimeo
 RANDO_OVL.forest.on("load", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,300); });
 initBoussole();
 initVentDirect();
-/* ================= Marégraphes du SHOM (hauteur d'eau mesurée, temps réel) ================= */
-const TG={layer:L.layerGroup(), list:null};
-async function tgLoad(){ if(!TG.list){ const c=store.get("tgList",null); if(c && Date.now()-c.t<7*864e5) TG.list=c.d;
-    else try{ const d=await (await fetch("https://services.data.shom.fr/maregraphie/service/tidegauges")).json(); TG.list=d.filter(x=>x.state==="OK").map(x=>({id:x.shom_id,n:x.name,la:x.latitude,lo:x.longitude})); store.set("tgList",{t:Date.now(),d:TG.list}); }catch(e){ toast("Marégraphes indisponibles (réseau ?)"); return; } }
-  TG.layer.clearLayers();
-  TG.list.forEach(st=>{ const m=L.marker([st.la,st.lo],{icon:L.divIcon({className:"tgi",iconSize:[26,26],iconAnchor:[13,13],html:'<b><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v18M8 7h8M3 15c3-3 6 3 9 0s6 3 9 0"/></svg></b>'}),zIndexOffset:640}).addTo(TG.layer);
-    m.bindPopup("Chargement…"); m.on("popupopen", ()=>tgShow(st, m)); }); }
-async function tgShow(st, m){ const end=new Date(), start=new Date(end-6*3600e3), iso=d=>d.toISOString().slice(0,19)+"Z", nm=st.n.replace(/_/g," ").toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
-  try{ const j=await (await fetch(`https://services.data.shom.fr/maregraphie/observation/json/${st.id}?sources=1&dtStart=${iso(start)}&dtEnd=${iso(end)}`)).json(); const d=(j.data||[]).filter(x=>x.value!=null);
-    if(!d.length) return m.setPopupContent(`<b>${nm}</b><br>Pas de mesure récente`);
-    const t=x=>new Date(x.timestamp.replace(/\//g,"-").replace(" ","T")+"Z").getTime(), lastP=d[d.length-1], v=lastP.value;
-    const ref=d.find(x=>t(x)>=t(lastP)-30*60e3)||d[0], dh=(t(lastP)-t(ref))/3600e3, rate=dh>0.1?(v-ref.value)/dh:0;
-    const vs=d.map(x=>x.value), mn=Math.min(...vs), mx=Math.max(...vs), W=220, H=56, t0=t(d[0]), t1=t(lastP);
-    const path=d.filter((x,i)=>i%3===0||i===d.length-1).map((x,i)=>(i?"L":"M")+((t(x)-t0)/(t1-t0||1)*W).toFixed(1)+" "+(H-4-(x.value-mn)/((mx-mn)||1)*(H-8)).toFixed(1)).join(" ");
-    const age=Math.round((Date.now()-t(lastP))/60e3);
-    m.setPopupContent(`<b>${nm}</b><br><span style="font:700 20px Inter,sans-serif">${v.toFixed(2).replace(".",",")} m</span> ${Math.abs(rate)<0.03?"· étale":rate>0?"↗ monte":"↘ descend"} (${rate>0?"+":""}${Math.round(rate*100)} cm/h)<br>
-      <svg width="${W}" height="${H}" style="display:block;margin:6px 0;background:#EEF4FA;border-radius:6px"><path d="${path}" fill="none" stroke="#1D6FB8" stroke-width="2"/></svg>
-      <small>6 dernières heures · mesure d'il y a ${age} min · référence SHOM (zéro hydrographique)</small><br><a href="https://data.shom.fr/donnees/refmar/${st.id}" target="_blank" rel="noopener">Fiche du marégraphe</a>`); }
-  catch(e){ m.setPopupContent(`<b>${nm}</b><br>Mesure indisponible (réseau ?)`); } }
-function tgSet(on){ store.set("tg",on); $("tgChk").checked=on; if(on && !R()){ TG.layer.addTo(map); tgLoad(); } else map.removeLayer(TG.layer); }
-$("tgChk").onchange=e=>tgSet(e.target.checked); tgSet(store.get("tg",false));
+initMaregraphes();
 /* ================= Refuges, cabanes, points d'eau (refuges.info) ================= */
 const REF={layer:L.layerGroup(), key:""};
 const REF_T={"refuge gardé":["R","#2E7D32"],"cabane non gardée":["C","#8D6E63"],"gîte d'étape":["G","#6A1B9A"],"point d'eau":["💧","#1E88E5"],"bivouac":["B","#00897B"],"abri sommaire":["A","#8D6E63"]};

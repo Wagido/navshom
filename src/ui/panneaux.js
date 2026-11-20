@@ -2,7 +2,8 @@
 import { SPOTS, map } from "../carte/carte.js";
 import { renderWps, wps } from "../carte/point.js";
 import { setFollow } from "../gps/gps.js";
-import { routes, tracks, usageNote } from "../main.js";
+import { tracks, usageNote } from "../main.js";
+import { routes } from "../mer/routes.js";
 import { $ } from "../utils.js";
 
 /* ================= Panneaux ================= */
