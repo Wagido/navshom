@@ -1,7 +1,7 @@
 // Balise - cache de l'app et des tuiles pour usage hors ligne
 // Le site de test /beta/ a son propre service worker et ses propres caches (même origine que la production)
 const BETA = /\/beta\/sw\.js$/.test(self.location.pathname), CN = BETA ? "navshom-beta-" : "navshom-";
-const APP = CN + "app-v94", TILES = CN + "tiles", BETA_URL = new URL("beta/", self.location).href;
+const APP = CN + "app-v95", TILES = CN + "tiles", BETA_URL = new URL("beta/", self.location).href;
 // fichiers construits par Vite (assets/…, noms changeants) : liste remplie à la construction par vite.config.js
 const BUILT = [];
 const SHELL = ["./", "index.html", "lib/leaflet.js", "lib/leaflet.css", "lib/landmask.png", "lib/fonts/inter-latin-400-normal.woff2", "lib/fonts/inter-latin-500-normal.woff2", "lib/fonts/inter-latin-600-normal.woff2", "lib/fonts/inter-latin-700-normal.woff2", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", ...BUILT];
