@@ -1,84 +1,17 @@
-// Balise : l'application (module ES, construit par Vite)
-import { $, BETA, CN, KN, LSP, NM, bearing, compass, dm, fmtDur, fmtLL, fmtNM, fmtT, pad3, store, toast } from "./utils.js";
+import { $, BETA, CN, KN, LSP, bearing, compass, dm, fmtDur, fmtLL, fmtNM, fmtT, pad3, store, toast } from "./utils.js";
+import { AREA, FRANCE, MODE, R, SPOTS, baseKey, bases, curBase, fmtD, geopf, initCarte, map, seamarks, setCurBase, setMODE, setShomErr, setShomKey, setShomOk, shomErr, shomKey, shomOk, shomUrl, slopes } from "./carte/carte.js";
+import { initPoint, meteoHere, mobMk, pointLL, pointMode, renderWps, showGps, updateMob, updateRoute, wps } from "./carte/point.js";
+import { drawMeasure, initMesure, mPts, measuring, stopMeasure } from "./carte/mesure.js";
+import { autoSatCheck, autoSatOn, initFonds, setShade, setSlopes, shade } from "./carte/fonds.js";
+import { ROT, headCone, headTick, initBoussole } from "./carte/boussole.js";
 
-/* ================= Carte ================= */
-const ZONE = L.latLngBounds([41.2,-5.9],[51.3,9.8]); // toutes les côtes de France métropolitaine + Corse
-const FRANCE = L.latLngBounds([41.2,-5.9],[51.3,9.8]);
-let MODE = store.get("mode","mer"); const R = () => MODE==="rando";
-const AREA = () => R() ? FRANCE : ZONE;
-const baseKey = () => "base_"+MODE;
-const fmtD = m => R() ? (m<1000 ? Math.round(m)+" m" : (m/1000).toFixed(m<10000?2:1).replace(".",",")+" km") : fmtNM(m);
-const SPOTS = [
-  ["— Manche —",[49.6,-1.5],7], ["Dunkerque / Calais",[51.0,2.0],10], ["Baie de Somme",[50.2,1.55],11], ["Le Havre / Seine",[49.48,0.1],11],
-  ["Cherbourg / Raz Blanchard",[49.68,-1.75],11], ["Baie de Saint-Brieuc",[48.6,-2.7],10],
-  ["— Bretagne —",[48.4,-3.4],8], ["Iroise / Brest",[48.35,-4.75],11], ["Raz de Sein",[48.04,-4.75],12],
-  ["Glénan / Concarneau",[47.78,-3.98],11], ["Groix / Lorient",[47.68,-3.45],11], ["Belle-Île / Quiberon",[47.38,-3.15],11],
-  ["Golfe du Morbihan",[47.56,-2.85],12], ["Baie de La Baule",[47.25,-2.35],11], ["Baie de Morlaix",[48.70,-3.90],11],
-  ["Bréhat / Paimpol",[48.85,-3.00],12], ["Saint-Malo / Chausey",[48.75,-1.95],11],
-  ["Jersey",[49.20,-2.13],11], ["Guernesey / Sercq",[49.45,-2.50],11], ["Aurigny",[49.72,-2.10],11],
-  ["— Atlantique —",[46.3,-1.8],7], ["Noirmoutier / Yeu",[46.85,-2.25],10], ["Pertuis / La Rochelle / Ré",[46.1,-1.3],10],
-  ["Estuaire de la Gironde",[45.55,-1.0],10], ["Bassin d'Arcachon",[44.66,-1.18],11], ["Pays basque",[43.45,-1.65],11],
-  ["— Méditerranée —",[42.9,5.5],7], ["Golfe du Lion",[43.1,3.6],9], ["Marseille / Calanques",[43.22,5.4],11], ["Îles d'Hyères",[43.03,6.3],11],
-  ["Saint-Tropez",[43.25,6.7],11], ["Cannes / Lérins",[43.52,7.04],11], ["Nice / Antibes",[43.62,7.2],11],
-  ["— Corse —",[42.15,9.0],8], ["Bonifacio",[41.39,9.16],11], ["Ajaccio",[41.9,8.7],11], ["Calvi / Balagne",[42.6,8.85],11], ["Cap Corse",[42.95,9.4],10]
-];
-let view = store.get("view", {c:[48.4,-3.4], z:8});
-if(!AREA().contains(view.c)) view = R() ? {c:[46.6,2.4], z:6} : {c:[48.4,-3.4], z:8};
-// zoom sans clignotement : on garde les tuiles déjà affichées jusqu'à l'arrivée des nouvelles
-L.TileLayer.mergeOptions({keepBuffer:4, updateWhenZooming:false, updateWhenIdle:false});
-const map = L.map("map", {zoomControl:false, fadeAnimation:false, minZoom:R()?6:7, maxBounds:AREA().pad(R()?0.05:0.15), maxBoundsViscosity:1}).setView(view.c, view.z);
-map.attributionControl.setPrefix(false);
-let shomKey = (store.get("shomkey","")||"").trim();
-// Géoplateforme IGN (data.geopf.fr) ; "private" = couches SCAN avec la clé transitoire publiée par l'IGN
-const geopf = (layer, fmt, priv) => `https://data.geopf.fr/${priv?"private/wmts?apikey=ign_scan_ws&":"wmts?"}SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=${encodeURIComponent(fmt)}`;
-const shomUrl = layer => "https://services.data.shom.fr/"+encodeURIComponent(shomKey||"clevisu")+"/wmts?layer="+layer+
-  "&style=normal&tilematrixset=3857&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}";
-const bases = {
-  shom:  L.tileLayer(shomUrl("RASTER_MARINE_3857_WMTS"), {maxZoom:18, bounds:FRANCE, attribution:"© SHOM"}),
-  gebco: L.tileLayer(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"), {maxZoom:18, maxNativeZoom:12, bounds:FRANCE, attribution:"© SHOM / GEBCO"}),
-  osm:   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, bounds:FRANCE, attribution:"© OpenStreetMap"}),
-  ign:   L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2","image/png"), {maxZoom:19, maxNativeZoom:18, bounds:FRANCE, attribution:"© IGN"}),
-  ortho: L.tileLayer(geopf("ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg"), {maxZoom:19, maxNativeZoom:19, bounds:FRANCE, attribution:"© IGN"}),
-  litto: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS","image/png"), {maxZoom:18, minNativeZoom:6, maxNativeZoom:16, bounds:FRANCE, attribution:"© IGN / SHOM · non destiné à la navigation"}),
-  scan25:L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS","image/jpeg",true), {maxZoom:18, maxNativeZoom:16, bounds:FRANCE, attribution:"© IGN"}),
-  topo:  L.tileLayer("https://tile.opentopomap.org/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:17, bounds:FRANCE, attribution:"© OpenTopoMap (CC-BY-SA), © OpenStreetMap"}),
-  ign1950: L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN50.1950","image/jpeg"), {maxZoom:18, minNativeZoom:3, maxNativeZoom:15, bounds:FRANCE, attribution:"© IGN · carte 1950"}),
-  emod:  L.tileLayer("https://tiles.emodnet-bathymetry.eu/2020/baselayer/web_mercator/{z}/{x}/{y}.png", {maxZoom:18, maxNativeZoom:12, bounds:FRANCE, attribution:"© EMODnet Bathymetry"})
-};
-const slopes = L.tileLayer(geopf("GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN","image/png"), {maxZoom:19, maxNativeZoom:17, opacity:.45, bounds:FRANCE, attribution:"Pentes © IGN"});
-const seamarks = L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {maxZoom:18, bounds:FRANCE, attribution:"© OpenSeaMap"});
-if(!store.get("v_nums2",false)){ store.set("v_nums2",true); store.set("nums",true); }
-if(!store.get("v_litto",false)){ store.set("v_litto",true); store.set("base","litto"); store.set("seamarks",false); }
-if(store.get("base_mer",null)===null) store.set("base_mer", store.get("base","litto"));
-let curBase = store.get(baseKey(), R()?"scan25":"litto"); if(!bases[curBase]) curBase = R()?"ign":"litto";
-if(curBase==="shom" && !shomKey) curBase="litto";
-if(!document.querySelector(`input[name=base][value=${curBase}]`)) curBase = R()?"scan25":"litto";
-if(store.get("seamarks", null)===null) store.set("seamarks", true);
-let shomOk=0, shomErr=0;
-bases.shom.on("tileload", ()=>shomOk++);
-bases.shom.on("tileerror", ()=>{ shomErr++;
-  if(shomErr===6 && shomOk===0 && curBase==="shom" && navigator.onLine){
-    toast(shomKey ? "Clé SHOM refusée. Passage sur la bathymétrie EMODnet + balisage." : "Cartes SHOM : clé SHOM nécessaire (Menu). Passage sur la bathymétrie EMODnet + balisage.", 7000);
-    document.querySelector("input[name=base][value=litto]").click(); if(!$("seamarks").checked) $("seamarks").click(); }});
-bases[curBase].addTo(map);
-document.querySelector(`input[name=base][value=${curBase}]`).checked = true;
-document.querySelectorAll("input[name=base]").forEach(r => r.addEventListener("change", e => {
-  map.removeLayer(bases[curBase]); curBase=e.target.value; bases[curBase].addTo(map); bases[curBase].bringToBack(); store.set(baseKey(),curBase); }));
-$("seamarks").checked = store.get("seamarks", true); if($("seamarks").checked) seamarks.addTo(map);
-$("seamarks").addEventListener("change", e => { e.target.checked ? seamarks.addTo(map) : map.removeLayer(seamarks); store.set("seamarks", e.target.checked); });
-map.on("moveend", () => store.set("view", {c:[map.getCenter().lat, map.getCenter().lng], z:map.getZoom()}));
-L.control.scale({imperial:false, position:"bottomleft"}).addTo(map);
-
-$("bZin").onclick = () => map.zoomIn(); $("bZout").onclick = () => map.zoomOut();
-function updScale(){ const z=map.getZoom(), den=156543.034*Math.cos(map.getCenter().lat*Math.PI/180)/2**z/0.00028;
-  $("scale").textContent = "1:"+(den>=1e6?(den/1e6).toFixed(1)+" M":den>=1e3?Math.round(den/1e3)+" 000":Math.round(den)); }
-map.on("zoomend", updScale); updScale();
+initCarte();
 
 /* ================= Panneaux ================= */
-const sheets = ["sPoint","sMeteo","sMenu","sCurve","sTrack","sAnchor","sMaps","sRouting"];
+export const sheets = ["sPoint","sMeteo","sMenu","sCurve","sTrack","sAnchor","sMaps","sRouting"];
 let tmpMarker=null;
-function openSheet(id){ sheets.forEach(s => $(s).hidden = s!==id); }
-function closeSheets(){ sheets.forEach(s => $(s).hidden = true); if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; } }
+export function openSheet(id){ sheets.forEach(s => $(s).hidden = s!==id); }
+export function closeSheets(){ sheets.forEach(s => $(s).hidden = true); if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; } }
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeSheets);
 $("bMenu").onclick = () => { if(!$("sMenu").hidden) return closeSheets(); $("sMenu").classList.remove("searching"); menuCounts(); renderWps(); openSheet("sMenu"); };
 function menuCounts(){ try{ $("mcTrN").textContent=tracks.length; $("mcWpN").textContent=wps.length; $("mcRtN").textContent=routes.length; }catch(e){} usageNote(); }
@@ -87,18 +20,18 @@ SPOTS.forEach((sp,i)=>{ const o=document.createElement("option"); o.value=i; o.t
 $("spot").insertAdjacentHTML("afterbegin",'<option value="" selected>Choisir…</option>');
 $("spot").onchange = e => { if(e.target.value==="") return; const sp=SPOTS[+e.target.value]; setFollow(false); map.setView(sp[1], sp[2]); closeSheets(); e.target.value=""; };
 $("bSearch").onclick = () => { $("sMenu").classList.add("searching"); menuCounts(); renderWps(); openSheet("sMenu"); setTimeout(()=>$("q").focus(),50); };
-function markTmp(ll){ if(tmpMarker) map.removeLayer(tmpMarker); tmpMarker=L.circleMarker(ll,{radius:8,color:"#fff",weight:3,fillColor:"#0b63b6",fillOpacity:1}).addTo(map); }
+export function markTmp(ll){ if(tmpMarker) map.removeLayer(tmpMarker); tmpMarker=L.circleMarker(ll,{radius:8,color:"#fff",weight:3,fillColor:"#0b63b6",fillOpacity:1}).addTo(map); }
 
 /* ================= GPS ================= */
 const boatIcon = L.divIcon({className:"boat", iconSize:[34,34], iconAnchor:[17,17], html:
   '<svg viewBox="0 0 34 34"><path d="M17 2 26 30 17 24 8 30Z" fill="#e5372b" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'});
-let boat=null, accCircle=null, last=null, follow=true, vecLine=null, sogNow=null;
+export let boat=null, accCircle=null, last=null, follow=true, vecLine=null, sogNow=null;
 const trackLine = L.polyline(store.get("track", []), {color:"#e5372b", weight:3, opacity:.7, interactive:false});
 $("track").checked = store.get("showTrack", true); if($("track").checked && !R()) trackLine.addTo(map);
 if(Date.now()-store.get("trackT",0)>12*3600e3){ trackLine.setLatLngs([]); store.set("track",[]); }
 $("track").onchange = e => { e.target.checked ? trackLine.addTo(map) : map.removeLayer(trackLine); store.set("showTrack", e.target.checked); };
 $("bClearTrack").onclick = () => { trackLine.setLatLngs([]); store.set("track", []); toast("Trace effacée"); };
-function setFollow(v){ follow=v; $("bFollow").classList.toggle("on", v); }
+export function setFollow(v){ follow=v; $("bFollow").classList.toggle("on", v); }
 $("bFollow").onclick = () => { setFollow(!follow); if(follow && last) map.setView(last.ll, Math.max(map.getZoom(),12)); else if(follow) toast("Pas encore de position GPS"); };
 map.on("dragstart", () => setFollow(false));
 function dest(ll, brg, dist){ const r=Math.PI/180, R=6371000, d=dist/R, b=brg*r, f1=ll.lat*r, l1=ll.lng*r;
@@ -138,122 +71,10 @@ function onPos(p){
   if(typeof instTick==="function" && instOn) instTick();
   if(typeof headTick==="function" && (ROT.on || headCone)) headTick();
 }
-let gpsDenied=false;
+export let gpsDenied=false;
 function onErr(e){ gpsDenied = e.code===1; $("gpsdot").className="gps bad"; $("acc").textContent = e.code===1 ? "refusé" : "—"; if(e.code===1) toast("Autorisez la localisation pour ce site", 5000); }
-// le suivi GPS est démarré par geoStart() (navigateur, ou natif en arrière-plan dans l'APK)
-
-/* ================= Point / position ================= */
-let pointMode="gps", pointLL=null;
-function showGps(){
-  pointMode="gps"; pointWp=null; $("pSea").hidden=true; $("pC2c").hidden=true; $("aPin").hidden=false; $("aDelWp").hidden=true; $("pTitle").textContent="Ma position GPS"; $("pLabel").textContent="Position";
-  $("pDistRow").querySelector("b").textContent="Vitesse et cap"; $("aRoute").hidden=true;
-  $("pAltRow").hidden=true; $("pChips").innerHTML="";
-  if(!last){ pointLL=null; $("pLL").textContent = gpsDenied ? "Localisation refusée. Autorisez-la dans les réglages du navigateur (le cadenas à côté de l'adresse) ou du téléphone, puis rouvrez l'appli." : "En attente du GPS…"; $("pDistRow").hidden=true; }
-  else { pointLL=last.ll; $("pLL").textContent=fmtLL(last.ll.lat,last.ll.lng); $("pDistRow").hidden=false;
-    $("pDist").textContent=(sogNow!=null?sogNow.toFixed(1)+" nd":"—")+" · cap "+$("cog").textContent+"°"; }
-  openSheet("sPoint");
-}
-let pointWp=null;
-function showPoint(ll, wp){
-  pointMode="pt"; pointLL=ll; $("pC2c").hidden=false; pointWp=wp||null; $("pTitle").textContent = wp ? wp.n : "Point sur la carte";
-  $("aPin").hidden=!!wp; $("aDelWp").hidden=!wp; $("pLabel").textContent="Coordonnées";
-  $("pLL").textContent=fmtLL(ll.lat,ll.lng); $("pDistRow").querySelector("b").textContent = R() ? "Depuis ma position" : "Depuis le bateau";
-  $("pAltRow").hidden=true; $("pChips").innerHTML="";
-  $("pDistRow").hidden=false; $("pDist").textContent = last ? (R() ? fmtD(map.distance(last.ll,ll)) : fmtNM(map.distance(last.ll,ll)))+" · "+pad3(bearing(last.ll,ll))+"°" : (R() ? "Position GPS en attente" : "GPS en attente");
-  $("aRoute").hidden=false; markTmp(ll); openSheet("sPoint"); if(typeof showSeamarks==="function") showSeamarks(ll);
-  if(R()) pointInfo(ll);
-  { const k=20037508.34/180, x=ll.lng*k, y=Math.log(Math.tan((90+ll.lat)*Math.PI/360))/(Math.PI/180)*k, d=4000;
-    $("pC2c").href=`https://www.camptocamp.org/routes?bbox=${Math.round(x-d)},${Math.round(y-d)},${Math.round(x+d)},${Math.round(y+d)}`; }
-  $("pGeo").hidden=true; if(R() && typeof geoAt==="function"){ const g=geoAt(ll); if(g){ $("pGeo").hidden=false; $("pGeoT").textContent=g; } }
-}
-$("chip").onclick = () => R() ? showGps() : instOpen();
-map.on("click", e => { if(RT.picking){ RT[RT.picking]=e.latlng; RT.picking=null; $("pickBar").hidden=true; RT.layer.clearLayers(); RT.result=null; drawRtMarks(); openSheet("sRouting"); renderRouteParams(); $("rtRes").hidden=true; return; }
-  if(!$("recAsk").hidden){ $("recAsk").hidden=true; return; }
-  if(measuring) return addMeasure(e.latlng); if(sheets.some(s=>!$(s).hidden)) return closeSheets();
-  if(ov.data) return showPicker(e.latlng); showPoint(e.latlng); });
-$("aPin").onclick = () => { if(pointLL) addWp(pointLL); closeSheets(); };
-$("aDelWp").onclick = () => { if(!pointWp) return; wps=wps.filter(w=>w!==pointWp); store.set("wps",wps); drawWps(); toast(pointWp.n+" supprimé"); pointWp=null; closeSheets(); };
-function meteoHere(ll){ closeSheets(); tbl.force=ll; markTmp(ll); if(!ov.type) setOverlay("wind"); setFold(true); loadTable(true); }
-$("aMeteo").onclick = () => { if(pointLL) meteoHere(pointLL); };
-$("aCurve").onclick = () => { const p = pointLL || map.getCenter(); showCurve(p); };
-$("a3d").onclick = () => { const p=pointLL; closeSheets(); if(!p) return; setFollow(false); map.setView(p, Math.max(map.getZoom(),13), {animate:false}); open3D(); };
-$("aMeasure").onclick = () => { const p=pointLL; closeSheets(); startMeasure(); if(p) addMeasure(p); };
-
-/* Aller ici : ligne directe bateau -> destination */
-let routeTo = store.get("route", null), routeLine=null, routeMk=null;
-function updateRoute(){
-  if(routeLine){ map.removeLayer(routeLine); routeLine=null; } if(routeMk){ map.removeLayer(routeMk); routeMk=null; }
-  if(!routeTo) return;
-  routeMk=L.circleMarker(routeTo,{radius:8,color:"#fff",weight:3,fillColor:"#1c9e47",fillOpacity:1}).addTo(map)
-    .on("click", ev=>{ L.DomEvent.stop(ev); routeTo=null; store.set("route",null); updateRoute(); toast("Destination effacée"); });
-  if(!last){ routeMk.bindTooltip("Destination",{permanent:true,direction:"top",className:"mlabel",offset:[0,-8]}); return; }
-  const d=map.distance(last.ll,routeTo), b=bearing(last.ll,L.latLng(routeTo)), eta = sogNow>0.5 ? fmtDur(d/NM/sogNow) : "—";
-  routeLine=L.polyline([last.ll,routeTo],{color:"#1c9e47",weight:3,dashArray:"8 6",interactive:false}).addTo(map);
-  routeMk.bindTooltip(fmtNM(d)+" · "+pad3(b)+"° · "+eta,{permanent:true,direction:"top",className:"mlabel",offset:[0,-8]});
-}
-$("aRoute").onclick = () => { routeTo=[pointLL.lat,pointLL.lng]; store.set("route",routeTo); closeSheets(); updateRoute();
-  toast("Destination posée. Touchez le point vert pour l'effacer.", 4000); };
-updateRoute();
-
-/* ================= Repères ================= */
-let wps = store.get("wps", []); const wpLayer = L.layerGroup().addTo(map);
-function drawWps(){ wpLayer.clearLayers(); wps.forEach(w => L.marker([w.lat,w.lng],{icon:L.divIcon({className:"",iconSize:[26,26],iconAnchor:[13,26],
-  html:'<svg viewBox="0 0 24 24" width="26" height="26"><path d="M12 1a7 7 0 0 0-7 7c0 5 7 15 7 15s7-10 7-15a7 7 0 0 0-7-7z" fill="#0b63b6" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="8" r="2.6" fill="#fff"/></svg>'})})
-  .bindTooltip(w.n,{direction:"top",offset:[0,-24]}).on("click",ev=>{ L.DomEvent.stop(ev); showPoint(L.latLng(w.lat,w.lng), w); }).addTo(wpLayer)); }
-function addWp(ll){ const n="Repère "+(wps.length+1); wps.push({n,lat:+ll.lat.toFixed(6),lng:+ll.lng.toFixed(6)}); store.set("wps",wps); drawWps(); toast(n+" enregistré"); }
-function renderWps(){ const el=$("wplist"); el.innerHTML="";
-  if(!wps.length){ el.innerHTML='<p class="note">Aucun repère. Touchez la carte puis « Poser un repère ici », ou le bouton Repère pour marquer la position du bateau.</p>'; return; }
-  wps.forEach((w,i)=>{ const d=document.createElement("div"), t=document.createElement("span");
-    t.innerHTML=`<b></b><br><small style="color:var(--muted);font-family:var(--mono)">${fmtLL(w.lat,w.lng)}${last?" · "+fmtNM(map.distance(last.ll,[w.lat,w.lng])):""}</small>`; t.querySelector("b").textContent=w.n;
-    const go=document.createElement("button"); go.textContent="Voir"; go.onclick=()=>{ setFollow(false); map.setView([w.lat,w.lng],14); closeSheets(); };
-    const del=document.createElement("button"); del.textContent="Suppr."; del.style.color="var(--red)"; del.onclick=()=>{ wps.splice(i,1); store.set("wps",wps); drawWps(); renderWps(); };
-    const s=document.createElement("span"); s.style.whiteSpace="nowrap"; s.append(go,del); d.append(t,s); el.append(d); }); }
-$("bPin").onclick = () => { if(!last) return toast("Pas de position GPS : touchez la carte pour poser un repère"); addWp(last.ll); };
-drawWps();
-
-/* ================= MOB ================= */
-let mob=store.get("mob",null), mobMk=null, mobArmed=false;
-function drawMob(){ if(mobMk){ map.removeLayer(mobMk); mobMk=null; } if(!mob) return;
-  if(R()) { mobMk=L.circleMarker(mob,{radius:11,color:"#fff",weight:3,fillColor:"#e5372b",fillOpacity:1}).bindTooltip("MOB",{permanent:true,direction:"right",className:"mlabel"}); return; }
-  mobMk=L.circleMarker(mob,{radius:11,color:"#fff",weight:3,fillColor:"#e5372b",fillOpacity:1}).addTo(map).bindTooltip("MOB",{permanent:true,direction:"right",className:"mlabel"}); }
-function updateMob(){ if(!mob||!last||!mobMk) return; mobMk.setTooltipContent("MOB "+fmtNM(map.distance(last.ll,mob))+" · "+pad3(bearing(last.ll,L.latLng(mob)))+"°"); }
-$("bMob").onclick = () => {
-  if(mob && !mobArmed){ mobArmed=true; toast("Appuyez encore pour effacer le point MOB"); setTimeout(()=>mobArmed=false,3000); return; }
-  if(mob){ mob=null; store.set("mob",null); drawMob(); mobArmed=false; return toast("Point MOB effacé"); }
-  if(!last) return toast("Pas de position GPS");
-  mob=[last.ll.lat,last.ll.lng]; store.set("mob",mob); drawMob(); updateMob(); setFollow(true);
-  toast("MOB enregistré "+fmtLL(mob[0],mob[1]),6000); if(navigator.vibrate) navigator.vibrate([300,100,300]);
-};
-drawMob();
-
-/* ================= Mesure de distance ================= */
-let measuring=false, mPts=[]; const mLayer=L.layerGroup();
-$("mSpeed").value = store.get("mspeed_"+MODE, MODE==="rando"?4:5);
-function startMeasure(){ setOverlay(null); closeSheets(); measuring=true; document.body.classList.add("measuring"); mLayer.addTo(map); $("measure").hidden=false; $("bMeasure").classList.add("on"); drawMeasure();
-  document.documentElement.style.setProperty("--tl", ($("measure").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); }
-function stopMeasure(){ measuring=false; document.body.classList.remove("measuring"); $("measure").hidden=true; document.documentElement.style.setProperty("--tl","0px"); setTimeout(crowdCheck,260); $("bMeasure").classList.remove("on"); mPts=[]; mLayer.clearLayers(); map.removeLayer(mLayer); }
-function addMeasure(ll){ mPts.push(ll); drawMeasure(); }
-function drawMeasure(){
-  mLayer.clearLayers(); let tot=0;
-  if(mPts.length>1) L.polyline(trailOn()?measureGeom():mPts,{color:trailOn()?"#6a1b9a":"#0b2f5b",weight:trailOn()?4:3,dashArray:trailOn()?null:"2 6",lineCap:"round",interactive:false}).addTo(mLayer);
-  mPts.forEach((p,i)=>{
-    L.circleMarker(p,{radius:6,color:"#fff",weight:2,fillColor:"#0b2f5b",fillOpacity:1,interactive:false}).addTo(mLayer);
-    if(i>0){ const sg=segGeom(mPts[i-1],p), d=sg?sg.dist:map.distance(mPts[i-1],p); tot+=d;
-      L.marker(L.latLng((mPts[i-1].lat+p.lat)/2,(mPts[i-1].lng+p.lng)/2),{opacity:0,interactive:false}).addTo(mLayer)
-        .bindTooltip(fmtD(d)+" · "+pad3(bearing(mPts[i-1],p))+"°",{permanent:true,direction:"center",className:"mlabel"}); }
-  });
-  const sp=parseFloat(String($("mSpeed").value).replace(",","."))||(R()?4:5);
-  $("mTot").textContent = fmtD(tot); $("mUnit").textContent = R()?"km/h":"nd"; 
-  $("mEta").textContent = mPts.length>1 ? (R() ? "≈ "+fmtDur(tot/1000/sp)+" (sans dénivelé)" : fmtDur(tot/NM/sp)+" à "+sp+" nd") : "—";
-  if(R()){ clearTimeout(mProfT); if(mPts.length>1) mProfT=setTimeout(measureProfile,500); else $("mProfWrap").hidden=true; } else $("mProfWrap").hidden=true;
-  $("mHint").textContent = mPts.length===0 ? "Touchez la carte pour poser le départ." : mPts.length===1 ? "Touchez la carte pour le point suivant." : "Touchez pour prolonger · "+(mPts.length-1)+" segment"+(mPts.length>2?"s":"");
-}
-$("bMeasure").onclick = () => measuring ? stopMeasure() : startMeasure();
-$("mDone").onclick = stopMeasure;
-$("mUndo").onclick = () => { mPts.pop(); drawMeasure(); };
-$("mClear").onclick = () => { mPts=[]; drawMeasure(); };
-$("mBoat").onclick = () => { if(!last) return toast("Pas de position GPS"); mPts.unshift(last.ll); drawMeasure(); };
-$("mSpeed").oninput = () => { store.set("mspeed_"+MODE, $("mSpeed").value); drawMeasure(); };
+initPoint();
+initMesure();
 
 /* ================= Modèles & calques météo / mer ================= */
 // Modèles disponibles via Open-Meteo (identifiants de l'API)
@@ -287,7 +108,7 @@ const OVT = {
   cur:  {name:"Courant", api:"mar", vars:["ocean_current_velocity","ocean_current_direction"], unit:"nd", conv:x=>x/1.852, vec:true, from:false, dec:1, zero:true, scale:[[0,"#4fc3f7"],[0.5,"#ffd54f"],[1.5,"#ff9800"],[3,"#ff3d00"]], anim:0.3}
 };
 const colorOf = (t,v) => { let c=t.scale[0][1]; for(const [s,col] of t.scale) if(v>=s) c=col; return c; };
-const ov = {type:null, data:null, pts:[], grid:0, rows:0, cols:0, idx:0, now:0, model:null,
+export const ov = {type:null, data:null, pts:[], grid:0, rows:0, cols:0, idx:0, now:0, model:null,
   layer:L.layerGroup(), cells:L.layerGroup(), anim: store.get("anim", true), nums: true};
 let lastWx = store.get("lastWx","wind"); if(!OVT[lastWx] || lastWx==="cur") lastWx="wind";
 
@@ -422,7 +243,7 @@ function drawTimeline(){
   if(!t.zero){ g.fillText(lo.toFixed(t.dec), W-2, bot-2); }
   $("tHere").textContent = hereText(s, ov.idx);
 }
-function setOverlay(type){
+export function setOverlay(type){
   if(ov.type===type) type=null;
   ov.type=type; ov.data=null; ov.layer.clearLayers(); stopParticles(); drawField(); map.closePopup();
   if(type && type!=="cur"){ lastWx=type; store.set("lastWx",type); }
@@ -449,14 +270,14 @@ $("tAnim").onclick=()=>{ ov.anim=!ov.anim; store.set("anim",ov.anim); $("tAnim")
 function tErrShow(t){ $("tErrT").textContent=t; $("tErr").hidden=false; fixTl(); }
 $("tErrGo").onclick=()=>{ $("tErr").hidden=true; fixTl(); if(ov.type) loadOverlay(); if(tbl.open) loadTable(true); };
 $("tClose").onclick=()=>{ $("tErr").hidden=true; tbl.force=null; try{ radarOff(); }catch(e){} setOverlay(null); };
-function setFold(open){ store.set("tbarOpen",open); $("tbar").classList.toggle("mini",!open); $("tFold").setAttribute("aria-expanded",open);
+export function setFold(open){ store.set("tbarOpen",open); $("tbar").classList.toggle("mini",!open); $("tFold").setAttribute("aria-expanded",open);
   $("tFoldTxt").textContent = open ? "Réduire ﹀" : "Détails ︿"; if(open && tbl.open) loadTable(); fixTl(); setTimeout(()=>{ drawLegend(); drawTimeline(); },30); }
 $("tFold").onclick=()=>setFold($("tbar").classList.contains("mini"));
 setTimeout(()=>setFold(store.get("tbarOpen",false)));
 $("tFcst").onclick=()=>openMeteo(tbl.force||null);
 /* ---- Tableau heure par heure, repliable ---- */
-const tbl={ll:null,f:null,m:null,model:null,open:true,loading:false}; // le tableau est toujours affiché quand le panneau est déplié
-function crowdCheck(){ // un panneau haut ne doit pas recouvrir le groupe de commandes : on le réduit au zoom
+export const tbl={ll:null,f:null,m:null,model:null,open:true,loading:false}; // le tableau est toujours affiché quand le panneau est déplié
+export function crowdCheck(){ // un panneau haut ne doit pas recouvrir le groupe de commandes : on le réduit au zoom
   document.body.classList.remove("crowded","crowded2","crowded3");
   { const br=$("colBR").getBoundingClientRect(); if(br.height && br.top < $("colTR").getBoundingClientRect().bottom+8) document.body.classList.add("crowded3"); }
   const panel=[$("tbar"),$("measure")].find(e=>e && !e.hidden); if(!panel) return;
@@ -465,7 +286,7 @@ function crowdCheck(){ // un panneau haut ne doit pas recouvrir le groupe de com
   if(mob.height && (mob.bottom > top-4 || mob.top < $("colTL").getBoundingClientRect().bottom+4)) document.body.classList.add("crowded2"); }
 const fixTl=()=>{ if(!$("tbar").hidden) document.documentElement.style.setProperty("--tl", ($("tbar").offsetHeight+8)+"px"); setTimeout(crowdCheck,260); };
 $("tTblBtn").onclick=()=>{ tbl.open=!tbl.open; store.set("tblOpen",tbl.open); if(tbl.open) loadTable(); renderTable(); if(!tbl.open) drawTimeline(); };
-async function loadTable(force){
+export async function loadTable(force){
   const useGps = !tbl.force && last && map.getBounds().contains(last.ll) && (R() || landFrac(last.ll.lat,last.ll.lng)<0.5);
   const ll = tbl.force || (useGps ? last.ll : map.getCenter()); tbl.gps=!!useGps;
   if(!force && tbl.f && tbl.ll && map.distance(tbl.ll,ll)<8000 && tbl.model===model) return renderTable();
@@ -640,7 +461,7 @@ function drawLegend(){
 }
 // valeur au toucher (façon Windy)
 let pick=null;
-function showPicker(ll){ pick=ll; updatePicker(); }
+export function showPicker(ll){ pick=ll; updatePicker(); }
 function updatePicker(){
   if(!pick||!ov.data){ map.closePopup(); return; }
   const f=buildGrid(), pt=map.latLngToContainerPoint(pick), t=f.t, onLand=t.api==="mar" && landFrac(pick.lat,pick.lng)>0.5, v=onLand?null:sampleS(f,pt.x,pt.y);
@@ -682,7 +503,7 @@ document.addEventListener("visibilitychange",()=>{ if(document.hidden) stopParti
 
 /* ================= Courbe courant + marée en un point ================= */
 const cv = {data:null, sel:0, now:0, ll:null};
-async function showCurve(ll){
+export async function showCurve(ll){
   cv.ll=ll; markTmp(ll); openSheet("sCurve"); showOfficialTide(ll); if(tmpMarker) {} // le point reste visible
   $("cvTitle").textContent = "Courant et marée · "+dm(ll.lat,"N","S").replace(/\.\d+'/,"'")+" "+dm(ll.lng,"E","W").replace(/\.\d+'/,"'");
   $("cvBody").hidden=true; $("cvMsg").hidden=false; $("cvMsg").textContent="Chargement…";
@@ -877,13 +698,13 @@ function chipLabels(){
   $("cog").textContent="—"; $("sog").textContent="—";
 }
 function setMode(m, quiet){
-  MODE=m; store.set("mode",m); document.body.classList.toggle("rando", R());
+  setMODE(m); store.set("mode",m); document.body.classList.toggle("rando", R());
   document.querySelectorAll("#bMode button").forEach(b=>{ const on=b.dataset.m===MODE; b.classList.toggle("on",on); b.setAttribute("aria-checked",on); });
   $("followLbl").textContent = R()?"Moi":"Bateau";
   map.setMinZoom(R()?6:7); map.setMaxBounds(AREA().pad(R()?0.05:0.15));
   // fond de carte propre à chaque mode
   const nb = store.get(baseKey(), R()?"scan25":"litto");
-  if(nb!==curBase && bases[nb]){ map.removeLayer(bases[curBase]); curBase=nb; bases[curBase].addTo(map); bases[curBase].bringToBack(); }
+  if(nb!==curBase && bases[nb]){ map.removeLayer(bases[curBase]); setCurBase(nb); bases[curBase].addTo(map); bases[curBase].bringToBack(); }
   const rb=document.querySelector(`input[name=base][value=${curBase}]`); if(rb) rb.checked=true;
   if(ov.type && ((OVT[ov.type].api==="mar" && R()) || (OVT[ov.type].rando && !R()))) setOverlay(null);
   $("mSpeed").value = store.get("mspeed_"+MODE, R()?4:5);
@@ -904,7 +725,7 @@ bases.scan25.on("tileerror",()=>{ s25err++; if(s25err===6 && s25ok===0 && curBas
   toast("Carte IGN 1:25 000 indisponible : passage sur le Plan IGN", 6000); document.querySelector("input[name=base][value=ign]").click(); }});
 
 /* ---- Altitude IGN, profils ---- */
-async function elevations(pts){ // pts : [[lat,lng],…]
+export async function elevations(pts){ // pts : [[lat,lng],…]
   const out=[];
   for(let i=0;i<pts.length;i+=100){ const ch=pts.slice(i,i+100);
     const j=await getJSON(`https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=${ch.map(p=>(+p[1]).toFixed(5)).join("|")}&lat=${ch.map(p=>(+p[0]).toFixed(5)).join("|")}&resource=ign_rge_alti_wld&zonly=true`);
@@ -956,8 +777,8 @@ function drawProfile(canvas, prof, onHover){
 }
 
 /* ---- Mesure en mode rando : km, dénivelé, temps de marche ---- */
-let mProfT=null, mProf=null;
-async function measureProfile(){
+export let mProfT=null, mProf=null;
+export async function measureProfile(){
   if(!R() || mPts.length<2){ $("mProfWrap").hidden=true; mProf=null; return; }
   const key=mPts.map(p=>p.lat.toFixed(5)+","+p.lng.toFixed(5)).join(";");
   try{ const prof=await buildProfile(trailOn()?measureGeom().map(c=>L.latLng(c[0],c[1])):mPts); if(key!==mPts.map(p=>p.lat.toFixed(5)+","+p.lng.toFixed(5)).join(";")) return;
@@ -1174,7 +995,7 @@ function hideAlarm(){ $("alarm").hidden=true; alarmSound(false); }
 /* ---------- GPS : natif en arrière-plan quand il le faut ---------- */
 let geoWatch=null, bgWatch=null, bgPending=false;
 function needBackground(){ return !!((rec && rec.on) || anchor || navR || store.get("bgAlways",false)); }
-function geoStart(){
+export function geoStart(){
   const wantBg = !!BGGeo && needBackground();
   if(wantBg){
     if(bgWatch!=null || bgPending) return;
@@ -1294,7 +1115,7 @@ function saveRouteFromMeasure(){
   store.set("routes",routes); renderRoutes(); toast("Route « "+name+" » enregistrée : Plus › Routes");
 }
 $("mSaveRoute").onclick = saveRouteFromMeasure;
-function renderRoutes(){
+export function renderRoutes(){
   const el=$("rtList"); el.innerHTML="";
   if(!routes.length){ el.innerHTML='<p class="note">Aucune route. Tracez-la avec « Mesurer », puis « Créer la route ».</p>'; return; }
   routes.forEach(rt=>{ let d=0; for(let i=1;i<rt.pts.length;i++) d+=map.distance([rt.pts[i-1][0],rt.pts[i-1][1]],[rt.pts[i][0],rt.pts[i][1]]);
@@ -1313,8 +1134,8 @@ drawRoute();
 /* ---------- Itinéraires sur les sentiers (IGN) ---------- */
 const segCache=new Map(); let trailWarned=false;
 const segKey=(a,b)=>a.lat.toFixed(5)+","+a.lng.toFixed(5)+";"+b.lat.toFixed(5)+","+b.lng.toFixed(5);
-function trailOn(){ return R() && $("mTrail").checked; }
-function segGeom(a,b){ // géométrie d'un segment : suit les chemins si possible
+export function trailOn(){ return R() && $("mTrail").checked; }
+export function segGeom(a,b){ // géométrie d'un segment : suit les chemins si possible
   if(!trailOn()) return null; const k=segKey(a,b), c=segCache.get(k); if(c) return c.pending?null:c;
   segCache.set(k,{pending:true});
   getJSON(`https://data.geopf.fr/navigation/itineraire?resource=bdtopo-osrm&start=${a.lng.toFixed(6)},${a.lat.toFixed(6)}&end=${b.lng.toFixed(6)},${b.lat.toFixed(6)}&profile=pedestrian&optimization=shortest&geometryFormat=geojson&getSteps=false`)
@@ -1325,7 +1146,7 @@ function segGeom(a,b){ // géométrie d'un segment : suit les chemins si possibl
       if(!trailWarned){ trailWarned=true; toast("Pas de chemin trouvé sur un segment : tracé en ligne droite"); } if(measuring) drawMeasure(); });
   return null;
 }
-function measureGeom(){ const out=[]; for(let i=1;i<mPts.length;i++){ const g=segGeom(mPts[i-1],mPts[i]); const co = g ? g.coords : [[mPts[i-1].lat,mPts[i-1].lng],[mPts[i].lat,mPts[i].lng]]; out.push(...(i>1?co.slice(1):co)); } return out; }
+export function measureGeom(){ const out=[]; for(let i=1;i<mPts.length;i++){ const g=segGeom(mPts[i-1],mPts[i]); const co = g ? g.coords : [[mPts[i-1].lat,mPts[i-1].lng],[mPts[i].lat,mPts[i].lng]]; out.push(...(i>1?co.slice(1):co)); } return out; }
 $("mTrail").checked = store.get("trail", true);
 $("mTrail").onchange = () => { store.set("trail",$("mTrail").checked); drawMeasure(); };
 
@@ -1395,87 +1216,7 @@ function renderTideWidget(){
   box.appendChild(f);
 }
 $("tidePort").onchange=e=>{ tidePort=e.target.value; renderTideWidget(); };
-
-/* ---------- Satellite en un geste ---------- */
-let satPrev=null;
-function syncSat(){ $("bSat").classList.toggle("on", curBase==="ortho"); }
-$("bSat").onclick=()=>{ const target = curBase==="ortho" ? (satPrev || (R()?"scan25":"litto")) : "ortho"; if(curBase!=="ortho") satPrev=curBase;
-  document.querySelector(`input[name=base][value=${target}]`).click(); syncSat(); toast(target==="ortho"?"Vue satellite (photos aériennes IGN)":"Retour à la carte"); };
-document.querySelectorAll("input[name=base]").forEach(r=>r.addEventListener("change", syncSat)); syncSat();
-
-renderRoutes(); geoStart();
-
-$("bgAlways").checked=store.get("bgAlways",false); $("bgAlways").onchange=e=>{ store.set("bgAlways",e.target.checked); geoStart(); };
-/* ---- Pentes : surimpression IGN, et calcul au point touché ---- */
-function setSlopes(on){ store.set("slopes",on); $("slopeChk").checked=on; $("bSlope").classList.toggle("on",on); if(on && R()) slopes.addTo(map); else map.removeLayer(slopes); }
-$("slopeChk").onchange=e=>setSlopes(e.target.checked);
-$("bSlope").onclick=()=>{ const on=!store.get("slopes",false); setSlopes(on); toast(on?"Carte des pentes : jaune > 30°, orange > 35°, rouge > 40°, violet > 45°":"Carte des pentes masquée", 4000); };
-setSlopes(store.get("slopes",false));
-// Point touché en Rando : altitude en grand, pente (alerte au-delà de 30°), versant, distance, dénivelé et temps depuis ma position
-async function slopeData(ll){
-  try{ const dLat=15/111320, dLng=15/(111320*Math.cos(ll.lat*Math.PI/180));
-    const pts=[[ll.lat,ll.lng],[ll.lat,ll.lng+dLng],[ll.lat+dLat,ll.lng]]; if(last) pts.push([last.ll.lat,last.ll.lng]);
-    const z=await elevations(pts); if(z.slice(0,3).some(v=>v==null)) return null;
-    const gx=(z[1]-z[0])/15, gy=(z[2]-z[0])/15, slope=Math.round(Math.atan(Math.hypot(gx,gy))*180/Math.PI);
-    return {z:Math.round(z[0]), slope, asp:compass((Math.atan2(-gx,-gy)*180/Math.PI+360)%360), me:last?z[3]:null};
-  }catch(e){ return null; } }
-async function pointInfo(ll){
-  const s=await slopeData(ll); if(pointLL!==ll || !s) return;
-  $("pAltRow").hidden=false; $("pAlt").textContent=s.z.toLocaleString("fr-FR")+" m";
-  const ch=[`<span class="${s.slope>=30?"warn":""}">Pente ${s.slope}°${s.slope>=30?" · zone d'avalanche possible":""}</span>`];
-  if(s.slope>=3) ch.push(`<span>Versant ${s.asp}</span>`);
-  if(last && s.me!=null){ const d=map.distance(last.ll,ll), up=s.z-s.me, h=d/4000, v=up>0?up/300:-up/500;
-    ch.push(`<span>${fmtD(d)} · ${up>=0?"+":"−"}${Math.abs(Math.round(up))} m depuis vous</span>`, `<span>≈ ${fmtDur(Math.max(h,v)+Math.min(h,v)/2)} à vol d'oiseau</span>`); }
-  $("pChips").innerHTML=ch.join(""); }
-async function slopeAt(ll){ // pente et exposition sur 3 points distants de 15 m
-  try{ const dLat=15/111320, dLng=15/(111320*Math.cos(ll.lat*Math.PI/180));
-    const z=await elevations([[ll.lat,ll.lng],[ll.lat,ll.lng+dLng],[ll.lat+dLat,ll.lng]]); if(z.some(v=>v==null)) return null;
-    const gx=(z[1]-z[0])/15, gy=(z[2]-z[0])/15, slope=Math.atan(Math.hypot(gx,gy))*180/Math.PI;
-    const aspect=(Math.atan2(-gx,-gy)*180/Math.PI+360)%360; // direction vers laquelle la pente descend
-    return Math.round(z[0])+" m · pente "+Math.round(slope)+"°"+(slope>=2?" · exposition "+compass(aspect):"")+(slope>=30?" ⚠":"");
-  }catch(e){ return null; } }
-/* ---- Panneau Cartes : fonds selon le mode, avec aperçu du lieu ---- */
-document.querySelectorAll(".mapc img").forEach(im=>{ im.addEventListener("error",()=>im.closest(".mapc").classList.add("noimg")); im.addEventListener("load",()=>im.closest(".mapc").classList.remove("noimg")); });
-function markSelMaps(){ document.querySelectorAll(".mapc").forEach(el=>el.classList.toggle("sel", el.querySelector("input").value===curBase)); }
-function openMaps(){
-  if(!$("sMaps").hidden) return closeSheets();
-  $("mapsMode").textContent = R() ? "· mode Rando" : "· mode Mer";
-  document.querySelector('.mapc input[value="shom"]').closest(".mapc").hidden = !shomKey;
-  const c=map.getCenter();
-  document.querySelectorAll(".mapc").forEach(el=>{ const k=el.querySelector("input").value, ly=bases[k]; if(!ly || el.offsetParent===null && el.hidden) return;
-    const z=Math.max(6, Math.min(Math.round(map.getZoom()), ly.options.maxNativeZoom||18)), t=tileXY(c.lat,c.lng,z), img=el.querySelector("img");
-    const u=L.Util.template(ly._url,{z,x:t.x,y:t.y,s:"a",r:""}); if(img.dataset.u!==u){ img.dataset.u=u; img.src=u; } });
-  markSelMaps(); openSheet("sMaps");
-}
-$("bLayers").onclick = openMaps;
-document.querySelectorAll("input[name=base]").forEach(r=>r.addEventListener("change", markSelMaps));
-/* ---- Calage : photo superposée + alerte de zoom au-delà de l'échelle de la carte ---- */
-const calLayer = L.tileLayer(geopf("ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg"), {maxZoom:19, bounds:FRANCE, opacity:.5, zIndex:5, attribution:"© IGN"});
-$("calChk").onchange=e=>{ $("calRow").hidden=!e.target.checked; if(e.target.checked){ calLayer.setOpacity($("calOp").value/100); calLayer.addTo(map); } else map.removeLayer(calLayer); };
-$("calOp").oninput=e=>calLayer.setOpacity(e.target.value/100);
-function scaleWarn(){ const ly=bases[curBase], nz=ly&&ly.options.maxNativeZoom, over = nz && map.getZoom()>nz;
-  $("scale").classList.toggle("warn", !!over); $("scale").title = over ? "Zoom au-delà de l'échelle de la carte : détails agrandis, précision non améliorée" : ""; }
-map.on("zoomend", scaleWarn); document.querySelectorAll("input[name=base]").forEach(r=>r.addEventListener("change", scaleWarn)); scaleWarn();
-$("scale").onclick=()=>{ if($("scale").classList.contains("warn")) toast("Carte agrandie au-delà de son échelle d'origine : les détails grossissent, la précision ne s'améliore pas. Gardez une marge de sécurité.", 6000); };
-/* ---- Ombrage du relief (estompage IGN), en mode multiplication pour garder la carte lisible ---- */
-const shadePane=map.createPane("shadePane"); shadePane.style.zIndex=250; shadePane.style.mixBlendMode="multiply"; shadePane.style.pointerEvents="none";
-const shade=L.tileLayer("https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW&STYLE=estompage_grayscale&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png",
-  {pane:"shadePane", maxZoom:19, maxNativeZoom:15, opacity:.9, bounds:FRANCE, attribution:"Relief © IGN"});
-function setShade(on){ store.set("shade",on); $("shadeChk").checked=on; if(on && R() && curBase!=="ortho") shade.addTo(map); else map.removeLayer(shade); }
-$("shadeChk").onchange=e=>setShade(e.target.checked);
-/* ---- Bascule automatique sur les photos aériennes au-delà du détail du 1:25 000 ---- */
-let autoSatOn=false;
-function swapBase(k){ if(k===curBase) return; map.removeLayer(bases[curBase]); curBase=k; bases[k].addTo(map); bases[k].bringToBack();
-  const rb=document.querySelector(`input[name=base][value=${k}]`); if(rb) rb.checked=true; if(typeof markSelMaps==="function") markSelMaps(); setShade(store.get("shade",true)); scaleWarn(); }
-function autoSatCheck(){
-  const lim=(bases.scan25.options.maxNativeZoom||16);
-  if(R() && navigator.onLine && store.get("autoSat",true) && !autoSatOn && curBase==="scan25" && map.getZoom()>lim){ autoSatOn=true; swapBase("ortho"); toast("Zoom maximal : photos aériennes (le 1:25 000 n'a pas plus de détail)",4000); }
-  else if(autoSatOn && (map.getZoom()<=lim || !R() || !store.get("autoSat",true))){ autoSatOn=false; if(curBase==="ortho") swapBase("scan25"); }
-}
-map.on("zoomend", autoSatCheck);
-document.querySelectorAll("input[name=base]").forEach(r=>r.addEventListener("change", ()=>{ autoSatOn=false; setShade(store.get("shade",true)); }));
-$("autoSat").checked=store.get("autoSat",true); $("autoSat").onchange=e=>{ store.set("autoSat",e.target.checked); autoSatCheck(); };
-setShade(store.get("shade",true));
+initFonds();
 /* ================= Routage météo (isochrones) ================= */
 // Polaire de base d'un croiseur : fraction de la vitesse de carène, par angle au vent réel (TWA) et force du vent (TWS, nd)
 const POL_TWS=[4,6,8,10,12,14,16,20,25,30];
@@ -1497,7 +1238,7 @@ const BOATS=[
 // Rapport vitesse sans spi / avec spi, médiane des bateaux ayant les deux certificats ORC (lignes = angles, colonnes = vents)
 const ORC_TWA=[0, 25, 40, 45, 52, 60, 75, 90, 110, 120, 135, 150, 165, 180], ORC_TWS=[4, 6, 8, 10, 12, 14, 16, 20, 24], NSR={twa:ORC_TWA, tws:ORC_TWS, v:[[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,0.993,0.986,0.986,0.986,0.986,0.972],[1,1,1,1,1,0.987,1,0.987,0.987],[1,1,1,1,1,1,1,1,0.988],[1,1,1,1,1,1,1,1,0.989],[1,1,1,1,1,1,1,1,1],[0.99,0.982,0.981,0.976,0.986,0.987,0.996,1,1],[0.86,0.871,0.89,0.919,0.935,0.942,0.948,0.965,0.979],[0.815,0.839,0.867,0.901,0.922,0.927,0.924,0.928,0.947],[0.788,0.821,0.847,0.873,0.902,0.918,0.917,0.894,0.867],[0.8,0.822,0.841,0.852,0.871,0.892,0.909,0.902,0.886],[0.887,0.886,0.895,0.905,0.912,0.928,0.942,0.95,0.943],[0.947,0.935,0.947,0.954,0.959,0.955,0.966,0.97,0.964]]};
 let ORC_DB=null; const orcDb=()=>ORC_DB||(ORC_DB=fetch("lib/polars-orc.json").then(r=>r.json()));
-const RT={boat:store.get("rtBoat","cr11"), orc:store.get("rtOrc",null), spi:store.get("rtSpi",true), L:store.get("rtLen",11), polFile:store.get("rtPolar",null), cur:store.get("rtCur",true),
+export const RT={boat:store.get("rtBoat","cr11"), orc:store.get("rtOrc",null), spi:store.get("rtSpi",true), L:store.get("rtLen",11), polFile:store.get("rtPolar",null), cur:store.get("rtCur",true),
   start:null, dest:null, layer:L.layerGroup().addTo(map), result:null, busy:false};
 const hullSpeed = L => 1.34*Math.sqrt(L*0.9*3.281);   // nœuds, longueur à la flottaison ≈ 90 % de la longueur hors tout
 function interp1(xs, ys, x){ if(x<=xs[0]) return ys[0]; for(let i=1;i<xs.length;i++) if(x<=xs[i]){ const f=(x-xs[i-1])/(xs[i]-xs[i-1]); return ys[i-1]+(ys[i]-ys[i-1])*f; } return ys[ys.length-1]; }
@@ -1541,7 +1282,7 @@ function drawPolar(){
     g.strokeStyle=cols[i]; g.lineWidth=2; g.stroke(); g.fillStyle=cols[i]; g.fillText(t+" nd", W-48, 14+i*13); });
   g.fillStyle="#0d1b2a"; g.fillText("vent ↓", cx-6, 10);
 }
-function renderRouteParams(){
+export function renderRouteParams(){
   const b=BOATS.find(x=>x.id===RT.boat)||BOATS[2];
   if(RT.boat==="orc" && RT.orc) RT.L=RT.orc.L;
   $("rtBoat").value=RT.boat; $("rtLen").value=RT.L; $("rtLen").disabled = RT.boat!=="custom";
@@ -1577,7 +1318,7 @@ $("rtPolIn").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; i
 $("rtPolClear").onclick=()=>{ RT.polFile=null; store.set("rtPolar",null); renderRouteParams(); };
 for(let h=0;h<=48;h+=h<6?1:h<24?3:6){ const o=document.createElement("option"); o.value=h; o.textContent = h===0?"Maintenant":"Dans "+h+" h"; $("rtDep").appendChild(o); }
 const rtMarks=L.layerGroup().addTo(map);
-function drawRtMarks(){ rtMarks.clearLayers();
+export function drawRtMarks(){ rtMarks.clearLayers();
   if(RT.start) L.circleMarker(RT.start,{radius:8,color:"#fff",weight:3,fillColor:"#0b63b6",fillOpacity:1}).bindTooltip("Départ",{permanent:true,direction:"right",className:"mlabel"}).addTo(rtMarks);
   if(RT.dest && !RT.result) L.circleMarker(RT.dest,{radius:8,color:"#fff",weight:3,fillColor:"#1c9e47",fillOpacity:1}).bindTooltip("Arrivée",{permanent:true,direction:"right",className:"mlabel"}).addTo(rtMarks); }
 function rtPick(which){ RT.picking=which; closeSheets(); $("pickTxt").textContent = which==="start" ? "Touchez la carte : point de DÉPART" : "Touchez la carte : point d'ARRIVÉE"; $("pickBar").hidden=false; }
@@ -1707,7 +1448,7 @@ $("rtNav").onclick=()=>{ const r=RT.result; if(!r) return; const P=r.path;
   routes.unshift(rt); store.set("routes",routes); renderRoutes(); startNav(rt.id); };
 
 /* ---- Test des fonds de carte depuis le téléphone ---- */
-function tileXY(lat,lng,z){ const n=2**z, r=lat*Math.PI/180; return {x:Math.floor((lng+180)/360*n), y:Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n), z}; }
+export function tileXY(lat,lng,z){ const n=2**z, r=lat*Math.PI/180; return {x:Math.floor((lng+180)/360*n), y:Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n), z}; }
 const SRC_TEST = [
   ["litto","Carte littorale IGN-SHOM"],["scan25","Carte IGN 1:25 000"],["ign","Plan IGN"],["ortho","Photos aériennes IGN"],
   ["shom","Cartes marines SHOM (clé)"],["emod","Bathymétrie EMODnet"],["osm","OpenStreetMap"]];
@@ -1721,9 +1462,9 @@ $("bTestSrc").onclick = () => {
 };
 /* ================= Réglages ================= */
 $("shomkey").value = shomKey;
-$("bKey").onclick = () => { shomKey=$("shomkey").value.trim(); store.set("shomkey", shomKey);
+$("bKey").onclick = () => { setShomKey($("shomkey").value.trim()); store.set("shomkey", shomKey);
   bases.shom.setUrl(shomUrl("RASTER_MARINE_3857_WMTS")); bases.gebco.setUrl(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"));
-  shomOk=0; shomErr=0; document.querySelector("input[name=base][value=shom]").click(); closeSheets();
+  setShomOk(0); setShomErr(0); document.querySelector("input[name=base][value=shom]").click(); closeSheets();
   toast(shomKey ? "Clé enregistrée : chargement des cartes SHOM…" : "Clé effacée"); };
 { const n=store.get("night",false), t=store.get("nightAt",0); // le mode nuit s'efface seul après 12 h
   $("night").checked = !!n && Date.now()-t < 12*3600e3; if(n && !$("night").checked) store.set("night",false); }
@@ -1924,7 +1665,7 @@ async function renderMassifs(){ const el = $("massifList"), list = await massifL
 $("cOff").addEventListener("toggle", () => { if($("cOff").open && R()) renderMassifs(); });
 /* ================= Instruments (gros chiffres à la barre) ================= */
 var instOn=false, xteWarnT=0;
-function instOpen(){ instOn=true; $("inst").hidden=false; instTick(); if(!tbl.f) loadTable().then(instTick).catch(()=>{}); }
+export function instOpen(){ instOn=true; $("inst").hidden=false; instTick(); if(!tbl.f) loadTable().then(instTick).catch(()=>{}); }
 function instClose(){ instOn=false; $("inst").hidden=true; }
 $("instClose").onclick=instClose;
 function instTick(){ if(!instOn) return;
@@ -2012,7 +1753,7 @@ async function seamarksNear(ll){
   if(!res.ok) throw new Error(res.status); const j=await res.json();
   return j.elements.filter(e=>e.tags).map(e=>({d:map.distance(ll,[e.lat,e.lon]), ...seamarkText(e.tags)}))
     .filter(x=>!/^(harbour|small_craft_facility)$/.test(x.what)).sort((a,b)=>a.d-b.d).slice(0,4); }
-function showSeamarks(ll){ const box=$("pSea"); box.hidden=true; if(R()) return;
+export function showSeamarks(ll){ const box=$("pSea"); box.hidden=true; if(R()) return;
   seamarksNear(ll).then(list=>{ if(pointLL!==ll || !list.length) return;
     box.innerHTML='<b>Balisage à proximité</b>'+list.map(s=>`<div class="sm"><div><strong></strong><small></small></div><span class="lc"></span></div>`).join("");
     box.querySelectorAll(".sm").forEach((el,i)=>{ const s=list[i]; el.querySelector("strong").textContent=s.name||s.what; el.querySelector("small").textContent=(s.name?s.what+" · ":"")+Math.round(s.d)+" m";
@@ -2161,7 +1902,7 @@ function geoScan(){ const box=$("geoFloat"), grp=RANDO_OVL.geol; if(!R() || !map
   box.innerHTML='<b>Terrains à l\'écran · indicatif</b>'+Object.entries(merged).sort((a,b)=>b[1].n-a[1].n).map(([t,o])=>`<span><i style="background:${o.c}"></i>${t}<em>${Math.round(o.n/tot*100)} %</em></span>`).join("")+'<small>D\'après les couleurs de la carte. Nom exact des roches : infoterre.brgm.fr</small>';
   box.hidden=false; }
 // Terrain sous un point touché : on lit le pixel de la tuile géologique affichée
-function geoAt(ll){ const grp=RANDO_OVL.geol; if(!map.hasLayer(grp)) return null; let out=null;
+export function geoAt(ll){ const grp=RANDO_OVL.geol; if(!map.hasLayer(grp)) return null; let out=null;
   grp.eachLayer(ly=>{ if(out || !ly._map) return; const z=ly._tileZoom; if(z==null) return; const pt=map.project(ll,z), ts=ly.getTileSize(), cx=Math.floor(pt.x/ts.x), cy=Math.floor(pt.y/ts.y);
     const t=Object.values(ly._tiles||{}).find(t=>t.coords.x===cx && t.coords.y===cy && t.coords.z===z); if(!t||!t.el.complete||!t.el.naturalWidth) return;
     try{ const g=geoCv.getContext("2d",{willReadFrequently:true}), px=Math.floor((pt.x-cx*ts.x)/ts.x*t.el.naturalWidth), py=Math.floor((pt.y-cy*ts.y)/ts.y*t.el.naturalHeight);
@@ -2173,55 +1914,7 @@ function geoAt(ll){ const grp=RANDO_OVL.geol; if(!map.hasLayer(grp)) return null
   return out; }
 RANDO_OVL.geol.eachLayer(l=>l.on("load", ()=>{ clearTimeout(geoT); geoT=setTimeout(geoScan,300); }));
 RANDO_OVL.forest.on("load", ()=>{ clearTimeout(forT); forT=setTimeout(forScan,300); });
-/* ================= Boussole et rotation de la carte (maison, sans dépendance) ================= */
-const ROT={on:false, bearing:0, heading:null, src:null, mode:"north"}; // north | heading (suit la marche) | free (tournée à la main)
-const mapEl=map.getContainer(), ctlEl=mapEl.querySelector(".leaflet-control-container");
-function rotLayout(){ const w=innerWidth, h=innerHeight;
-  if(!ROT.on){ mapEl.style.cssText=""; ctlEl.style.cssText=""; map.invalidateSize(); return; }
-  const d=Math.ceil(Math.hypot(w,h));
-  Object.assign(mapEl.style,{inset:"auto", width:d+"px", height:d+"px", left:((w-d)/2)+"px", top:((h-d)/2)+"px"});
-  Object.assign(ctlEl.style,{position:"absolute", left:((d-w)/2)+"px", top:((d-h)/2)+"px", width:w+"px", height:h+"px"});
-  map.invalidateSize(); applyBearing(); }
-function applyBearing(){ const b=ROT.on?ROT.bearing:0;
-  mapEl.style.transform = ROT.on ? `rotate(${-b}deg)` : ""; ctlEl.style.transform = ROT.on ? `rotate(${b}deg)` : "";
-  $("compassNeedle").style.transform=`rotate(${-b}deg)`; }
-// les gestes : on ramène les coordonnées écran dans le repère de la carte tournée
-const _m2c=map.mouseEventToContainerPoint.bind(map);
-map.mouseEventToContainerPoint=function(e){ if(!ROT.on) return _m2c(e);
-  const r=mapEl.getBoundingClientRect(), x=e.clientX-(r.left+r.width/2), y=e.clientY-(r.top+r.height/2), a=ROT.bearing*Math.PI/180, c=Math.cos(a), sn=Math.sin(a);
-  return L.point(x*c-y*sn+mapEl.offsetWidth/2, x*sn+y*c+mapEl.offsetHeight/2); };
-map.dragging._draggable.on("predrag", function(){ if(!ROT.on) return; const d=this, o=d._newPos.subtract(d._startPos), a=ROT.bearing*Math.PI/180, c=Math.cos(a), sn=Math.sin(a);
-  d._newPos=d._startPos.add(L.point(o.x*c-o.y*sn, o.x*sn+o.y*c)); });
-addEventListener("resize", ()=>{ if(ROT.on) rotLayout(); });
-// cap : boussole du téléphone (rando, ou bateau à l'arrêt), sinon route GPS
-function onOrient(e){ let h=null; if(e.webkitCompassHeading!=null) h=e.webkitCompassHeading; else if(e.absolute && e.alpha!=null) h=360-e.alpha; if(h==null || isNaN(h)) return;
-  h=(h+((screen.orientation&&screen.orientation.angle)||0)+360)%360;
-  ROT.heading = ROT.heading==null ? h : (ROT.heading + (((h-ROT.heading+540)%360)-180)*0.25 + 360)%360; ROT.src="compass"; headTick(); }
-let orientOn=false; async function orientStart(){ if(orientOn) return; orientOn=true;
-  try{ if(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission==="function"){ const r=await DeviceOrientationEvent.requestPermission(); if(r!=="granted"){ toast("Boussole refusée"); } } }catch(e){}
-  if("ondeviceorientationabsolute" in window) addEventListener("deviceorientationabsolute", onOrient); else addEventListener("deviceorientation", onOrient); }
-let headCone=null, headT=0;
-function headTick(){ if(Date.now()-headT<120) return; headT=Date.now();
-  const moving = sogNow!=null && sogNow>(R()?1.2:1.5), cog=parseFloat($("cog").textContent);
-  const hd = (!R() && moving && isFinite(cog)) ? cog : ROT.heading;
-  if(last && ROT.heading!=null && R()){ const html=`<svg viewBox="-60 -60 120 120" width="120" height="120" style="transform:rotate(${ROT.heading}deg)"><path d="M0 0 L-26 -54 A60 60 0 0 1 26 -54 Z" fill="rgba(29,111,184,.22)"/></svg>`;
-    if(!headCone) headCone=L.marker(last.ll,{icon:L.divIcon({className:"",iconSize:[120,120],iconAnchor:[60,60],html}),interactive:false,zIndexOffset:900}).addTo(map);
-    else { headCone.setLatLng(last.ll); const el=headCone.getElement(); if(el) el.innerHTML=html; } }
-  if(ROT.on && ROT.mode==="heading" && hd!=null){ ROT.bearing=hd; applyBearing(); } }
-function rotNorth(){ ROT.on=false; ROT.mode="north"; ROT.bearing=0; rotLayout(); applyBearing(); $("bCompass").classList.remove("on"); }
-$("bCompass").onclick=async()=>{ if(ROT.on){ rotNorth(); toast("Nord en haut"); return; }
-  await orientStart(); ROT.on=true; ROT.mode="heading"; $("bCompass").classList.add("on"); rotLayout(); setFollow(true); if(last) map.panTo(last.ll);
-  toast(R()?"Carte orientée dans le sens de la marche (boussole)":"Carte orientée selon la route du bateau",3000); headTick(); };
-// rotation libre à deux doigts (au-delà de 12° pour ne pas gêner le zoom)
-let rg=null; const tAng=e=>Math.atan2(e.touches[1].clientY-e.touches[0].clientY, e.touches[1].clientX-e.touches[0].clientX)*180/Math.PI;
-mapEl.addEventListener("touchstart", e=>{ if(e.touches.length===2) rg={a0:tAng(e), b0:ROT.bearing, active:false}; else rg=null; }, {passive:true});
-mapEl.addEventListener("touchmove", e=>{ if(!rg || e.touches.length!==2) return; const d=((tAng(e)-rg.a0+540)%360)-180;
-  if(!rg.active){ if(Math.abs(d)<12) return; rg.active=true; rg.a0+=d>0?12:-12; if(!ROT.on){ ROT.on=true; rotLayout(); } ROT.mode="free"; $("bCompass").classList.add("on"); return; }
-  ROT.bearing=(rg.b0-d+720)%360; applyBearing(); }, {passive:true});
-mapEl.addEventListener("touchend", e=>{ if(e.touches.length<2) rg=null; }, {passive:true});
-// ordinateur : Maj + molette pour tourner
-mapEl.addEventListener("wheel", e=>{ if(!e.shiftKey) return; e.preventDefault(); e.stopPropagation(); if(!ROT.on){ ROT.on=true; rotLayout(); $("bCompass").classList.add("on"); } ROT.mode="free"; ROT.bearing=(ROT.bearing+(e.deltaY>0?5:-5)+360)%360; applyBearing(); }, {passive:false, capture:true});
-if(R()) setTimeout(()=>{ if(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission!=="function") orientStart(); }, 2000);
+initBoussole();
 /* ================= Vent mesuré en direct (OpenWindMap / Pioupiou) ================= */
 const LW={layer:L.layerGroup(), data:null, t:0, timer:null};
 const lwCol=k=>k<10?"#7ED957":k<17?"#FFD54F":k<25?"#FF9800":k<34?"#E5372B":"#8E24AA";
@@ -2393,7 +2086,7 @@ function v3H(u, v){ // altitude (m), interpolation bilinéaire dans la grille
 }
 const v3X = u => (u-.5)*V3.S, v3Z = v => (v-.5)*V3.S, v3Y = m => (m-V3.h0)/1000*V3.pref.exag;
 
-async function open3D(opt){
+export async function open3D(opt){
   if(V3.open) return; opt = opt && opt.c ? opt : null;
   if(!FRANCE.contains(opt ? opt.c : map.getCenter())){ toast("Vue 3D : France seulement (relief IGN)"); return; }
   { const vp = document.querySelector('meta[name="viewport"]'); if(vp){ const c = vp.content; vp.content = c+",minimum-scale=1"; setTimeout(() => vp.content = c, 50); } } // annule un zoom de page resté actif
@@ -2623,3 +2316,6 @@ setInterval(checkUpdate, 30*60e3); setTimeout(checkUpdate, 8000);
 if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
 // Accès depuis la console et pour les tests automatiques (Playwright, tools-check.js)
 Object.assign(window, { $, map, RT, fixTl, crowdCheck });
+
+// pour les autres modules (une variable importée ne peut pas être modifiée directement)
+export function setMProfT(v){ mProfT = v; return v; }
