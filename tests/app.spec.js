@@ -143,3 +143,16 @@ test("menu Plus", async ({ page }) => {
   await page.click("#bRouting");
   await expect(page.locator("#sRouting")).toBeVisible();
 });
+
+test("bandeau « Nouvelle version » (version lue dans la page servie)", async ({ page }) => {
+  await open(page);
+  // même version que la page servie : pas de bandeau
+  const html = await (await page.request.get("./")).text();
+  const served = html.match(/APP_VERSION\s*=\s*"([^"]+)"/);
+  expect(served, "index.html contient APP_VERSION").not.toBeNull();
+  await expect(page.locator("#spVer")).toContainText(served[1]);
+  // le serveur annonce une version plus récente : le bandeau apparaît (vérification 8 s après le démarrage)
+  await page.route(/\?check=/, r => r.fulfill({ contentType: "text/html", body: html.replace(served[0], 'APP_VERSION = "9999.01.01-z"') }));
+  await expect(page.locator("#updBar")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("#updVer")).toHaveText("9999.01.01-z");
+});
