@@ -2,7 +2,9 @@
 // Le site de test /beta/ a son propre service worker et ses propres caches (même origine que la production)
 const BETA = /\/beta\/sw\.js$/.test(self.location.pathname), CN = BETA ? "navshom-beta-" : "navshom-";
 const APP = CN + "app-v93", TILES = CN + "tiles", BETA_URL = new URL("beta/", self.location).href;
-const SHELL = ["./", "index.html", "lib/leaflet.js", "lib/leaflet.css", "lib/landmask.png", "lib/fonts/inter-latin-400-normal.woff2", "lib/fonts/inter-latin-500-normal.woff2", "lib/fonts/inter-latin-600-normal.woff2", "lib/fonts/inter-latin-700-normal.woff2", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
+// fichiers construits par Vite (assets/…, noms changeants) : liste remplie à la construction par vite.config.js
+const BUILT = [];
+const SHELL = ["./", "index.html", "lib/leaflet.js", "lib/leaflet.css", "lib/landmask.png", "lib/fonts/inter-latin-400-normal.woff2", "lib/fonts/inter-latin-500-normal.woff2", "lib/fonts/inter-latin-600-normal.woff2", "lib/fonts/inter-latin-700-normal.woff2", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png", ...BUILT];
 self.addEventListener("install", e => { e.waitUntil(caches.open(APP).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith(CN + "app-") && k !== APP).map(k => caches.delete(k))))); self.clients.claim(); });
 const isTile = u => /services\.data\.shom\.fr|tile\.openstreetmap\.org|tiles\.openseamap\.org|tiles\.emodnet-bathymetry\.eu|data\.geopf\.fr/.test(u);

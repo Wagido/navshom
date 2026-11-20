@@ -1,4 +1,5 @@
 // Tests automatiques de Balise : Chromium, profil Pixel 7, réseau externe simulé (tests/mock.js)
+// Ils portent sur le site construit (dist/) : le serveur de test lance d'abord la construction (npm run build).
 const { defineConfig, devices } = require("@playwright/test");
 module.exports = defineConfig({
   testDir: "tests",
@@ -18,5 +19,5 @@ module.exports = defineConfig({
     trace: "off",
   },
   projects: [{ name: "Pixel 7", use: { ...devices["Pixel 7"] } }],
-  webServer: { command: "node tests/server.js 8799", url: "http://localhost:8799/", reuseExistingServer: !process.env.CI },
+  webServer: { command: "npm run build && node tests/server.js 8799", url: "http://localhost:8799/", reuseExistingServer: !process.env.CI },
 });

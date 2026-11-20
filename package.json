@@ -1,13 +1,17 @@
 {
   "name": "balise",
   "private": true,
-  "description": "Balise : tests automatiques (Playwright)",
+  "description": "Balise : construction du site (Vite) et tests automatiques (Playwright)",
+  "type": "commonjs",
   "scripts": {
-    "serve": "python3 -m http.server 8799",
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "node tests/server.js 8799",
     "test": "playwright test",
     "check-layout": "node tools-check.js http://localhost:8799/"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0"
+    "@playwright/test": "1.63.0",
+    "vite": "7.3.8"
   }
 }

@@ -7,10 +7,10 @@ on:
     paths:
       - ".github/workflows/android.yml"
       - "android-debug.keystore"
-      - "icon.svg"
-      - "icon-192.png"
-      - "icon-512.png"
-      - "manifest.webmanifest"
+      - "public/icon.svg"
+      - "public/icon-192.png"
+      - "public/icon-512.png"
+      - "public/manifest.webmanifest"
   workflow_dispatch:
 
 permissions:
@@ -29,12 +29,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
+
+      - name: Construire le site (copie locale de secours dans l'APK)
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
 
       - name: Préparer le projet Capacitor
         run: |
+          # le site construit, sans les paquets de relief (lourds, téléchargés à la demande depuis le site en ligne)
           mkdir -p build/www
-          cp -r index.html sw.js manifest.webmanifest icon.svg icon-192.png icon-512.png lib build/www/
+          cp -r dist/. build/www/
+          rm -rf build/www/relief
           cd build
           npm init -y >/dev/null
           npm install @capacitor/core@6.2.0 @capacitor/cli@6.2.0 @capacitor/android@6.2.0 @capacitor-community/background-geolocation@1.2.26 @capacitor/local-notifications@6.1.3 @capacitor/filesystem@6.0.4 @capacitor/share@6.0.4
@@ -58,7 +65,7 @@ jobs:
           # Icône de l'app
           R=android/app/src/main/res
           rm -rf $R/mipmap-anydpi-v26
-          for d in $R/mipmap-*; do cp ../icon-512.png $d/ic_launcher.png; cp ../icon-512.png $d/ic_launcher_round.png; rm -f $d/ic_launcher_foreground.png; done
+          for d in $R/mipmap-*; do cp ../public/icon-512.png $d/ic_launcher.png; cp ../public/icon-512.png $d/ic_launcher_round.png; rm -f $d/ic_launcher_foreground.png; done
           # Taille du texte fixe : ignore le réglage "taille de police" d'Android (sinon tout grossit)
           cat > android/app/src/main/java/fr/navshom/app/MainActivity.java <<'JAVA'
           package fr.navshom.app;

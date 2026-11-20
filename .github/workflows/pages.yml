@@ -116,18 +116,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Assembler main (racine) et beta (/beta/)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Construire et assembler main (racine) et beta (/beta/)
         run: |
           git fetch --force --tags origin
           git rev-parse -q --verify "refs/tags/teste-main" >/dev/null || { echo "::error::Aucune version de main n'a encore passé les tests"; exit 1; }
+          # construit la version retenue par l'étiquette $1 (npm run build → dist/) et la copie dans $2
+          construire() {
+            src="$RUNNER_TEMP/src-$1"; rm -rf "$src"; mkdir -p "$src" "$2"
+            git archive "$1" | tar -x -C "$src"
+            if [ -f "$src/vite.config.js" ]; then
+              (cd "$src" && npm ci --no-audit --no-fund && npm run build)
+              cp -r "$src/dist/." "$2/"
+            else
+              # ancienne organisation (avant Vite) : le dépôt est le site, moins les fichiers de développement
+              cp -r "$src/." "$2/"
+              rm -rf "$2/.github" "$2/tests" "$2/package.json" "$2/package-lock.json" "$2/playwright.config.js" "$2/.gitignore"
+            fi
+          }
           mkdir -p _site
-          git archive teste-main | tar -x -C _site
-          if git rev-parse -q --verify "refs/tags/teste-beta" >/dev/null; then mkdir -p _site/beta; git archive teste-beta | tar -x -C _site/beta; fi
-          # fichiers de développement, inutiles sur le site
-          for d in _site _site/beta; do
-            [ -d "$d" ] || continue
-            rm -rf "$d/.github" "$d/tests" "$d/package.json" "$d/package-lock.json" "$d/playwright.config.js" "$d/.gitignore"
-          done
+          construire teste-main _site
+          if git rev-parse -q --verify "refs/tags/teste-beta" >/dev/null; then construire teste-beta _site/beta; fi
           touch _site/.nojekyll
           echo "production : $(git rev-parse --short teste-main) · beta : $(git rev-parse -q --short teste-beta || echo aucune)"
           du -sh _site

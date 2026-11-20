@@ -3,7 +3,7 @@
 //   node tools-relief.js ecrins     → un seul
 // Source : WMS Géoplateforme ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES (IGN, Licence Ouverte 2.0), demandé par blocs
 // de 8 × 8 tuiles (1024 px) avec une pause entre deux requêtes, pour ménager le service.
-// Sortie : relief/<id>.bin.gz et relief/massifs.json. Le format reprend exactement les tuiles de la vue 3D
+// Sortie : public/relief/<id>.bin.gz et public/relief/massifs.json. Le format reprend exactement les tuiles de la vue 3D
 // (grille Web Mercator z13, 128 × 128 px) : l'appli les range dans le cache sous l'adresse WMS de chaque tuile.
 //
 // Format (avant gzip) : "BRL1", puis uint16 LE x0, y0, nx, ny (tuiles z13), puis pour chaque tuile (ligne par ligne,
@@ -38,7 +38,7 @@ function get(bbox, n){ // curl : suit le proxy et les certificats du système
   throw new Error("échec "+url);
 }
 (async () => {
-  const only = process.argv[2], dir = path.join(__dirname, "relief"); fs.mkdirSync(dir, {recursive:true});
+  const only = process.argv[2], dir = path.join(__dirname, "public", "relief"); fs.mkdirSync(dir, {recursive:true});
   const listFile = path.join(dir, "massifs.json"), list = fs.existsSync(listFile) ? JSON.parse(fs.readFileSync(listFile)) : [];
   for(const [id, name, s, w, n, e] of MASSIFS){
     if(only && only !== id) continue;
