@@ -18,7 +18,8 @@
 ## Le circuit d'une modification
 
 1. **Modifier sur `beta`** (jamais directement sur `main`).
-   - Incrémenter `APP_VERSION` dans `index.html` et le numéro du cache `navshom-app-vN` dans `sw.js`.
+   - Le code est dans `src/` (un fichier par thème, voir ARCHITECTURE §4), la page dans `index.html`, les fichiers fixes dans `public/`.
+   - Incrémenter `APP_VERSION` dans `index.html` (ligne `window.APP_VERSION = "…"`, en tête) et le numéro du cache `navshom-app-vN` dans `src/sw.js`.
 2. **Pousser `beta`.** GitHub Actions lance les tests (environ 5 minutes). S'ils passent, /beta/ est mise à jour (une à deux minutes de plus).
    - Suivi : onglet **Actions** du dépôt, workflow « Tests et publication ».
    - Si les tests échouent, /beta/ reste sur sa version précédente. Le rapport (captures, détails) est dans l'onglet Actions, en bas de l'exécution, « rapport-tests-beta ».
@@ -45,19 +46,33 @@ Ils tournent sur GitHub à chaque push et à chaque pull request (Chromium, prof
 | Hors ligne | Après une première visite, l'appli redémarre sans réseau |
 | Séparation bêta | /beta/ a son service worker, ses caches et ses réglages, sans toucher à ceux de la production |
 | Mise en page | `tools-check.js` : 5 écrans × 6 états × 2 modes, aucun chevauchement ni débordement |
+| Nouvelle version | La page servie contient `APP_VERSION` ; une version plus récente fait apparaître le bandeau |
 
 **Aucun appel aux vrais services** pendant les tests (Open-Meteo, IGN, SHOM, OpenStreetMap, Overpass…) : `tests/mock.js` fabrique des réponses toujours identiques (météo, altitudes, itinéraires, tuiles). Les tests sont donc fiables et ne consomment aucun quota.
+
+## Construire et lancer en local
+
+Le site publié n'est plus le dépôt tel quel : il est **construit** par Vite dans `dist/` (les modules de `src/` assemblés, `public/` copié, le service worker complété).
+
+```
+npm install                       # une seule fois (Vite, Playwright)
+npm run build                     # construit le site dans dist/ (une seconde)
+npm run serve                     # sert dist/ sur http://localhost:8799/ (et /beta/), comme le vrai site
+npm run dev                       # mode développement : http://localhost:5173/, rechargé à chaque modification
+```
+
+- `npm run dev` sert directement `src/` (sans construction) ; le service worker n'y est pas actif : pour essayer le hors ligne, `npm run build` puis `npm run serve`.
+- Après une modification, refaire `npm run build` avant `npm run serve`.
 
 ### Lancer les tests sur un ordinateur
 
 ```
-npm install
 npx playwright install chromium   # une seule fois
-npx playwright test               # tous les tests
+npx playwright test               # tous les tests (construit d'abord le site)
 npx playwright test -g Météo      # seulement ceux dont le nom contient « Météo »
 ```
 
-Le serveur local (`node tests/server.js 8799`) est démarré tout seul. Il sert aussi le dépôt sous `/beta/`, comme le vrai site. Pour regarder l'appli soi-même : `npm run serve`, puis http://localhost:8799/.
+Les tests portent sur le **site construit** : Playwright lance `npm run build`, puis le serveur local (`node tests/server.js 8799`), qui sert `dist/` à la racine et sous `/beta/`. Si un serveur tourne déjà sur le port 8799 (`npm run serve`), il est réutilisé : refaire `npm run build` avant.
 
 ## Fichiers ajoutés
 
@@ -69,8 +84,9 @@ tests/app.spec.js             # parcours de l'appli
 tests/beta-offline.spec.js    # hors ligne et séparation de la bêta
 tests/layout.spec.js          # lance tools-check.js
 tests/mock.js                 # réponses simulées des services externes
-tests/server.js               # serveur local (racine et /beta/)
-package.json                  # version de Playwright utilisée
+tests/server.js               # serveur local : sert dist/ (racine et /beta/)
+package.json                  # versions de Vite et Playwright, commandes npm run …
+vite.config.js                # construction du site (dist/)
 ```
 
 Ces fichiers ne sont pas publiés sur le site.
@@ -79,9 +95,10 @@ Ces fichiers ne sont pas publiés sur le site.
 
 - Le workflow « Tests et publication » (`pages.yml`) tourne à chaque push sur `main` ou `beta`.
 - Il teste chaque branche qui a changé, puis retient la dernière version qui a passé les tests avec une étiquette git : `teste-main` et `teste-beta` (visibles dans l'onglet Tags du dépôt : ne pas les supprimer).
-- Il assemble le site : `teste-main` à la racine, `teste-beta` dans `beta/`, et le publie avec `actions/deploy-pages`.
+- Il **construit** chaque version retenue (`npm ci`, `npm run build`) et assemble le site : `dist/` de `teste-main` à la racine, `dist/` de `teste-beta` dans `beta/`, puis le publie avec `actions/deploy-pages`. (Une version d'avant Vite, sans `vite.config.js`, est copiée telle quelle.)
+- Attention : la publication utilise le `pages.yml` **de `main`**. Une modification de `pages.yml` ne s'applique donc qu'une fois arrivée sur `main`.
 - La publication tourne toujours depuis `main` : un push sur `beta` relance tout seul le workflow sur `main`. On peut aussi le lancer à la main : Actions › Tests et publication › Run workflow (branche `main`).
-- L'APK (`android.yml`) ne change pas : il n'est reconstruit que si la partie Android change, et il charge toujours la production.
+- L'APK (`android.yml`) construit le site et embarque `dist/` comme copie de secours ; il n'est reconstruit que si la partie Android change (`android.yml`, clé, `public/icon*`, `public/manifest.webmanifest`), et il charge toujours la production.
 
 ## Réglage GitHub (une seule fois)
 

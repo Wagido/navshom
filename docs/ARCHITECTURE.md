@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.20-a · Dernière mise à jour : 20 novembre 2026
+> Statut : version 2026.11.20-c · Dernière mise à jour : 20 novembre 2026
 
 > Méthode de travail (beta, tests, publication) : voir [TRAVAIL.md](TRAVAIL.md).
 
@@ -36,7 +36,7 @@ C'est une **application web installable** (PWA) : un seul code HTML/JS publié s
 | Gratuit, sans abonnement ni pub | Uniquement des données ouvertes ; aucun backend |
 | Utilisable en mer sans réseau | Service worker, cache des tuiles, zones téléchargées avec 3 jours de météo |
 | Mise à jour sans passer par un store | L'APK charge le site en ligne ; le site est la source unique |
-| Un seul développeur, itérations rapides | Un seul fichier applicatif, aucune étape de build côté web ; site de test /beta/ et tests automatiques avant la production |
+| Un seul développeur, itérations rapides | Modules ES sans framework, construction légère (Vite, une seconde) ; site de test /beta/ et tests automatiques avant la production |
 | Respect des fournisseurs de données | Pas de contournement d'accès (refus d'usurper le *referer* SHOM) ; quotas Open-Meteo économisés ; pas de téléchargement en masse des tuiles OpenStreetMap |
 | Lisible en mer, au soleil, en mouvement | Style « Clarté » : fond blanc, gros chiffres, peu de boutons, mode nuit rouge |
 
@@ -44,12 +44,13 @@ C'est une **application web installable** (PWA) : un seul code HTML/JS publié s
 
 | Couche | Choix | Pourquoi |
 |---|---|---|
-| Carte | **Leaflet 1.9.4** (embarqué dans `lib/`) | Léger, éprouvé, fonctionne hors ligne |
-| Interface | HTML + CSS + JavaScript « vanilla » | Pas de framework, pas de build, démarrage instantané |
-| Vue 3D (Rando) | **Three.js r147** (embarqué dans `lib/`, chargé à la demande) | Version non-module : pas de build ; OrbitControls pour les gestes |
+| Carte | **Leaflet 1.9.4** (embarqué dans `public/lib/`) | Léger, éprouvé, fonctionne hors ligne |
+| Interface | HTML + CSS + JavaScript « vanilla » en **modules ES** (`src/`) | Pas de framework, démarrage instantané |
+| Construction | **Vite 7** (`npm run build` → `dist/`) | Assemble les modules en un fichier, ajoute les fichiers construits au service worker ; base relative pour la racine et /beta/ |
+| Vue 3D (Rando) | **Three.js r147** (embarqué dans `public/lib/`, chargé à la demande) | Version non-module, hors construction ; OrbitControls pour les gestes |
 | Rendu météo | **Canvas 2D** (dégradé, particules, chiffres) | Fluide sur mobile, sans dépendance |
 | Police | **Inter** (embarquée, licence OFL) | Lisible, chiffres tabulaires, identique partout |
-| Hors ligne | **Service worker** (`sw.js`) + Cache API | Standard web |
+| Hors ligne | **Service worker** (`src/sw.js`, publié en `sw.js`) + Cache API | Standard web |
 | Hébergement | **GitHub Pages**, publié par GitHub Actions | Gratuit, HTTPS (obligatoire pour le GPS) ; production et /beta/ |
 | Tests | **Playwright** (Chromium, Pixel 7), sur GitHub Actions | Réseau externe simulé : fiable, sans quota |
 | App Android | **Capacitor 6** (WebView), construit par **GitHub Actions** | APK sans Android Studio |
@@ -58,36 +59,59 @@ C'est une **application web installable** (PWA) : un seul code HTML/JS publié s
 
 ```
 navshom/
-├── index.html              # toute l'application (≈ 2 900 lignes : HTML, CSS, JS)
-├── sw.js                   # service worker : cache de l'app et des tuiles
-├── manifest.webmanifest    # métadonnées PWA (nom, icônes, couleurs)
-├── icon.svg, icon-*.png    # icônes
-├── lib/
-│   ├── leaflet.js / .css   # bibliothèque de carte
-│   ├── landmask.png        # masque terre/mer France (GLOBE ~1 km)
-│   ├── polars-orc.json     # 604 polaires de série (certificats ORC), chargé à la demande
-│   ├── three.min.js        # Three.js r147 (MIT), chargé à l'ouverture de la vue 3D
-│   ├── three-orbit.js      # OrbitControls (gestes de la vue 3D)
-│   ├── LICENSE-three.txt
-│   └── fonts/              # police Inter (woff2) + licence
-├── relief/
-│   ├── massifs.json        # liste des paquets de relief (nom, emprise, taille)
-│   └── <massif>.bin.gz     # relief d'un massif pour la vue 3D hors ligne (15 massifs, ≈ 34 Mo en tout)
-├── tools-relief.js         # prépare les paquets de relief (à lancer une fois, depuis le WMS IGN)
+├── index.html              # la page : structure HTML (panneaux, boutons) et APP_VERSION
+├── src/                    # le code de l'appli (modules ES), assemblé par Vite
+│   ├── main.js             # point d'entrée : importe les modules, lance leur démarrage dans l'ordre
+│   ├── utils.js            # $, stockage (nav_ / navb_), messages, formats, constantes BETA, LSP, CN
+│   ├── style.css           # tous les styles
+│   ├── sw.js               # service worker (cache de l'app et des tuiles), publié en sw.js
+│   ├── carte/              # carte.js (Leaflet, fonds, mode), point.js (point, repères, MOB), mesure.js,
+│   │                       #   fonds.js (satellite, pentes, panneau Cartes, calage), boussole.js
+│   ├── gps/                # gps.js (position, vitesse, cap), natif.js (APK : notifications, son, GPS en arrière-plan)
+│   ├── meteo/              # calques.js, tableau.js, particules.js, masque.js (terre/mer), previsions.js (7 jours),
+│   │                       #   pluie.js, vent-direct.js
+│   ├── mer/                # courant.js, marees.js, maregraphes.js, routes.js, routage.js (et polaires),
+│   │                       #   instruments.js, ais.js, mouillage.js, balisage.js
+│   ├── rando/              # rando.js (mode, altitude, profils), traces.js, itineraires.js,
+│   │                       #   surimpressions.js (sentiers, cadastre, forêts, géologie), refuges.js, vue3d.js
+│   ├── horsligne/          # zones.js (zones téléchargées), relief.js (paquets par massif), meteo.js (météo 3 jours)
+│   └── ui/                 # panneaux.js (panneaux, menu Plus), recherche.js, reglages.js, sauvegarde.js,
+│                           #   version.js (démarrage, À propos, « Nouvelle version », service worker)
+├── public/                 # copié tel quel dans le site construit
+│   ├── manifest.webmanifest, icon.svg, icon-*.png
+│   ├── lib/
+│   │   ├── leaflet.js / .css   # bibliothèque de carte (script classique, variable L)
+│   │   ├── landmask.png        # masque terre/mer France (GLOBE ~1 km)
+│   │   ├── polars-orc.json     # 604 polaires de série (certificats ORC), chargé à la demande
+│   │   ├── three.min.js        # Three.js r147 (MIT), chargé à l'ouverture de la vue 3D
+│   │   ├── three-orbit.js      # OrbitControls (gestes de la vue 3D)
+│   │   ├── LICENSE-three.txt
+│   │   └── fonts/              # police Inter (woff2) + licence
+│   └── relief/
+│       ├── massifs.json        # liste des paquets de relief (nom, emprise, taille)
+│       └── <massif>.bin.gz     # relief d'un massif pour la vue 3D hors ligne (15 massifs, ≈ 34 Mo en tout)
+├── vite.config.js          # construction : base relative, liste des fichiers construits ajoutée au service worker
+├── dist/                   # site construit (npm run build), non versionné
+├── tools-relief.js         # prépare les paquets de relief (à lancer une fois, depuis le WMS IGN) → public/relief/
 ├── tools-check.js          # contrôle automatique de mise en page (Playwright)
 ├── android-debug.keystore  # clé fixe de signature de l'APK
 ├── tests/                  # tests automatiques Playwright (non publiés), voir §9
 ├── playwright.config.js, package.json
 ├── .github/workflows/
-│   ├── pages.yml           # tests puis publication GitHub Pages (main à la racine, beta dans /beta/)
+│   ├── pages.yml           # tests, construction puis publication GitHub Pages (main à la racine, beta dans /beta/)
 │   ├── tests.yml           # tests (pull requests, autres branches, appelé par pages.yml)
 │   └── android.yml         # construction et publication de l'APK
 └── docs/
     ├── ARCHITECTURE.md     # ce document
-    └── TRAVAIL.md          # méthode : beta, tests, publication
+    └── TRAVAIL.md          # méthode : beta, tests, publication, construction
 ```
 
-Choix assumé : **un seul `index.html`**. Si l'app grossit encore, le découpage naturel suit les modules du §5.
+**Comment les modules sont organisés** (depuis 2026.11.20-c, sans changement visible) :
+- chaque module ne contient que des **déclarations** (fonctions, constantes) et une fonction `initXxx()` avec son code de démarrage (boutons, état initial) ;
+- `main.js` appelle les `initXxx()` **dans l'ordre de l'ancien fichier unique** : l'appli démarre exactement comme avant ;
+- un module lit les variables d'un autre par `import` ; pour en **modifier** une, il appelle sa fonction `setXxx()` (une variable importée ne peut pas être modifiée directement en JavaScript), par exemple `setMODE`, `setCurBase` ;
+- Leaflet (`L`) et Three.js (`THREE`) restent des scripts classiques de `public/lib/` ;
+- `map`, `RT`, `$`, `fixTl`, `crowdCheck` sont aussi posés sur `window`, pour la console et les tests.
 
 ## 5. Architecture applicative
 
@@ -112,7 +136,7 @@ flowchart LR
   Map -.passe par.-> SW
 ```
 
-### Modules (sections de `index.html`)
+### Modules (fichiers de `src/`, voir §4)
 
 | Module | Rôle | Points clés |
 |---|---|---|
@@ -257,7 +281,7 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 - le bouton « Météo » d'une zone la rafraîchit avant de partir ;
 - supprimer une zone retire ses tuiles, sauf celles partagées avec une autre zone.
 
-**Site de test /beta/** : même origine que la production (`wagido.github.io`), donc mêmes `localStorage` et Cache API. Pour ne rien mélanger, `index.html` et `sw.js` détectent `/beta/` dans l'adresse : la bêta utilise le préfixe `navb_` au lieu de `nav_` et des caches `navshom-beta-…` au lieu de `navshom-…` (constantes `BETA`, `LSP`, `CN`). Le service worker de la production ignore les adresses sous `/beta/`, qui ont leur propre service worker (portée `/navshom/beta/`). La sauvegarde garde le format `nav_…` : un fichier de la production se restaure dans la bêta et inversement.
+**Site de test /beta/** : même origine que la production (`wagido.github.io`), donc mêmes `localStorage` et Cache API. Pour ne rien mélanger, `src/utils.js` et `src/sw.js` détectent `/beta/` dans l'adresse : la bêta utilise le préfixe `navb_` au lieu de `nav_` et des caches `navshom-beta-…` au lieu de `navshom-…` (constantes `BETA`, `LSP`, `CN`). Le service worker de la production ignore les adresses sous `/beta/`, qui ont leur propre service worker (portée `/navshom/beta/`). La sauvegarde garde le format `nav_…` : un fichier de la production se restaure dans la bêta et inversement.
 
 Les cartes ne sont pas embarquées dans l'app : elles arrivent en tuiles et sont mises en cache. Aucune donnée ne part vers un serveur à nous : il n'y en a pas.
 
@@ -280,16 +304,17 @@ flowchart LR
 
 Trois étages se trouvent entre le serveur et l'écran :
 
-1. **GitHub Pages** est publié par GitHub Actions (`pages.yml`, `actions/deploy-pages`) après chaque push sur `main` ou `beta`, **seulement si les tests passent** (détails dans [TRAVAIL.md](TRAVAIL.md)). Copie autorisée de 10 minutes dans le navigateur.
-2. **Service worker** (`sw.js`) :
+1. **GitHub Pages** est publié par GitHub Actions (`pages.yml`, `actions/deploy-pages`) après chaque push sur `main` ou `beta`, **seulement si les tests passent** ; chaque version retenue est construite (`npm run build`) et c'est le dossier `dist/` qui est publié (détails dans [TRAVAIL.md](TRAVAIL.md)). Copie autorisée de 10 minutes dans le navigateur.
+2. **Service worker** (`src/sw.js`, publié en `sw.js`) :
+   - son cache de démarrage (liste `SHELL`) contient la page, `public/lib`, les icônes et **les fichiers construits** `assets/…` (noms changeants), ajoutés automatiquement à la construction ;
    - pour l'app, *réseau d'abord*, avec `fetch(…, {cache:"no-cache"})` pour passer outre la copie de 10 minutes ; la copie locale ne sert que sans réseau ;
    - pour les tuiles, *cache d'abord*. Les tuiles sont demandées **en CORS**, même pour les images de la carte : la réponse est lisible (réutilisée telle quelle par la vue 3D) et comptée à sa vraie taille. Une réponse « opaque » (sans CORS) compte pour plusieurs Mo dans le quota de Chrome : l'espace affiché grimpait à des dizaines de Go. Seul le SHOM, sans CORS, reste en opaque. Un ménage unique retire les anciennes tuiles opaques, sauf SHOM et zones téléchargées ;
    - l'enregistrement se fait avec `updateViaCache:"none"`.
-3. **La page déjà ouverte** : un onglet resté en mémoire ne redemande rien. `checkUpdate()` relit `index.html` sur le serveur au retour sur l'appli et toutes les 30 minutes, compare `APP_VERSION`, puis affiche le bandeau « Nouvelle version disponible · Mettre à jour ».
+3. **La page déjà ouverte** : un onglet resté en mémoire ne redemande rien. `checkUpdate()` (`src/ui/version.js`) relit `index.html` sur le serveur au retour sur l'appli et toutes les 30 minutes, compare `APP_VERSION`, puis affiche le bandeau « Nouvelle version disponible · Mettre à jour ».
 
 Autres points :
-- **APK** : Capacitor charge `https://wagido.github.io/navshom/`, donc les mises à jour sont automatiques. Il est signé avec une clé fixe, ce qui permet de l'installer par-dessus l'ancien. On ne le reconstruit que si la partie native change (icône, manifeste, plugins).
-- **Versionnement** : `APP_VERSION` dans `index.html` et `navshom-app-vN` dans `sw.js`, à incrémenter ensemble à chaque publication.
+- **APK** : `android.yml` construit le site et embarque `dist/` (sans les paquets de relief) comme copie de secours ; Capacitor charge `https://wagido.github.io/navshom/`, donc les mises à jour sont automatiques. Il est signé avec une clé fixe, ce qui permet de l'installer par-dessus l'ancien. On ne le reconstruit que si la partie native change (icône, manifeste, plugins).
+- **Versionnement** : `APP_VERSION` dans `index.html` (balise `<script>` en tête, lue par `checkUpdate`) et `navshom-app-vN` dans `src/sw.js`, à incrémenter ensemble à chaque publication.
 
 ## 9. Tests
 
@@ -300,7 +325,8 @@ Tests automatiques **Playwright** (`tests/`), lancés par GitHub Actions à chaq
 - service worker : redémarrage hors ligne, séparation de /beta/ (service worker, caches, réglages) ;
 - **`tools-check.js`** : 5 tailles d'écran × 6 états × 2 modes, vérifie qu'aucun élément ne se chevauche ou ne déborde (code de sortie 1 en cas de problème).
 - **Réseau simulé** (`tests/mock.js`) : aucune requête ne sort. Open-Meteo (prévisions et marine, multi-points), altimétrie, itinéraires et géocodage IGN, tuiles, Overpass reçoivent des réponses fabriquées et toujours identiques ; le reste est refusé.
-- Serveur local `tests/server.js` (port 8799), qui sert aussi le dépôt sous `/beta/`.
+- Les tests portent sur le **site construit** : le serveur local `tests/server.js` (port 8799) sert `dist/`, à la racine et sous `/beta/` ; Playwright lance d'abord `npm run build`.
+- Bandeau « Nouvelle version » : la page servie contient `APP_VERSION`, et une version plus récente annoncée par le serveur fait apparaître le bandeau.
 
 ## 10. Limites connues et risques
 
@@ -345,6 +371,8 @@ Tests automatiques **Playwright** (`tests/`), lancés par GitHub Actions à chaq
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.20-c** : code découpé en modules ES (`src/`), styles dans `src/style.css`, construction par Vite (`dist/`) ; publication, tests et APK utilisent le site construit. Aucun changement visible.
+- **2026.11.20-b** : construction par Vite, fichiers statiques dans `public/`, script en module ES (étape intermédiaire, /beta/ seulement).
 - **2026.11.20-a** : site de test /beta/ séparé de la production (stockage, caches, service worker) ; tests automatiques Playwright sur GitHub Actions ; publication GitHub Pages par Actions, seulement si les tests passent. Aucun changement visible.
 - **2026.11.17-i** : bouton « Relief » retiré de la vue 3D ; fond par défaut : carte de la zone téléchargée, sinon le dernier choisi.
 - **2026.11.17-h** : fond Relief lisible en plaine (courbes de niveau, ombrage, couleurs étirées, exagération automatique) ; message d'aide de la 3D qui passe à la ligne.
