@@ -3,8 +3,8 @@ import { FRANCE, R, bases, curBase, fmtD, geopf, map, setCurBase, shomKey, slope
 import { pointLL } from "./point.js";
 import { last } from "../gps/gps.js";
 import { geoStart } from "../gps/natif.js";
-import { elevations } from "../main.js";
 import { renderRoutes } from "../mer/routes.js";
+import { elevations } from "../rando/rando.js";
 import { closeSheets, openSheet } from "../ui/panneaux.js";
 import { tileXY } from "../ui/reglages.js";
 import { $, compass, fmtDur, store, toast } from "../utils.js";

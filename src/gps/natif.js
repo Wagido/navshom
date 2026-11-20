@@ -1,8 +1,8 @@
 // APK Android (Capacitor) : notifications, son d'alarme, GPS natif en arrière-plan
 import { onErr, onPos } from "./gps.js";
-import { rec } from "../main.js";
 import { anchor } from "../mer/mouillage.js";
 import { navR } from "../mer/routes.js";
+import { rec } from "../rando/traces.js";
 import { $, store, toast } from "../utils.js";
 
 export let LNotif, CapFS, CapShare;

@@ -3,7 +3,6 @@ import { R, fmtD, map } from "./carte.js";
 import { pointInfo } from "./fonds.js";
 import { addMeasure, measuring, startMeasure } from "./mesure.js";
 import { gpsDenied, last, setFollow, sogNow } from "../gps/gps.js";
-import { geoAt, open3D } from "../main.js";
 import { showSeamarks } from "../mer/balisage.js";
 import { showCurve } from "../mer/courant.js";
 import { instOpen } from "../mer/instruments.js";
@@ -11,6 +10,8 @@ import { RT, drawRtMarks, renderRouteParams } from "../mer/routage.js";
 import { ov, setFold, setOverlay } from "../meteo/calques.js";
 import { showPicker } from "../meteo/masque.js";
 import { loadTable, tbl } from "../meteo/tableau.js";
+import { geoAt } from "../rando/surimpressions.js";
+import { open3D } from "../rando/vue3d.js";
 import { closeSheets, markTmp, openSheet, sheets } from "../ui/panneaux.js";
 import { $, NM, bearing, fmtDur, fmtLL, fmtNM, pad3, store, toast } from "../utils.js";
 

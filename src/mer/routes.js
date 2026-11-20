@@ -3,9 +3,9 @@ import { R, fmtD, map } from "../carte/carte.js";
 import { mPts } from "../carte/mesure.js";
 import { last, setFollow, sogNow } from "../gps/gps.js";
 import { geoStart, notify } from "../gps/natif.js";
-import { measureGeom } from "../main.js";
 import { setXteWarnT, xteWarnT } from "./instruments.js";
 import { anchorTick } from "./mouillage.js";
+import { measureGeom } from "../rando/itineraires.js";
 import { closeSheets } from "../ui/panneaux.js";
 import { $, bearing, pad3, store, toast } from "../utils.js";
 

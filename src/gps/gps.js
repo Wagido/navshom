@@ -2,10 +2,11 @@
 import { ROT, headCone, headTick } from "../carte/boussole.js";
 import { AREA, R, map } from "../carte/carte.js";
 import { pointMode, showGps, updateMob, updateRoute } from "../carte/point.js";
-import { elevations, rec, recGpsUp, recPoint } from "../main.js";
 import { instOn, instTick } from "../mer/instruments.js";
 import { navTick } from "../mer/routes.js";
 import { drawTimeline, ov } from "../meteo/calques.js";
+import { elevations } from "../rando/rando.js";
+import { rec, recGpsUp, recPoint } from "../rando/traces.js";
 import { $, KN, bearing, pad3, store, toast } from "../utils.js";
 
 export let trackLine;
