@@ -1,5 +1,4 @@
 // Utilitaires communs : accès aux éléments, stockage (préfixe nav_ ou navb_ pour /beta/), messages, formats
-// Balise : l'application (module ES, construit par Vite)
 export const $ = id => document.getElementById(id);
 // Site de test /beta/ : stockage et caches séparés de la production (même origine wagido.github.io)
 export const BETA = /\/beta\//.test(location.pathname), LSP = BETA ? "navb_" : "nav_", CN = BETA ? "navshom-beta-" : "navshom-";
