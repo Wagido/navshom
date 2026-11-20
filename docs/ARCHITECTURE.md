@@ -2,7 +2,9 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.17-i · Dernière mise à jour : 16 novembre 2026
+> Statut : version 2026.11.20-a · Dernière mise à jour : 20 novembre 2026
+
+> Méthode de travail (beta, tests, publication) : voir [TRAVAIL.md](TRAVAIL.md).
 
 ## 1. Résumé
 
@@ -34,7 +36,7 @@ C'est une **application web installable** (PWA) : un seul code HTML/JS publié s
 | Gratuit, sans abonnement ni pub | Uniquement des données ouvertes ; aucun backend |
 | Utilisable en mer sans réseau | Service worker, cache des tuiles, zones téléchargées avec 3 jours de météo |
 | Mise à jour sans passer par un store | L'APK charge le site en ligne ; le site est la source unique |
-| Un seul développeur, itérations rapides | Un seul fichier applicatif, aucune étape de build côté web |
+| Un seul développeur, itérations rapides | Un seul fichier applicatif, aucune étape de build côté web ; site de test /beta/ et tests automatiques avant la production |
 | Respect des fournisseurs de données | Pas de contournement d'accès (refus d'usurper le *referer* SHOM) ; quotas Open-Meteo économisés ; pas de téléchargement en masse des tuiles OpenStreetMap |
 | Lisible en mer, au soleil, en mouvement | Style « Clarté » : fond blanc, gros chiffres, peu de boutons, mode nuit rouge |
 
@@ -48,7 +50,8 @@ C'est une **application web installable** (PWA) : un seul code HTML/JS publié s
 | Rendu météo | **Canvas 2D** (dégradé, particules, chiffres) | Fluide sur mobile, sans dépendance |
 | Police | **Inter** (embarquée, licence OFL) | Lisible, chiffres tabulaires, identique partout |
 | Hors ligne | **Service worker** (`sw.js`) + Cache API | Standard web |
-| Hébergement | **GitHub Pages** | Gratuit, HTTPS (obligatoire pour le GPS) |
+| Hébergement | **GitHub Pages**, publié par GitHub Actions | Gratuit, HTTPS (obligatoire pour le GPS) ; production et /beta/ |
+| Tests | **Playwright** (Chromium, Pixel 7), sur GitHub Actions | Réseau externe simulé : fiable, sans quota |
 | App Android | **Capacitor 6** (WebView), construit par **GitHub Actions** | APK sans Android Studio |
 
 ## 4. Organisation du dépôt
@@ -73,9 +76,15 @@ navshom/
 ├── tools-relief.js         # prépare les paquets de relief (à lancer une fois, depuis le WMS IGN)
 ├── tools-check.js          # contrôle automatique de mise en page (Playwright)
 ├── android-debug.keystore  # clé fixe de signature de l'APK
+├── tests/                  # tests automatiques Playwright (non publiés), voir §9
+├── playwright.config.js, package.json
 ├── .github/workflows/
+│   ├── pages.yml           # tests puis publication GitHub Pages (main à la racine, beta dans /beta/)
+│   ├── tests.yml           # tests (pull requests, autres branches, appelé par pages.yml)
 │   └── android.yml         # construction et publication de l'APK
-└── docs/ARCHITECTURE.md    # ce document
+└── docs/
+    ├── ARCHITECTURE.md     # ce document
+    └── TRAVAIL.md          # méthode : beta, tests, publication
 ```
 
 Choix assumé : **un seul `index.html`**. Si l'app grossit encore, le découpage naturel suit les modules du §5.
@@ -235,6 +244,7 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 | **Cache API** `navshom-tiles` | Chaque tuile vue + tuiles des zones téléchargées | Jusqu'à suppression de la zone ou des données |
 | **Cache API** `navshom-wx` | Météo 3 jours de chaque zone : grille d'au plus 11 × 11 points par couche, tableau sur 9 points | Jusqu'à mise à jour ou suppression |
 | **Cache API** `navshom-app-vN` | Fichiers de l'app pour démarrer hors ligne | Remplacé à chaque version |
+| **Cache API** `navshom-lib` | Three.js (vue 3D) | Conservé d'une version à l'autre |
 | **Mémoire** | Réponses Open-Meteo et IGN (30 min), `PTC` (1 h) | Session |
 | **localStorage** (préfixe `nav_`) | Réglages, mode, repères, MOB, ancre, routes, traces, zones, bateau choisi (`rtOrc`, `rtSpi`), clé AIS, cache `PTC` | Permanent sur l'appareil |
 
@@ -247,22 +257,30 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 - le bouton « Météo » d'une zone la rafraîchit avant de partir ;
 - supprimer une zone retire ses tuiles, sauf celles partagées avec une autre zone.
 
+**Site de test /beta/** : même origine que la production (`wagido.github.io`), donc mêmes `localStorage` et Cache API. Pour ne rien mélanger, `index.html` et `sw.js` détectent `/beta/` dans l'adresse : la bêta utilise le préfixe `navb_` au lieu de `nav_` et des caches `navshom-beta-…` au lieu de `navshom-…` (constantes `BETA`, `LSP`, `CN`). Le service worker de la production ignore les adresses sous `/beta/`, qui ont leur propre service worker (portée `/navshom/beta/`). La sauvegarde garde le format `nav_…` : un fichier de la production se restaure dans la bêta et inversement.
+
 Les cartes ne sont pas embarquées dans l'app : elles arrivent en tuiles et sont mises en cache. Aucune donnée ne part vers un serveur à nous : il n'y en a pas.
 
 ## 8. Distribution et mises à jour
 
 ```mermaid
 flowchart LR
-  Dev[Commit sur main] --> Pages[GitHub Pages<br/>wagido.github.io/navshom]
-  Dev --> CI[GitHub Actions<br/>android.yml, si partie native modifiée]
+  Beta[Push sur beta] --> TB[Tests Playwright]
+  TB -->|verts| TagB[étiquette teste-beta]
+  Main[Fusion dans main] --> TM[Tests Playwright]
+  TM -->|verts| TagM[étiquette teste-main]
+  TagB --> Pub[pages.yml : assemble<br/>teste-main à la racine<br/>teste-beta dans /beta/]
+  TagM --> Pub
+  Pub --> Pages[GitHub Pages<br/>wagido.github.io/navshom<br/>et /navshom/beta/]
+  Main --> CI[GitHub Actions<br/>android.yml, si partie native modifiée]
   CI --> APK[Release apk-latest<br/>Balise.apk]
   Pages --> PWA[Navigateur / PWA installée]
-  Pages --> APKrun[APK : charge le site en ligne]
+  Pages --> APKrun[APK : charge la production en ligne]
 ```
 
 Trois étages se trouvent entre le serveur et l'écran :
 
-1. **GitHub Pages** republie le site à chaque `git push`, avec une copie autorisée de 10 minutes dans le navigateur.
+1. **GitHub Pages** est publié par GitHub Actions (`pages.yml`, `actions/deploy-pages`) après chaque push sur `main` ou `beta`, **seulement si les tests passent** (détails dans [TRAVAIL.md](TRAVAIL.md)). Copie autorisée de 10 minutes dans le navigateur.
 2. **Service worker** (`sw.js`) :
    - pour l'app, *réseau d'abord*, avec `fetch(…, {cache:"no-cache"})` pour passer outre la copie de 10 minutes ; la copie locale ne sert que sans réseau ;
    - pour les tuiles, *cache d'abord*. Les tuiles sont demandées **en CORS**, même pour les images de la carte : la réponse est lisible (réutilisée telle quelle par la vue 3D) et comptée à sa vraie taille. Une réponse « opaque » (sans CORS) compte pour plusieurs Mo dans le quota de Chrome : l'espace affiché grimpait à des dizaines de Go. Seul le SHOM, sans CORS, reste en opaque. Un ménage unique retire les anciennes tuiles opaques, sauf SHOM et zones téléchargées ;
@@ -275,15 +293,14 @@ Autres points :
 
 ## 9. Tests
 
-- **Playwright**, profil Pixel 7 et grand écran :
-  - parcours carte, panneau Météo, tableau, barre de temps, 7 jours, mesure, routage et polaires ORC, instruments, mouillage, zones hors ligne, menu Plus, Rando ;
-  - vérification des erreurs JavaScript.
-- **`tools-check.js`** : 5 tailles d'écran × 6 états × 2 modes, vérifie qu'aucun élément ne se chevauche ou ne déborde.
-- **Données simulées** :
-  - Open-Meteo répond souvent « quota atteint » depuis le serveur de test ;
-  - réponses Overpass et AIS factices ;
-  - coupure réseau pour le hors ligne ;
-  - fausse nouvelle version pour le bandeau de mise à jour.
+Tests automatiques **Playwright** (`tests/`), lancés par GitHub Actions à chaque push et à chaque pull request, et obligatoires avant toute publication (voir [TRAVAIL.md](TRAVAIL.md)) :
+
+- Chromium, profil **Pixel 7** ; toute erreur JavaScript fait échouer le test ;
+- démarrage, bascule Mer / Rando, carte, panneau Météo et tableau (Mer et Rando), enregistrement d'une trace avec GPS simulé, mesure (Mer et Rando), routage, menu Plus et Instruments ;
+- service worker : redémarrage hors ligne, séparation de /beta/ (service worker, caches, réglages) ;
+- **`tools-check.js`** : 5 tailles d'écran × 6 états × 2 modes, vérifie qu'aucun élément ne se chevauche ou ne déborde (code de sortie 1 en cas de problème).
+- **Réseau simulé** (`tests/mock.js`) : aucune requête ne sort. Open-Meteo (prévisions et marine, multi-points), altimétrie, itinéraires et géocodage IGN, tuiles, Overpass reçoivent des réponses fabriquées et toujours identiques ; le reste est refusé.
+- Serveur local `tests/server.js` (port 8799), qui sert aussi le dépôt sous `/beta/`.
 
 ## 10. Limites connues et risques
 
@@ -328,6 +345,7 @@ Autres points :
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.20-a** : site de test /beta/ séparé de la production (stockage, caches, service worker) ; tests automatiques Playwright sur GitHub Actions ; publication GitHub Pages par Actions, seulement si les tests passent. Aucun changement visible.
 - **2026.11.17-i** : bouton « Relief » retiré de la vue 3D ; fond par défaut : carte de la zone téléchargée, sinon le dernier choisi.
 - **2026.11.17-h** : fond Relief lisible en plaine (courbes de niveau, ombrage, couleurs étirées, exagération automatique) ; message d'aide de la 3D qui passe à la ligne.
 - **2026.11.17-g** : bouton Enregistrer entier (barre sans découpe) ; bulle Pause / Terminer / Détails pendant la sortie.

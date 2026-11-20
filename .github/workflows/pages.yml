@@ -1,0 +1,139 @@
+name: Tests et publication
+
+# Publie le site sur GitHub Pages :
+#   https://wagido.github.io/navshom/       <- branche main (production)
+#   https://wagido.github.io/navshom/beta/  <- branche beta (site de test)
+# Chaque branche n'est publiée que dans sa dernière version qui a passé les tests.
+# Ces versions sont retenues par les étiquettes git « teste-main » et « teste-beta ».
+# La publication elle-même tourne toujours depuis main (règle par défaut de l'environnement github-pages) :
+# un push sur beta teste beta, puis relance ce workflow sur main pour publier.
+on:
+  push:
+    branches: [main, beta]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Que faut-il tester ?
+    runs-on: ubuntu-latest
+    outputs:
+      main_sha: ${{ steps.p.outputs.main_sha }}
+      main_test: ${{ steps.p.outputs.main_test }}
+      beta_sha: ${{ steps.p.outputs.beta_sha }}
+      beta_test: ${{ steps.p.outputs.beta_test }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: p
+        run: |
+          git fetch --force --tags origin
+          okm=$(git rev-parse -q --verify "refs/tags/teste-main^{commit}" || true)
+          okb=$(git rev-parse -q --verify "refs/tags/teste-beta^{commit}" || true)
+          for b in main beta; do
+            head=$(git rev-parse -q --verify "refs/remotes/origin/$b" || true)
+            # déjà testé (sur cette branche ou sur l'autre, par exemple après fusion de beta dans main) : pas de nouveau test
+            if [ -z "$head" ] || [ "$head" = "$okm" ] || [ "$head" = "$okb" ]; then t=false; else t=true; fi
+            echo "$b : ${head:-absente} · à tester : $t"
+            echo "${b}_sha=$head" >> "$GITHUB_OUTPUT"; echo "${b}_test=$t" >> "$GITHUB_OUTPUT"
+          done
+
+  test-main:
+    needs: plan
+    if: needs.plan.outputs.main_test == 'true'
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: ${{ needs.plan.outputs.main_sha }}
+      label: main
+
+  test-beta:
+    needs: plan
+    if: needs.plan.outputs.beta_test == 'true'
+    uses: ./.github/workflows/tests.yml
+    with:
+      ref: ${{ needs.plan.outputs.beta_sha }}
+      label: beta
+
+  retenir:
+    name: Retenir les versions testées
+    needs: [plan, test-main, test-beta]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # déplacer les étiquettes teste-main / teste-beta
+      actions: write    # relancer la publication sur main
+    outputs:
+      changed: ${{ steps.t.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: t
+        env:
+          MAIN_SHA: ${{ needs.plan.outputs.main_sha }}
+          MAIN_TEST: ${{ needs.plan.outputs.main_test }}
+          MAIN_RES: ${{ needs.test-main.result }}
+          BETA_SHA: ${{ needs.plan.outputs.beta_sha }}
+          BETA_TEST: ${{ needs.plan.outputs.beta_test }}
+          BETA_RES: ${{ needs.test-beta.result }}
+        run: |
+          git fetch --force --tags origin
+          changed=false
+          move() { # $1 branche, $2 commit
+            [ -n "$2" ] || return 0
+            cur=$(git rev-parse -q --verify "refs/tags/teste-$1^{commit}" || true)
+            if [ "$cur" != "$2" ]; then git tag -f "teste-$1" "$2"; git push -f origin "refs/tags/teste-$1"; changed=true; echo "teste-$1 -> $2"; fi
+          }
+          if [ "$MAIN_TEST" = false ] || [ "$MAIN_RES" = success ]; then move main "$MAIN_SHA"; else echo "::warning::main n'a pas passé les tests : la production reste sur la version précédente"; fi
+          if [ "$BETA_TEST" = false ] || [ "$BETA_RES" = success ]; then move beta "$BETA_SHA"; else echo "::warning::beta n'a pas passé les tests : /beta/ reste sur la version précédente"; fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+      - name: Relancer la publication depuis main
+        if: github.ref != 'refs/heads/main' && steps.t.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main --repo "$GITHUB_REPOSITORY"
+
+  deploy:
+    name: Publier sur GitHub Pages
+    needs: retenir
+    if: ${{ !cancelled() && needs.retenir.result == 'success' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.d.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assembler main (racine) et beta (/beta/)
+        run: |
+          git fetch --force --tags origin
+          git rev-parse -q --verify "refs/tags/teste-main" >/dev/null || { echo "::error::Aucune version de main n'a encore passé les tests"; exit 1; }
+          mkdir -p _site
+          git archive teste-main | tar -x -C _site
+          if git rev-parse -q --verify "refs/tags/teste-beta" >/dev/null; then mkdir -p _site/beta; git archive teste-beta | tar -x -C _site/beta; fi
+          # fichiers de développement, inutiles sur le site
+          for d in _site _site/beta; do
+            [ -d "$d" ] || continue
+            rm -rf "$d/.github" "$d/tests" "$d/package.json" "$d/package-lock.json" "$d/playwright.config.js" "$d/.gitignore"
+          done
+          touch _site/.nojekyll
+          echo "production : $(git rev-parse --short teste-main) · beta : $(git rev-parse -q --short teste-beta || echo aucune)"
+          du -sh _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: d
+        uses: actions/deploy-pages@v4

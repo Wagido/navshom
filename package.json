@@ -1,0 +1,13 @@
+{
+  "name": "balise",
+  "private": true,
+  "description": "Balise : tests automatiques (Playwright)",
+  "scripts": {
+    "serve": "python3 -m http.server 8799",
+    "test": "playwright test",
+    "check-layout": "node tools-check.js http://localhost:8799/"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

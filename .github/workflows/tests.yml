@@ -1,0 +1,58 @@
+name: Tests
+
+# Tests automatiques (Playwright, Chromium, profil Pixel 7, réseau externe simulé).
+# - à chaque pull request et à chaque push sur une autre branche que main et beta ;
+# - pour main et beta, ils sont lancés par « Tests et publication » (pages.yml), qui appelle ce fichier.
+on:
+  pull_request:
+  push:
+    branches-ignore: [main, beta]
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit à tester
+        type: string
+        required: true
+      label:
+        description: Nom court (main ou beta)
+        type: string
+        required: true
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests ${{ inputs.label || github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Installer Playwright et Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Lancer les tests
+        run: npx playwright test
+        env:
+          CI: "true"
+
+      - name: Garder le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-tests-${{ inputs.label || github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

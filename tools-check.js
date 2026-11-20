@@ -1,6 +1,6 @@
 // Contrôle de mise en page : chevauchements et débordements, sur 5 écrans et plusieurs états de l'app.
-// Usage : node tools-check.js http://localhost:8799/
-const { chromium } = require('playwright'); const URL=process.argv[2]||'http://localhost:8799/';
+// Usage : node tools-check.js http://localhost:8799/   (code de sortie 1 s'il y a un problème : utilisé par les tests automatiques)
+const { chromium } = (()=>{ try{ return require('playwright'); }catch(e){ return require('@playwright/test'); } })(); const URL=process.argv[2]||'http://localhost:8799/';
 const SCREENS=[["tel 320",{viewport:{width:320,height:640},isMobile:true,hasTouch:true,deviceScaleFactor:2}],
  ["tel 412",{viewport:{width:412,height:860},isMobile:true,hasTouch:true,deviceScaleFactor:2.6}],
  ["tel texte+",{viewport:{width:352,height:740},isMobile:true,hasTouch:true,deviceScaleFactor:3}],
@@ -10,7 +10,8 @@ const STATES={ repos:async p=>{}, meteo:async p=>{ await p.click('#bWind'); }, t
  menu:async p=>{ await p.click('#bMenu'); }, cartes:async p=>{ await p.click('#bLayers'); }, mesure:async p=>{ await p.click('#bMeasure'); await p.evaluate(()=>{ $('mProfWrap').hidden=false; document.documentElement.style.setProperty('--tl',($('measure').offsetHeight+8)+'px'); setTimeout(crowdCheck,260); }); } };
 (async()=>{ const b=await chromium.launch(); let bad=0;
  for(const mode of ["mer","rando"]) for(const [sn,opt] of SCREENS) for(const [st,fn] of Object.entries(STATES)){
-  const p=await (await b.newContext(opt)).newPage(); await p.route(/open-meteo|geopf|shom|openstreetmap|openseamap|emodnet/, r=>r.abort());
+  const ctx=await b.newContext({...opt, serviceWorkers:'block'}); const p=await ctx.newPage();
+  await ctx.route(u=>!/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(u.href), r=>r.abort()); // aucun appel réseau externe
   await p.addInitScript(m=>{ try{ localStorage.setItem('nav_mode',JSON.stringify(m)); localStorage.setItem('nav_tblOpen','false'); }catch(e){} }, mode);
   await p.goto(URL); await p.waitForTimeout(2300); await fn(p); await p.waitForTimeout(700);
   const r=await p.evaluate(()=>{ const W=innerWidth,H=innerHeight, vis=e=>{ const s=getComputedStyle(e); return e.offsetParent!==null && s.visibility!=="hidden" && s.display!=="none"; };
@@ -24,5 +25,5 @@ const STATES={ repos:async p=>{}, meteo:async p=>{ await p.click('#bWind'); }, t
    const tr=document.querySelector('.trow'); const trowBad = tr && vis(tr) && tr.scrollWidth>tr.clientWidth+2 ? ["rangée météo déborde"] : [];
    return [...out,...ov,...trowBad]; });
   if(r.length){ bad++; console.log(`✗ ${mode} | ${sn} | ${st} : ${[...new Set(r)].join(", ")}`); }
-  await p.close(); }
- console.log(bad?`${bad} cas à corriger`:"✓ aucun chevauchement ni débordement"); await b.close(); })();
+  await ctx.close(); }
+ console.log(bad?`${bad} cas à corriger`:"✓ aucun chevauchement ni débordement"); await b.close(); process.exitCode = bad ? 1 : 0; })().catch(e=>{ console.error(e); process.exit(2); });
