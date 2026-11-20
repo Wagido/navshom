@@ -1,69 +1,20 @@
-import { $, CN, KN, LSP, bearing, compass, dm, fmtDur, fmtLL, fmtNM, fmtT, pad3, store, toast } from "./utils.js";
+import { $, CN, LSP, bearing, compass, dm, fmtDur, fmtLL, fmtNM, fmtT, pad3, store, toast } from "./utils.js";
 import { AREA, FRANCE, MODE, R, baseKey, bases, curBase, fmtD, geopf, initCarte, map, seamarks, setCurBase, setMODE, slopes } from "./carte/carte.js";
 import { closeSheets, initPanneaux, markTmp, openSheet, setTmpMarker, tmpMarker } from "./ui/panneaux.js";
-import { initPoint, meteoHere, mobMk, pointLL, pointMode, showGps, updateMob, updateRoute, wps } from "./carte/point.js";
+import { initGps, last, setFollow, sogNow, trackLine } from "./gps/gps.js";
+import { initPoint, meteoHere, mobMk, pointLL, wps } from "./carte/point.js";
 import { drawMeasure, initMesure, mPts, measuring, stopMeasure } from "./carte/mesure.js";
 import { initRecherche } from "./ui/recherche.js";
+import { LNotif, alarmSound, audioCtx, geoStart, hideAlarm, initNatif, notify, setAudioCtx, showAlarm, unlockAudio } from "./gps/natif.js";
 import { initSauvegarde, saveFile } from "./ui/sauvegarde.js";
 import { autoSatCheck, autoSatOn, initFonds, setShade, setSlopes, shade } from "./carte/fonds.js";
 import { initReglages, wake } from "./ui/reglages.js";
-import { ROT, headCone, headTick, initBoussole } from "./carte/boussole.js";
+import { initBoussole } from "./carte/boussole.js";
 import { initVersion } from "./ui/version.js";
 
 initCarte();
 initPanneaux();
-
-/* ================= GPS ================= */
-const boatIcon = L.divIcon({className:"boat", iconSize:[34,34], iconAnchor:[17,17], html:
-  '<svg viewBox="0 0 34 34"><path d="M17 2 26 30 17 24 8 30Z" fill="#e5372b" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>'});
-export let boat=null, accCircle=null, last=null, follow=true, vecLine=null, sogNow=null;
-const trackLine = L.polyline(store.get("track", []), {color:"#e5372b", weight:3, opacity:.7, interactive:false});
-$("track").checked = store.get("showTrack", true); if($("track").checked && !R()) trackLine.addTo(map);
-if(Date.now()-store.get("trackT",0)>12*3600e3){ trackLine.setLatLngs([]); store.set("track",[]); }
-$("track").onchange = e => { e.target.checked ? trackLine.addTo(map) : map.removeLayer(trackLine); store.set("showTrack", e.target.checked); };
-$("bClearTrack").onclick = () => { trackLine.setLatLngs([]); store.set("track", []); toast("Trace effacée"); };
-export function setFollow(v){ follow=v; $("bFollow").classList.toggle("on", v); }
-$("bFollow").onclick = () => { setFollow(!follow); if(follow && last) map.setView(last.ll, Math.max(map.getZoom(),12)); else if(follow) toast("Pas encore de position GPS"); };
-map.on("dragstart", () => setFollow(false));
-function dest(ll, brg, dist){ const r=Math.PI/180, R=6371000, d=dist/R, b=brg*r, f1=ll.lat*r, l1=ll.lng*r;
-  const f2=Math.asin(Math.sin(f1)*Math.cos(d)+Math.cos(f1)*Math.sin(d)*Math.cos(b));
-  return L.latLng(f2/r, (l1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(f1), Math.cos(d)-Math.sin(f1)*Math.sin(f2)))/r); }
-
-function onPos(p){
-  const c=p.coords, ll=L.latLng(c.latitude, c.longitude);
-  $("gpsdot").className="gps ok"; $("acc").textContent = "±"+Math.round(c.accuracy)+" m";
-  let sog=(c.speed!=null&&!isNaN(c.speed))?c.speed*KN:null, cog=(c.heading!=null&&!isNaN(c.heading))?c.heading:null;
-  if(last && (sog===null||cog===null)){ const dt=(p.timestamp-last.t)/1000, d=map.distance(last.ll,ll);
-    if(dt>0 && d>3){ if(sog===null) sog=d/dt*KN; if(cog===null) cog=bearing(last.ll,ll); } }
-  if(sog!==null && sog>60) sog=null;
-  if(sog!==null){ sogNow=sog; $("sog").textContent=sog.toFixed(1); }
-  if(cog!==null && (sog===null||sog>0.4)) $("cog").textContent=pad3(cog);
-  if(!boat){
-    accCircle=L.circle(ll,{radius:c.accuracy,color:"#e5372b",weight:1,fillOpacity:.07,interactive:false}).addTo(map);
-    boat=L.marker(ll,{icon:boatIcon,interactive:false,zIndexOffset:1000}).addTo(map);
-    if(AREA().contains(ll)) map.setView(ll, Math.max(map.getZoom(),13)); else setFollow(false);
-  } else { boat.setLatLng(ll); accCircle.setLatLng(ll).setRadius(c.accuracy); }
-  if(cog!==null){ const s=boat.getElement()&&boat.getElement().querySelector("svg"); if(s) s.style.transform="rotate("+cog+"deg)"; }
-  if(cog!==null && sog>0.4){ const end=dest(ll, cog, sog/KN*360);
-    vecLine ? vecLine.setLatLngs([ll,end]) : vecLine=L.polyline([ll,end],{color:"#e5372b",weight:2,dashArray:"6 5",interactive:false}).addTo(map); }
-  if(!R()){ // trace du bateau : en mode Mer seulement ; nouvelle trace après 12 h sans point
-    if(Date.now()-store.get("trackT",0)>12*3600e3 && trackLine.getLatLngs().length){ trackLine.setLatLngs([]); store.set("track",[]); }
-    const lt=trackLine.getLatLngs();
-    if(c.accuracy<50 && (!lt.length || map.distance(lt[lt.length-1],ll)>15)){
-      trackLine.addLatLng(ll); store.set("trackT",Date.now()); store.set("track", trackLine.getLatLngs().slice(-5000).map(x=>[+x.lat.toFixed(6),+x.lng.toFixed(6)])); } }
-  last={ll,t:p.timestamp,alt:c.altitude,acc:c.accuracy};
-  if(R() && c.altitude==null && Date.now()-(onPos.altT||0)>20000 && navigator.onLine){ onPos.altT=Date.now(); // pas d'altitude GPS : altitude IGN du point
-    elevations([[ll.lat,ll.lng]]).then(z=>{ if(R() && z[0]!=null && (last.alt==null)) $("sog").textContent=Math.round(z[0]); }).catch(()=>{}); }
-  if(R()){ if(c.altitude!=null || $("sog").textContent==="—") $("sog").textContent = c.altitude!=null ? Math.round(c.altitude) : "—"; $("cog").textContent = rec&&rec.on ? "+"+Math.round(recGpsUp||0) : "—"; }
-  recPoint(ll, c, p.timestamp); navTick(ll);
-  if(follow && AREA().contains(ll)) map.panTo(ll,{animate:true});
-  updateMob(); updateRoute(); if(ov.data) drawTimeline();
-  if(!$("sPoint").hidden && pointMode==="gps") showGps();
-  if(typeof instTick==="function" && instOn) instTick();
-  if(typeof headTick==="function" && (ROT.on || headCone)) headTick();
-}
-export let gpsDenied=false;
-function onErr(e){ gpsDenied = e.code===1; $("gpsdot").className="gps bad"; $("acc").textContent = e.code===1 ? "refusé" : "—"; if(e.code===1) toast("Autorisez la localisation pour ce site", 5000); }
+initGps();
 initPoint();
 initMesure();
 
@@ -207,7 +158,7 @@ function hereText(s,i){
   if(t.vec) return val+" · "+compass(s.from[i])+(s.per&&s.per[i]!=null?" · "+Math.round(s.per[i])+" s":"");
   return val;
 }
-function drawTimeline(){
+export function drawTimeline(){
   if(ov.data){ const k0=refIdx(); if(k0>=0) $("tHere").textContent = hereText(ov.data[k0], ov.idx); }
   const c=$("tGraph"), dpr=window.devicePixelRatio||1, W=c.clientWidth, H=c.clientHeight; if(!W||!ov.data) return;
   c.width=W*dpr; c.height=H*dpr; const g=c.getContext("2d"); g.scale(dpr,dpr);
@@ -781,9 +732,9 @@ export async function measureProfile(){
 }
 
 /* ---- Enregistrement de trace ---- */
-let rec = store.get("rec", null); // {on, paused, start, pausedAt, pausedTotal, pts:[[lat,lng,t,alt]]}
+export let rec = store.get("rec", null); // {on, paused, start, pausedAt, pausedTotal, pts:[[lat,lng,t,alt]]}
 const recLine = L.polyline([], {color:"#d81b60", weight:4, opacity:.9, interactive:false}).addTo(map);
-let recSaveT=0, recGpsUp=0, recGpsRef=null;
+export let recSaveT=0, recGpsUp=0, recGpsRef=null;
 function recDist(pts){ let d=0; for(let i=1;i<pts.length;i++) d+=map.distance([pts[i-1][0],pts[i-1][1]],[pts[i][0],pts[i][1]]); return d; }
 function recDuration(){ if(!rec) return 0; const now=rec.paused?rec.pausedAt:Date.now(); return Math.max(0,(now-rec.start-(rec.pausedTotal||0))/3600e3); }
 function recPersist(force){ if(force || Date.now()-recSaveT>15000){ recSaveT=Date.now(); store.set("rec",rec); } }
@@ -805,7 +756,7 @@ function renderRun(){
   const sp=rec.splits||[]; $("rhLast").textContent = sp.length ? fmtClock(sp[sp.length-1].sec/3600) : "–";
   $("rhPause").textContent = rec.paused ? "Reprendre" : "Pause";
 }
-function recPoint(ll, c, t){
+export function recPoint(ll, c, t){
   if(!rec || !rec.on || rec.paused || c.accuracy>35) return;
   const lp=rec.pts[rec.pts.length-1]; if(lp && map.distance([lp[0],lp[1]],ll)<(rec.act==="run"?5:8)) return;
   if(lp) rec.dist=(rec.dist||0)+map.distance([lp[0],lp[1]],ll);
@@ -926,65 +877,10 @@ $("gpxIn").onchange = async e => {
 $("bTrack").onclick = () => { if(!$("sTrack").hidden) return closeSheets(); renderRec(); renderTracks(); openSheet("sTrack"); if(shownId) showTrack(shownId); };
 setInterval(()=>{ if(rec && rec.on && !$("sTrack").hidden) renderRec(); }, 5000);
 initRecherche();
-
-/* =====================================================================
-   Navigation avancée : APK natif, alarme de mouillage, routes,
-   sauvegarde, itinéraires sur sentiers, marées officielles, satellite
-   ===================================================================== */
-const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-const capPlugin = n => { try{ return isNative && window.Capacitor.registerPlugin ? window.Capacitor.registerPlugin(n) : null; }catch(e){ return null; } };
-export const BGGeo = capPlugin("BackgroundGeolocation"), LNotif = capPlugin("LocalNotifications"), CapFS = capPlugin("Filesystem"), CapShare = capPlugin("Share");
-
-/* ---------- Notifications et son d'alarme ---------- */
-let notifAsked=false;
-async function notify(title, body){
-  if(navigator.vibrate) navigator.vibrate([400,150,400,150,400]);
-  if(LNotif){ try{ if(!notifAsked){ notifAsked=true; await LNotif.requestPermissions(); }
-    if(!notify.ch){ notify.ch=true; try{ await LNotif.createChannel({id:"alarm", name:"Alarmes de navigation", description:"Mouillage, route, collision", importance:5, visibility:1, vibration:true}); }catch(e){} }
-    await LNotif.schedule({notifications:[{id:Math.floor(Math.random()*1e6), title, body, channelId:"alarm"}]}); return; }catch(e){} }
-  try{ if("Notification" in window && Notification.permission==="granted") new Notification(title,{body}); }catch(e){}
-}
-let audioCtx=null, beepT=null;
-function alarmSound(on){
-  clearInterval(beepT); beepT=null; if(!on) return;
-  try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; }
-  try{ audioCtx.resume(); }catch(e){}
-  // sirène deux tons, forte : 880 Hz puis 1320 Hz
-  const tone=(f,t0,d)=>{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type="square"; o.frequency.value=f;
-    g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.9,t0+0.02); g.gain.setValueAtTime(0.9,t0+d-0.03); g.gain.exponentialRampToValueAtTime(0.0001,t0+d);
-    o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0+d); };
-  const beep=()=>{ try{ const t=audioCtx.currentTime; tone(880,t,0.3); tone(1320,t+0.32,0.3); }catch(e){} };
-  beep(); beepT=setInterval(beep, 800);
-}
-const unlockAudio=()=>{ try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); }catch(e){} };
-["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev, unlockAudio, {passive:true}));
-function showAlarm(msg){ $("alarmMsg").textContent=msg; $("alarm").hidden=false; }
-function hideAlarm(){ $("alarm").hidden=true; alarmSound(false); }
-
-/* ---------- GPS : natif en arrière-plan quand il le faut ---------- */
-let geoWatch=null, bgWatch=null, bgPending=false;
-function needBackground(){ return !!((rec && rec.on) || anchor || navR || store.get("bgAlways",false)); }
-export function geoStart(){
-  const wantBg = !!BGGeo && needBackground();
-  if(wantBg){
-    if(bgWatch!=null || bgPending) return;
-    if(geoWatch!=null){ navigator.geolocation.clearWatch(geoWatch); geoWatch=null; }
-    bgPending=true;
-    BGGeo.addWatcher({backgroundTitle:"Balise suit votre position", backgroundMessage:"Trace, mouillage ou route en cours", requestPermissions:true, stale:false, distanceFilter:3},
-      (loc, err)=>{ if(err){ if(err.code==="NOT_AUTHORIZED") toast("Autorisez la localisation pour Balise dans les réglages Android", 6000); return; }
-        onPos({coords:{latitude:loc.latitude, longitude:loc.longitude, accuracy:loc.accuracy, altitude:loc.altitude, speed:loc.speed, heading:loc.bearing}, timestamp:loc.time||Date.now()}); })
-      .then(id=>{ bgWatch=id; bgPending=false; }).catch(()=>{ bgPending=false; });
-  } else {
-    if(bgWatch!=null){ try{ BGGeo.removeWatcher({id:bgWatch}); }catch(e){} bgWatch=null; }
-    if(geoWatch==null){ if("geolocation" in navigator) geoWatch=navigator.geolocation.watchPosition(onPos, onErr, {enableHighAccuracy:true, maximumAge:1000, timeout:30000}); else onErr({code:0}); }
-  }
-  $("bgInfo").textContent = !isNative ? "Disponible dans l'application Android (APK). Dans le navigateur, gardez l'écran allumé."
-    : bgWatch!=null ? "Actif : le suivi continue écran éteint (notification Balise)." : "Inactif : il démarre seul pendant une trace, un mouillage ou une route.";
-}
-setInterval(geoStart, 2000);
+initNatif();
 
 /* ---------- Alarme de mouillage ---------- */
-let anchor = store.get("anchor", null), anchorLayer=L.layerGroup(), anchorAlarmOn=false, anchorSnooze=0, lastFixT=Date.now();
+export let anchor = store.get("anchor", null), anchorLayer=L.layerGroup(), anchorAlarmOn=false, anchorSnooze=0, lastFixT=Date.now();
 if(!R()) anchorLayer.addTo(map);
 const anchorIcon = L.divIcon({className:"", iconSize:[30,30], iconAnchor:[15,15], html:'<svg viewBox="0 0 24 24" width="30" height="30"><circle cx="12" cy="12" r="11" fill="#0b2f5b" stroke="#fff" stroke-width="2"/><path d="M12 6v11M8.5 9h7M7 13.5a5 5 0 0 0 10 0" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="12" cy="5.5" r="1.4" fill="#fff"/></svg>'});
 function drawAnchor(){
@@ -1004,7 +900,7 @@ $("bAnchor").onclick = () => { if(!$("sAnchor").hidden) return closeSheets(); re
 $("anR").oninput = () => { $("anRv").textContent=$("anR").value+" m"; store.set("anchorR", +$("anR").value); if(anchor){ anchor.r=+$("anR").value; store.set("anchor",anchor); drawAnchor(); } };
 $("anSet").onclick = () => { if(!last) return toast("Pas encore de position GPS");
   anchor={lat:last.ll.lat, lng:last.ll.lng, r:+$("anR").value, t:Date.now()}; store.set("anchor",anchor); anchorAlarmOn=false; drawAnchor(); renderAnchor(); geoStart();
-  try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); }catch(e){}
+  try{ setAudioCtx(audioCtx || new (window.AudioContext||window.webkitAudioContext)()); audioCtx.resume(); }catch(e){}
   if(LNotif) LNotif.requestPermissions().catch(()=>{});
   toast("Ancre mouillée. Déplacez l'icône d'ancre si elle est tombée plus loin.", 5000); };
 $("anTest").onclick = () => { unlockAudio(); alarmSound(true); if(navigator.vibrate) navigator.vibrate([500,200,500]); setTimeout(()=>alarmSound(false),3000);
@@ -1044,7 +940,7 @@ function xte(from, to, pos){ // écart de route en m (+ = à droite de la route)
   return Math.asin(Math.sin(d13)*Math.sin(t13-t12))*Re;
 }
 const hhmm = ms => new Date(ms).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-function navTick(ll){
+export function navTick(ll){
   anchorTick(ll, last?{accuracy:last.acc||10}:{accuracy:10});
   const rt = navR && routes.find(r=>r.id===navR.id); if(!rt) return;
   const P=rt.pts, to=[P[navR.leg][0],P[navR.leg][1]], from = navR.leg>0 ? [P[navR.leg-1][0],P[navR.leg-1][1]] : navR.from;
@@ -1574,11 +1470,11 @@ async function renderMassifs(){ const el = $("massifList"), list = await massifL
     el.appendChild(row); }); }
 $("cOff").addEventListener("toggle", () => { if($("cOff").open && R()) renderMassifs(); });
 /* ================= Instruments (gros chiffres à la barre) ================= */
-var instOn=false, xteWarnT=0;
+export var instOn=false, xteWarnT=0;
 export function instOpen(){ instOn=true; $("inst").hidden=false; instTick(); if(!tbl.f) loadTable().then(instTick).catch(()=>{}); }
 function instClose(){ instOn=false; $("inst").hidden=true; }
 $("instClose").onclick=instClose;
-function instTick(){ if(!instOn) return;
+export function instTick(){ if(!instOn) return;
   const T=(id,v,u)=>{ const e=$(id); if(e){ e.querySelector("span").textContent=v; if(u!=null) e.querySelector("i").textContent=u; } };
   T("iSog", sogNow!=null?sogNow.toFixed(1).replace(".",","):"—"); T("iCog", $("cog").textContent||"—");
   const rt = navR && routes.find(r=>r.id===navR.id);

@@ -1,6 +1,6 @@
 // Boussole et rotation de la carte
 import { R, map } from "./carte.js";
-import { last, setFollow, sogNow } from "../main.js";
+import { last, setFollow, sogNow } from "../gps/gps.js";
 import { $, toast } from "../utils.js";
 
 let mapEl, ctlEl, _m2c;

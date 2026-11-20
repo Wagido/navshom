@@ -1,7 +1,8 @@
 // Panneaux (feuilles du bas), menu Plus, lieux rapides
 import { SPOTS, map } from "../carte/carte.js";
 import { renderWps, wps } from "../carte/point.js";
-import { routes, setFollow, tracks, usageNote } from "../main.js";
+import { setFollow } from "../gps/gps.js";
+import { routes, tracks, usageNote } from "../main.js";
 import { $ } from "../utils.js";
 
 /* ================= Panneaux ================= */

@@ -1,6 +1,7 @@
 // Recherche de lieux (IGN)
 import { AREA, MODE, R, map } from "../carte/carte.js";
-import { getJSON, renderRec, setFollow, setMode } from "../main.js";
+import { setFollow } from "../gps/gps.js";
+import { getJSON, renderRec, setMode } from "../main.js";
 import { closeSheets, markTmp } from "./panneaux.js";
 import { $ } from "../utils.js";
 

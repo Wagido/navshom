@@ -1,6 +1,7 @@
 // Mesure de distance (route multi-segments)
 import { MODE, R, fmtD, map } from "./carte.js";
-import { crowdCheck, last, mProfT, measureGeom, measureProfile, segGeom, setMProfT, setOverlay, trailOn } from "../main.js";
+import { last } from "../gps/gps.js";
+import { crowdCheck, mProfT, measureGeom, measureProfile, segGeom, setMProfT, setOverlay, trailOn } from "../main.js";
 import { closeSheets } from "../ui/panneaux.js";
 import { $, NM, bearing, fmtDur, pad3, store, toast } from "../utils.js";
 

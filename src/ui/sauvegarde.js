@@ -1,5 +1,5 @@
 // Sauvegarde et restauration
-import { CapFS, CapShare } from "../main.js";
+import { CapFS, CapShare } from "../gps/natif.js";
 import { APP_VERSION } from "./version.js";
 import { $, LSP, toast } from "../utils.js";
 
