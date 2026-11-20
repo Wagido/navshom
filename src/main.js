@@ -1,26 +1,17 @@
-import { $, BETA, CN, KN, LSP, bearing, compass, dm, fmtDur, fmtLL, fmtNM, fmtT, pad3, store, toast } from "./utils.js";
-import { AREA, FRANCE, MODE, R, SPOTS, baseKey, bases, curBase, fmtD, geopf, initCarte, map, seamarks, setCurBase, setMODE, setShomErr, setShomKey, setShomOk, shomErr, shomKey, shomOk, shomUrl, slopes } from "./carte/carte.js";
-import { initPoint, meteoHere, mobMk, pointLL, pointMode, renderWps, showGps, updateMob, updateRoute, wps } from "./carte/point.js";
+import { $, CN, KN, LSP, bearing, compass, dm, fmtDur, fmtLL, fmtNM, fmtT, pad3, store, toast } from "./utils.js";
+import { AREA, FRANCE, MODE, R, baseKey, bases, curBase, fmtD, geopf, initCarte, map, seamarks, setCurBase, setMODE, slopes } from "./carte/carte.js";
+import { closeSheets, initPanneaux, markTmp, openSheet, setTmpMarker, tmpMarker } from "./ui/panneaux.js";
+import { initPoint, meteoHere, mobMk, pointLL, pointMode, showGps, updateMob, updateRoute, wps } from "./carte/point.js";
 import { drawMeasure, initMesure, mPts, measuring, stopMeasure } from "./carte/mesure.js";
+import { initRecherche } from "./ui/recherche.js";
+import { initSauvegarde, saveFile } from "./ui/sauvegarde.js";
 import { autoSatCheck, autoSatOn, initFonds, setShade, setSlopes, shade } from "./carte/fonds.js";
+import { initReglages, wake } from "./ui/reglages.js";
 import { ROT, headCone, headTick, initBoussole } from "./carte/boussole.js";
+import { initVersion } from "./ui/version.js";
 
 initCarte();
-
-/* ================= Panneaux ================= */
-export const sheets = ["sPoint","sMeteo","sMenu","sCurve","sTrack","sAnchor","sMaps","sRouting"];
-let tmpMarker=null;
-export function openSheet(id){ sheets.forEach(s => $(s).hidden = s!==id); }
-export function closeSheets(){ sheets.forEach(s => $(s).hidden = true); if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; } }
-document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeSheets);
-$("bMenu").onclick = () => { if(!$("sMenu").hidden) return closeSheets(); $("sMenu").classList.remove("searching"); menuCounts(); renderWps(); openSheet("sMenu"); };
-function menuCounts(){ try{ $("mcTrN").textContent=tracks.length; $("mcWpN").textContent=wps.length; $("mcRtN").textContent=routes.length; }catch(e){} usageNote(); }
-$("bLayers").onclick = $("bMenu").onclick;
-SPOTS.forEach((sp,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=sp[0]; $("spot").appendChild(o); });
-$("spot").insertAdjacentHTML("afterbegin",'<option value="" selected>Choisir…</option>');
-$("spot").onchange = e => { if(e.target.value==="") return; const sp=SPOTS[+e.target.value]; setFollow(false); map.setView(sp[1], sp[2]); closeSheets(); e.target.value=""; };
-$("bSearch").onclick = () => { $("sMenu").classList.add("searching"); menuCounts(); renderWps(); openSheet("sMenu"); setTimeout(()=>$("q").focus(),50); };
-export function markTmp(ll){ if(tmpMarker) map.removeLayer(tmpMarker); tmpMarker=L.circleMarker(ll,{radius:8,color:"#fff",weight:3,fillColor:"#0b63b6",fillOpacity:1}).addTo(map); }
+initPanneaux();
 
 /* ================= GPS ================= */
 const boatIcon = L.divIcon({className:"boat", iconSize:[34,34], iconAnchor:[17,17], html:
@@ -126,7 +117,7 @@ const valIcon = (v,t) => L.divIcon({className:"arr tap val", iconSize:[56,24], i
 
 // cache mémoire 30 min : limite le nombre d'appels (Open-Meteo gratuit ≈ 10 000 points/jour/appareil)
 const _jc=new Map();
-async function getJSON(url){
+export async function getJSON(url){
   const c=_jc.get(url); if(c && Date.now()-c.t<30*60e3) return c.v;
   const r=await fetch(url); if(!r.ok){ if(r.status===429) toast("Limite quotidienne Open-Meteo atteinte sur cet appareil",5000); throw new Error(r.status); }
   const v=await r.json(); _jc.set(url,{t:Date.now(),v}); if(_jc.size>60) _jc.delete(_jc.keys().next().value); return v; }
@@ -607,7 +598,7 @@ const arrowSvg = (deg,col="#0b2f5b") => `<svg viewBox="-8 -8 16 16" style="trans
 let meteoLL=null;
 async function openMeteo(ll){
   meteoLL = ll || (last?last.ll:map.getCenter());
-  if(ll) markTmp(ll); else if(tmpMarker){ map.removeLayer(tmpMarker); tmpMarker=null; }
+  if(ll) markTmp(ll); else if(tmpMarker){ map.removeLayer(tmpMarker); setTmpMarker(null); }
   openSheet("sMeteo"); $("meteoBody").hidden=true; $("meteoMsg").hidden=false; $("meteoMsg").textContent="Chargement de la météo…";
   $("mtPlace").textContent = "7 jours · "+(ll ? "Point " : last ? "Au bateau " : "Centre carte ") + dm(meteoLL.lat,"N","S").replace(/\.\d+'/,"'")+" "+dm(meteoLL.lng,"E","W").replace(/\.\d+'/,"'");
   const la=meteoLL.lat.toFixed(3), lo=meteoLL.lng.toFixed(3);
@@ -697,7 +688,7 @@ function chipLabels(){
   $("c2l").textContent = R()?"Montée":"Cap"; $("c2u").textContent = R()?"m":"°";
   $("cog").textContent="—"; $("sog").textContent="—";
 }
-function setMode(m, quiet){
+export function setMode(m, quiet){
   setMODE(m); store.set("mode",m); document.body.classList.toggle("rando", R());
   document.querySelectorAll("#bMode button").forEach(b=>{ const on=b.dataset.m===MODE; b.classList.toggle("on",on); b.setAttribute("aria-checked",on); });
   $("followLbl").textContent = R()?"Moi":"Bateau";
@@ -832,7 +823,7 @@ function recPoint(ll, c, t){
   if(rec.act==="run"){ if(v>0 && v<5){ rec.slowT=rec.slowT||Date.now(); if(Date.now()-rec.slowT>60e3){ rec.act="hike"; rec.slowT=0; } } else rec.slowT=0; }
   recPersist(); renderRec(); renderRun();
 }
-function renderRec(){
+export function renderRec(){
   const on=rec&&rec.on; $("bTrack").classList.toggle("rec", !!on && !rec.paused); $("bTrack").classList.toggle("paused", !!on && rec.paused);
   $("trStart").hidden=!!on; $("trPause").hidden=!on; $("trStop").hidden=!on; $("trPause").textContent = on&&rec.paused ? "Reprendre" : "Pause";
   const d=on?recDist(rec.pts):0, h=on?recDuration():0;
@@ -872,7 +863,7 @@ $("trStop").onclick = async () => {
 if(rec && rec.on){ recLine.setLatLngs(rec.pts.map(p=>[p[0],p[1]])); if(rec.dist==null) rec.dist=recDist(rec.pts); } renderRun();
 
 /* ---- Traces enregistrées / importées ---- */
-let tracks = store.get("tracks", []), shownId=null; const trLayer=L.layerGroup().addTo(map);
+export let tracks = store.get("tracks", []), shownId=null; const trLayer=L.layerGroup().addTo(map);
 async function saveTrack(tr){
   try{ tr.prof = await buildProfile(tr.pts.map(p=>L.latLng(p[0],p[1]))); const c=climb(tr.prof.z); tr.up=c.up; tr.dn=c.dn; }catch(e){ tr.prof=null; }
   tracks.unshift(tr); try{ store.set("tracks", tracks); }catch(e){} if(JSON.stringify(tracks).length>4e6) toast("Mémoire presque pleine : supprimez d'anciennes traces");
@@ -934,29 +925,7 @@ $("gpxIn").onchange = async e => {
 };
 $("bTrack").onclick = () => { if(!$("sTrack").hidden) return closeSheets(); renderRec(); renderTracks(); openSheet("sTrack"); if(shownId) showTrack(shownId); };
 setInterval(()=>{ if(rec && rec.on && !$("sTrack").hidden) renderRec(); }, 5000);
-
-/* ---- Recherche de lieux (IGN) ---- */
-let qT=null;
-$("q").addEventListener("input", ()=>{ clearTimeout(qT); const q=$("q").value.trim(); if(q.length<3){ $("qRes").innerHTML=""; return; } qT=setTimeout(()=>search(q),350); });
-async function search(q){
-  const el=$("qRes"); el.innerHTML='<p class="note">Recherche…</p>';
-  try{
-    const [a,b]=await Promise.all([
-      getJSON(`https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(q)}&index=poi&limit=6`).catch(()=>({features:[]})),
-      getJSON(`https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(q)}&limit=5`).catch(()=>({features:[]}))]);
-    const items=[...a.features.map(f=>({name:[].concat(f.properties.name||f.properties.toponym||"")[0], sub:[].concat(f.properties.category||[])[0]||"", city:[].concat(f.properties.city||[])[0]||"", c:f.geometry.coordinates})),
-                 ...b.features.map(f=>({name:f.properties.label, sub:f.properties.type==="municipality"?"commune":"adresse", city:"", c:f.geometry.coordinates}))].filter(x=>x.name);
-    el.innerHTML=""; if(!items.length){ el.innerHTML='<p class="note">Aucun résultat</p>'; return; }
-    items.slice(0,10).forEach(it=>{ const row=document.createElement("div"), t=document.createElement("span"); t.innerHTML="<b></b><br><small style='color:var(--muted)'></small>";
-      t.querySelector("b").textContent=it.name; t.querySelector("small").textContent=[it.sub,it.city].filter(Boolean).join(" · ");
-      const go=document.createElement("button"); go.textContent="Voir";
-      const act=()=>{ const ll=L.latLng(it.c[1],it.c[0]); if(!AREA().contains(ll)){ if(!R()) setMode("rando",true); }
-        setFollow(false); map.setView(ll, Math.max(map.getZoom(),14)); closeSheets(); markTmp(ll); };
-      go.onclick=act; t.style.cursor="pointer"; t.onclick=act; row.append(t,go); el.append(row); });
-  }catch(e){ el.innerHTML='<p class="note">Recherche indisponible (réseau ?)</p>'; }
-}
-setMode(MODE, true);
-renderRec();
+initRecherche();
 
 /* =====================================================================
    Navigation avancée : APK natif, alarme de mouillage, routes,
@@ -964,7 +933,7 @@ renderRec();
    ===================================================================== */
 const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const capPlugin = n => { try{ return isNative && window.Capacitor.registerPlugin ? window.Capacitor.registerPlugin(n) : null; }catch(e){ return null; } };
-const BGGeo = capPlugin("BackgroundGeolocation"), LNotif = capPlugin("LocalNotifications"), CapFS = capPlugin("Filesystem"), CapShare = capPlugin("Share");
+export const BGGeo = capPlugin("BackgroundGeolocation"), LNotif = capPlugin("LocalNotifications"), CapFS = capPlugin("Filesystem"), CapShare = capPlugin("Share");
 
 /* ---------- Notifications et son d'alarme ---------- */
 let notifAsked=false;
@@ -1056,7 +1025,7 @@ setInterval(()=>{ if(anchor && Date.now()-lastFixT>120e3 && Date.now()>anchorSno
 drawAnchor();
 
 /* ---------- Routes et navigation vers les waypoints ---------- */
-let routes = store.get("routes", []), navR = store.get("navR", null); // navR = {id, leg, from:[lat,lng]}
+export let routes = store.get("routes", []), navR = store.get("navR", null); // navR = {id, leg, from:[lat,lng]}
 const routeLayer = L.layerGroup().addTo(map);
 const arriveR = () => R() ? 25 : 90;
 function drawRoute(){
@@ -1149,36 +1118,7 @@ export function segGeom(a,b){ // géométrie d'un segment : suit les chemins si 
 export function measureGeom(){ const out=[]; for(let i=1;i<mPts.length;i++){ const g=segGeom(mPts[i-1],mPts[i]); const co = g ? g.coords : [[mPts[i-1].lat,mPts[i-1].lng],[mPts[i].lat,mPts[i].lng]]; out.push(...(i>1?co.slice(1):co)); } return out; }
 $("mTrail").checked = store.get("trail", true);
 $("mTrail").onchange = () => { store.set("trail",$("mTrail").checked); drawMeasure(); };
-
-/* ---------- Sauvegarde et restauration ---------- */
-async function saveFile(name, text, mime){
-  if(CapFS && CapShare){ try{ const r=await CapFS.writeFile({path:name, data:text, directory:"CACHE", encoding:"utf8"});
-      await CapShare.share({title:name, url:r.uri, dialogTitle:"Enregistrer ou envoyer"}); return true; }catch(e){ if(/cancel/i.test(String(e&&e.message||e))) return false; } }
-  const file=new File([text],name,{type:mime});
-  try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:name}); return true; } }catch(e){ if(e && e.name==="AbortError") return false; }
-  try{ const a=document.createElement("a"); a.href=URL.createObjectURL(file); a.download=name; document.body.appendChild(a); a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },3000); toast("Fichier "+name+" enregistré"); return true; }
-  catch(e){ toast("Enregistrement impossible sur cet appareil"); return false; }
-}
-$("bBackup").onclick = () => {
-  const data={}; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.startsWith(LSP)) data["nav_"+k.slice(LSP.length)]=localStorage.getItem(k); } }catch(e){}
-  const d=new Date(), name="balise-sauvegarde-"+d.toISOString().slice(0,10)+".json";
-  saveFile(name, JSON.stringify({app:"navshom", v:1, date:d.toISOString(), version:APP_VERSION, data}), "application/json");
-};
-let pendingRestore=null;
-$("restoreIn").onchange = async e => {
-  const f=e.target.files[0]; e.target.value=""; if(!f) return;
-  try{ const j=JSON.parse(await f.text()); if(j.app!=="navshom" || !j.data) throw 0;
-    pendingRestore=j; const nt=(()=>{ try{ return JSON.parse(j.data.nav_tracks||"[]").length; }catch(e){ return 0; } })(), nr=(()=>{ try{ return JSON.parse(j.data.nav_routes||"[]").length; }catch(e){ return 0; } })();
-    $("restoreMsg").textContent="Sauvegarde du "+new Date(j.date).toLocaleString("fr-FR",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})+" : "+nt+" trace(s), "+nr+" route(s). Elle remplacera vos données actuelles.";
-    $("restoreBox").hidden=false;
-  }catch(err){ toast("Ce fichier n'est pas une sauvegarde Balise"); }
-};
-$("restoreNo").onclick = () => { pendingRestore=null; $("restoreBox").hidden=true; };
-$("restoreYes").onclick = () => { if(!pendingRestore) return;
-  try{ Object.keys(localStorage).filter(k=>k.startsWith(LSP)).forEach(k=>localStorage.removeItem(k)); Object.entries(pendingRestore.data).forEach(([k,v])=>{ if(k.startsWith("nav_")) localStorage.setItem(LSP+k.slice(4),v); }); }
-  catch(e){ return toast("Restauration impossible (mémoire pleine ?)"); }
-  toast("Données restaurées : redémarrage…"); setTimeout(()=>location.reload(), 800); };
+initSauvegarde();
 
 /* ---------- Marées officielles SHOM (vignette officielle) ---------- */
 const PORTS = [
@@ -1446,37 +1386,7 @@ $("rtNav").onclick=()=>{ const r=RT.result; if(!r) return; const P=r.path;
     const nm = j===idx.length-1 ? "Arrivée" : tack.has(i) ? (Math.abs(p.twa)<90?"Virement ":"Empannage ")+(++n) : "WP "+(j+1);
     return [+p.lat.toFixed(6),+p.lng.toFixed(6), nm+(p.t?" · "+hhmm(p.t):"")]; })};
   routes.unshift(rt); store.set("routes",routes); renderRoutes(); startNav(rt.id); };
-
-/* ---- Test des fonds de carte depuis le téléphone ---- */
-export function tileXY(lat,lng,z){ const n=2**z, r=lat*Math.PI/180; return {x:Math.floor((lng+180)/360*n), y:Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*n), z}; }
-const SRC_TEST = [
-  ["litto","Carte littorale IGN-SHOM"],["scan25","Carte IGN 1:25 000"],["ign","Plan IGN"],["ortho","Photos aériennes IGN"],
-  ["shom","Cartes marines SHOM (clé)"],["emod","Bathymétrie EMODnet"],["osm","OpenStreetMap"]];
-$("bTestSrc").onclick = () => {
-  const el=$("srcTest"); el.innerHTML=""; const t=tileXY(48.36,-4.55,12);
-  SRC_TEST.forEach(([k,name])=>{ const row=document.createElement("div"); row.innerHTML=`<span>${name}</span><b style="color:var(--muted)">test…</b>`; el.appendChild(row);
-    const url=L.Util.template(bases[k]._url,{z:t.z,x:t.x,y:t.y,s:"a",r:""}), img=new Image(); let done=false;
-    const set=(ok,msg)=>{ if(done) return; done=true; const b=row.querySelector("b"); b.textContent=msg; b.style.color=ok?"var(--green)":"var(--red)"; };
-    img.onload=()=>set(img.naturalWidth>1,"✓ disponible"); img.onerror=()=>set(false,"✗ refusé"); setTimeout(()=>set(false,"✗ pas de réponse"),12000);
-    img.src=url+(url.includes("?")?"&":"?")+"_t="+Date.now(); });
-};
-/* ================= Réglages ================= */
-$("shomkey").value = shomKey;
-$("bKey").onclick = () => { setShomKey($("shomkey").value.trim()); store.set("shomkey", shomKey);
-  bases.shom.setUrl(shomUrl("RASTER_MARINE_3857_WMTS")); bases.gebco.setUrl(shomUrl("FDC_GEBCO_PYR-PNG_3857_WMTS"));
-  setShomOk(0); setShomErr(0); document.querySelector("input[name=base][value=shom]").click(); closeSheets();
-  toast(shomKey ? "Clé enregistrée : chargement des cartes SHOM…" : "Clé effacée"); };
-{ const n=store.get("night",false), t=store.get("nightAt",0); // le mode nuit s'efface seul après 12 h
-  $("night").checked = !!n && Date.now()-t < 12*3600e3; if(n && !$("night").checked) store.set("night",false); }
-document.body.classList.toggle("night",$("night").checked); $("nightOff").hidden=!$("night").checked;
-$("nightOff").onclick=()=>{ $("night").checked=false; $("night").onchange({target:$("night")}); };
-$("night").onchange=e=>{ document.body.classList.toggle("night",e.target.checked); store.set("night",e.target.checked); store.set("nightAt",Date.now()); $("nightOff").hidden=!e.target.checked; toast(e.target.checked?"Mode nuit : écran rouge pour la vision nocturne":"Mode nuit coupé"); };
-let wakeLock=null;
-async function wake(){ if(!$("wake").checked||!("wakeLock" in navigator)) return; try{ wakeLock=await navigator.wakeLock.request("screen"); }catch(e){} }
-$("wake").checked=store.get("wake",true);
-$("wake").onchange=e=>{ store.set("wake",e.target.checked); if(e.target.checked) wake(); else if(wakeLock){ wakeLock.release(); wakeLock=null; } };
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") wake(); });
-document.addEventListener("click",wake,{once:true}); wake();
+initReglages();
 
 /* ================= Hors ligne ================= */
 function tileRange(b,z){ const n=2**z, x=lng=>Math.floor((lng+180)/360*n),
@@ -1592,7 +1502,7 @@ function renderZones(){ const el=$("zoneList"); el.innerHTML="";
       toast("Zone supprimée"); usageNote(); };
     el.appendChild(row); });
   usageNote(); }
-async function usageNote(){ let tot=0; try{ tot=(await navigator.storage.estimate()).usage/1048576; }catch(e){}
+export async function usageNote(){ let tot=0; try{ tot=(await navigator.storage.estimate()).usage/1048576; }catch(e){}
   let mi={}; try{ mi=mInst; }catch(e){}
   const zMb=zones.reduce((a,z)=>a+(z.mb||0),0), mMb=Object.values(mi).reduce((a,m)=>a+m.n*64/1024,0), all=Math.max(tot, zMb+mMb);
   const parts=[["Zones",zMb,"#0B2F5B"],["Relief des massifs",mMb,"#2E7D32"],["Carte déjà vue et appli",Math.max(0,all-zMb-mMb),"#9AA8B8"]];
@@ -1966,7 +1876,6 @@ function refSet(on){ store.set("refuges",on); $("refChk").checked=on; if(on && R
 $("refChk").onchange=e=>refSet(e.target.checked); map.on("moveend", ()=>{ clearTimeout(REF.t); REF.t=setTimeout(refLoad,500); });
 map.attributionControl.addAttribution('<a href="https://www.refuges.info" target="_blank" rel="noopener">refuges.info</a>');
 refSet(store.get("refuges",false));
-const APP_NAME="Balise", APP_AUTHOR="Capitaine BoBo";
 /* ---------- Vue 3D (Rando) : relief IGN, photo ou carte drapée, traces et repères ---------- */
 // Three.js (lib/three.min.js + lib/three-orbit.js) n'est chargé qu'à la première ouverture.
 const V3 = { open:false, raf:0, pref: Object.assign({slope:false, exag:1.3, sun:135}, store.get("v3", {})) };
@@ -2302,18 +2211,7 @@ $("v3Here").onclick = () => { if(!V3.ctl) return; const t = V3.ctl.target, bb = 
 $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store.set("v3eco", e.target.checked);
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
-
-const APP_VERSION=window.APP_VERSION; $("spVer").textContent="Version "+APP_VERSION+(BETA?" · bêta":"");
-(function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
-$("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(BETA?" · bêta":"")+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
-/* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
-async function checkUpdate(){ if(!location.protocol.startsWith("http") || !navigator.onLine) return;
-  try{ const t=await (await fetch("./?check="+Date.now(),{cache:"no-store"})).text(), m=t.match(/APP_VERSION\s*=\s*"([^"]+)"/);
-    if(m && m[1]!==APP_VERSION && $("updBar").hidden){ $("updVer").textContent=m[1]; $("updBar").hidden=false; } }catch(e){} }
-$("updGo").onclick=()=>location.reload();
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") checkUpdate(); });
-setInterval(checkUpdate, 30*60e3); setTimeout(checkUpdate, 8000);
-if("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{});
+initVersion();
 // Accès depuis la console et pour les tests automatiques (Playwright, tools-check.js)
 Object.assign(window, { $, map, RT, fixTl, crowdCheck });
 

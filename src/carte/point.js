@@ -2,7 +2,8 @@
 import { R, fmtD, map } from "./carte.js";
 import { pointInfo } from "./fonds.js";
 import { addMeasure, measuring, startMeasure } from "./mesure.js";
-import { RT, closeSheets, drawRtMarks, geoAt, gpsDenied, instOpen, last, loadTable, markTmp, open3D, openSheet, ov, renderRouteParams, setFold, setFollow, setOverlay, sheets, showCurve, showPicker, showSeamarks, sogNow, tbl } from "../main.js";
+import { RT, drawRtMarks, geoAt, gpsDenied, instOpen, last, loadTable, open3D, ov, renderRouteParams, setFold, setFollow, setOverlay, showCurve, showPicker, showSeamarks, sogNow, tbl } from "../main.js";
+import { closeSheets, markTmp, openSheet, sheets } from "../ui/panneaux.js";
 import { $, NM, bearing, fmtDur, fmtLL, fmtNM, pad3, store, toast } from "../utils.js";
 
 export let wps, mobMk;

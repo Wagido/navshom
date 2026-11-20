@@ -1,7 +1,9 @@
 // Fonds de carte : satellite en un geste, pentes, panneau Cartes, calage, ombrage, bascule sur les photos
 import { FRANCE, R, bases, curBase, fmtD, geopf, map, setCurBase, shomKey, slopes } from "./carte.js";
 import { pointLL } from "./point.js";
-import { closeSheets, elevations, geoStart, last, openSheet, renderRoutes, tileXY } from "../main.js";
+import { elevations, geoStart, last, renderRoutes } from "../main.js";
+import { closeSheets, openSheet } from "../ui/panneaux.js";
+import { tileXY } from "../ui/reglages.js";
 import { $, compass, fmtDur, store, toast } from "../utils.js";
 
 export let shade;
