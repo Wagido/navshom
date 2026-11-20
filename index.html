@@ -32,7 +32,7 @@
 [hidden]{display:none!important}
 html,body{height:100%;width:100%;overflow:hidden;margin:0;background:var(--navy);color:var(--ink);font-family:var(--sans);overscroll-behavior:none;font-feature-settings:"tnum" 1,"cv11" 1;-webkit-font-smoothing:antialiased}
 button{font-family:inherit}
-#map{position:fixed;inset:0;background:#cfe6f5}
+#map{position:fixed;inset:0;background:#E6ECEF} body.rando #map{background:#EEEDE7}
 body.night #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.7) sepia(.7) saturate(2.5) hue-rotate(-30deg)}
 body.night{--white:#2a1210;--ink:#ff8a7a;--blue:#ff6a55;--line:#4a2420;--soft:#331714;--muted:#c0675a;--navy:#1e0c0a;--navy2:#2a1210;--navy3:#3a1814;--green:#a3271c}
 
@@ -1170,7 +1170,9 @@ const SPOTS = [
 ];
 let view = store.get("view", {c:[48.4,-3.4], z:8});
 if(!AREA().contains(view.c)) view = R() ? {c:[46.6,2.4], z:6} : {c:[48.4,-3.4], z:8};
-const map = L.map("map", {zoomControl:false, minZoom:R()?6:7, maxBounds:AREA().pad(R()?0.05:0.15), maxBoundsViscosity:1}).setView(view.c, view.z);
+// zoom sans clignotement : on garde les tuiles déjà affichées jusqu'à l'arrivée des nouvelles
+L.TileLayer.mergeOptions({keepBuffer:4, updateWhenZooming:false, updateWhenIdle:false});
+const map = L.map("map", {zoomControl:false, fadeAnimation:false, minZoom:R()?6:7, maxBounds:AREA().pad(R()?0.05:0.15), maxBoundsViscosity:1}).setView(view.c, view.z);
 map.attributionControl.setPrefix(false);
 let shomKey = (store.get("shomkey","")||"").trim();
 // Géoplateforme IGN (data.geopf.fr) ; "private" = couches SCAN avec la clé transitoire publiée par l'IGN
@@ -3756,7 +3758,7 @@ $("v3eco").checked = store.get("v3eco", false); $("v3eco").onchange = e => store
 $("b3d").onclick = open3D;
 document.addEventListener("keydown", e => { if(e.key==="Escape" && V3.open) close3D(); });
 
-const APP_VERSION="2026.11.17-j"; $("spVer").textContent="Version "+APP_VERSION;
+const APP_VERSION="2026.11.17-k"; $("spVer").textContent="Version "+APP_VERSION;
 (function(){ const sp=$("splash"), hide=()=>{ sp.classList.add("out"); setTimeout(()=>sp.hidden=true,600); }; sp.onclick=hide; setTimeout(hide, 1900); })();
 $("appver").textContent=APP_NAME+" · par "+APP_AUTHOR+" · version "+APP_VERSION+(location.hostname.endsWith("github.io")?" · mise à jour automatique":"");
 /* Vérifie s'il existe une version plus récente (onglet resté ouvert plusieurs jours, appli rouverte depuis la mémoire) */
