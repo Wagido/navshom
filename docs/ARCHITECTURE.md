@@ -2,7 +2,7 @@
 
 > « De la mer aux sommets ». Application de Capitaine BoBo (anciennement « Nav SHOM »).
 
-> Statut : version 2026.11.20-c · Dernière mise à jour : 20 novembre 2026
+> Statut : version 2026.11.20-c · Dernière mise à jour : 21 novembre 2026
 
 > Méthode de travail (beta, tests, publication) : voir [TRAVAIL.md](TRAVAIL.md).
 
@@ -19,12 +19,17 @@ Balise est une application de navigation gratuite pour téléphone, avec deux mo
   - alarmes : mouillage, écart de route, collision AIS ;
   - infos des bouées et des feux ;
   - bulletins officiels ;
+  - **mesures en direct** : vent des balises OpenWindMap, hauteur d'eau des marégraphes du SHOM ;
+  - température de l'eau, « pluie à venir » (12 h animées et résumé) ;
   - cartes et météo hors ligne.
 - **Rando** :
   - cartes IGN au 1:25 000, ombrage du relief, carte des pentes de plus de 30° ;
   - neige et iso 0 °C ;
-  - itinéraires sur sentiers, traces, profils et mode course ;
+  - itinéraires sur sentiers, traces, profils ; **une seule trace**, affichage course automatique au-delà de 7 km/h ;
   - import et export GPX ;
+  - **cartes « culture rando »** : forêts IGN (légende des essences visibles à l'écran), géologie BRGM (légende indicative des terrains), sentiers balisés GR/PR, cadastre, courbes de niveau, OpenTopoMap, carte IGN 1950 ;
+  - refuges, cabanes et points d'eau (refuges.info), vent mesuré en direct, lien Camptocamp au point touché ;
+  - **boussole** et **carte orientable** (deux doigts, ou dans le sens de la marche) ;
   - **vue 3D** du relief (photo, carte IGN ou pentes drapées, traces et repères).
 
 C'est une **application web installable** (PWA) : un seul code HTML/JS publié sur GitHub Pages. Elle tourne dans le navigateur, s'installe sur l'écran d'accueil, ou s'emballe dans un **APK Android** (Capacitor). **Il n'y a pas de serveur à nous** : le téléphone interroge directement des services publics gratuits.
@@ -157,6 +162,13 @@ flowchart LR
 | **Vue 3D** | Relief plein écran (bouton « 3D », Rando) | Voir §5.6 |
 | **Menu Plus** | Tuiles d'accès rapide + rubriques repliables | Instruments, Routage, Hors ligne, AIS, Bulletins, Mode nuit ; Routes, Repères, Réglages, Sauvegarde, À propos |
 | **Mise à jour** | Bandeau « Nouvelle version disponible » | §8 |
+| **Pluie à venir** (`meteo/pluie.js`) | Bouton « ☔ Pluie à venir » du panneau Météo | Anime la pluie prévue (AROME) sur les 12 h suivantes et résume à la position : « Pluie de 18 h à 21 h · 9 mm », « Sec jusqu'à 20 h ». Remplace le radar RainViewer, retiré : il ne montrait que les 2 heures passées |
+| **Vent en direct** (`meteo/vent-direct.js`) | Balises OpenWindMap (Pioupiou), Mer et Rando | ≈ 750 stations, pastille colorée selon la force et flèche, nœuds en Mer, km/h en Rando ; fiche au toucher (moyen, rafales, mini, âge, lien historique) ; rafraîchi toutes les 5 min ; mesures de plus de 90 min ignorées |
+| **Marégraphes** (`mer/maregraphes.js`) | Hauteur d'eau mesurée (SHOM, réseau REFMAR), Mer seulement | Liste des stations « OK » gardée 7 jours ; au toucher, 6 dernières heures (mesures à la minute) : valeur, tendance en cm/h, petite courbe. Référence annoncée « zéro hydrographique » : à confirmer |
+| **Surimpressions Rando** (`rando/surimpressions.js`) | Sentiers balisés, courbes, cadastre, forêts, géologie | Voir §5.8 |
+| **Refuges** (`rando/refuges.js`) | refuges.info, à partir du zoom 11 | Pastilles R (gardé), C (cabane), G (gîte), 💧 (point d'eau), B (bivouac) ; fiche avec altitude, places, lien |
+| **Boussole et rotation** (`carte/boussole.js`) | Carte orientable | Voir §5.9 |
+| **Traces** (`rando/traces.js`) | Une seule façon d'enregistrer | Course détectée au-delà de 7 km/h sur 3 points (retour marche sous 5 km/h pendant 1 min) : allure /km, temps de chaque km ; trace classée selon sa vitesse moyenne. Trace affichée : bandeau « Masquer / Supprimer » en bas de carte (toucher la trace le fait réapparaître) |
 
 ### 5.1 Panneau Météo (bouton Météo, et Courant en Mer)
 
@@ -227,6 +239,26 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 - **Libération** : à la fermeture, géométrie, texture, images et contexte WebGL sont libérés.
 - **Pas de Camptocamp** : leur API refuse les requêtes d'autres origines ; on ne contourne pas ce refus.
 
+### 5.8 Cartes « culture rando » : forêts et géologie
+
+- **Fonds Rando** en plus de l'IGN 1:25 000, du Plan IGN, du satellite et d'OSM : **OpenTopoMap** et **carte IGN 1950** (`SCAN50.1950`). L'État-major et les photos 1950-1965 ont été essayés puis retirés.
+- **Surimpressions** (Cartes, cases mémorisées `nav_ovl_*`, toutes décochées par défaut) : sentiers balisés (Waymarked Trails), courbes de niveau IGN, cadastre (à partir du zoom 14), forêts IGN (BD Forêt V2), géologie BRGM.
+- **Légende des forêts dynamique** : les tuiles de la couche sont lues dans un canvas 64 × 64 (tuiles demandées en CORS), chaque pixel est rapproché de la plus proche des 32 couleurs officielles de la BD Forêt. L'encart « Forêts à l'écran » liste les essences d'au moins 2 % de la surface visible (6 au plus), avec leur part. Légende complète des 32 classes dans le panneau Cartes.
+- **Géologie** : 1:1 000 000 (`BRGM_SCAN_F_GEOL1M`) jusqu'au zoom 12, puis 1:50 000 (`BRGM_SCAN_D_GEOL50`). Le 1:250 000 est écarté : il manque sur certaines zones (tuiles blanches). Opacité 80 % réglable.
+- **Légende géologique indicative** : le serveur du BRGM refuse les requêtes d'une appli web, on ne peut donc pas lire le nom des formations. L'appli déduit les grands types de terrains du **code couleur standard** des cartes géologiques (teinte, saturation, luminosité) : Quaternaire, Tertiaire, Crétacé, Jurassique, Trias, granites et roches magmatiques, Primaire. Dans les massifs anciens (Armorique, Massif central, Vosges, Ardennes, repérés par emprise), le vert et le bleu sont comptés comme Primaire. Le blanc (pas de donnée) est ignoré. Encart « Terrains à l'écran · indicatif » et ligne « Terrain ici » dans le panneau du point touché, avec renvoi vers infoterre.brgm.fr.
+
+### 5.9 Boussole et carte orientable
+
+- Rotation **écrite pour Balise**, sans module externe : le module courant (leaflet-rotate) est sous GPL-3.0, ce qui aurait imposé cette licence à toute l'appli.
+- Principe : quand la carte tourne, le conteneur `#map` devient un carré de la taille de la diagonale de l'écran (les coins restent couverts), centré, tourné en CSS (`rotate(-bearing)`). Les contrôles Leaflet sont tournés en sens inverse. `map.mouseEventToContainerPoint` est remplacé pour ramener les touchers dans le repère de la carte, et le déplacement au doigt est corrigé sur l'événement `predrag`.
+- Bouton boussole (aiguille rouge = nord) : carte tournée → nord en haut ; nord en haut → carte **dans le sens de la marche** (boussole du téléphone en Rando, route GPS en Mer). Rotation libre à deux doigts (au-delà de 12°), Maj + molette sur ordinateur.
+- Cap : `deviceorientationabsolute` (Android) ou `webkitCompassHeading` (iPhone, avec autorisation), lissé ; cône de visée bleu autour de la position en Rando.
+
+### 5.10 Affichage sans clignotement
+
+- Fond de carte neutre (`#E6ECEF` en Mer, `#EEEDE7` en Rando) au lieu du bleu ciel qui apparaissait pendant les zooms.
+- Tuiles : `updateWhenZooming:false`, `keepBuffer:4`, pas de fondu (`fadeAnimation:false`). L'ancienne image reste affichée, agrandie ou réduite, jusqu'à l'arrivée des nouvelles tuiles.
+
 ### 5.7 Ergonomie de l'écran principal (2026.11.17-f)
 
 - **Bandeau du haut** : en Rando, altitude (GPS, sinon altitude IGN du point toutes les 20 s) et montée de la sortie en cours ; en Mer, vitesse et cap. Libellés en 10 px. GPS refusé : toucher le bandeau explique comment autoriser la localisation.
@@ -259,6 +291,17 @@ Bouton « 3D » dans le groupe de droite, en Rando. Vue plein écran, ✕ pour r
 | **AIS** | aisstream.io | Clé gratuite de l'utilisateur | Stations bénévoles, couverture variable |
 | Bulletins, vigilance | Météo-France (liens) | Libre | meteofrance.com/meteo-marine, vigilance.meteofrance.fr |
 | Bathymétrie | EMODnet | Libre | Fond alternatif |
+| **Vent mesuré** | OpenWindMap (balises Pioupiou), `api.pioupiou.fr/v1/live/all` | Libre, CORS ouvert | Attribution « contributeurs OpenWindMap » |
+| **Hauteur d'eau mesurée** | SHOM, marégraphes REFMAR, `services.data.shom.fr/maregraphie` | Libre, CORS ouvert | 104 stations actives |
+| Température de l'eau | Open-Meteo Marine (`sea_surface_temperature`) | Libre | Calque « Temp. eau » et ligne du tableau |
+| **Forêts** | IGN, `LANDCOVER.FORESTINVENTORY.V2` (BD Forêt V2) | Libre | 32 classes |
+| **Géologie** | BRGM via la Géoplateforme (`BRGM_SCAN_F_GEOL1M`, `BRGM_SCAN_D_GEOL50`) | Libre | Images seulement : le service d'interrogation du BRGM refuse les appels d'une appli web |
+| Courbes de niveau, cadastre, carte 1950 | IGN (`ELEVATION.CONTOUR.LINE`, `CADASTRALPARCELS.PARCELLAIRE_EXPRESS`, `SCAN50.1950`) | Libre | |
+| Sentiers balisés | Waymarked Trails (OSM) | Libre | Exclu du téléchargement hors ligne |
+| OpenTopoMap | opentopomap.org | Libre, usage modéré | Exclu du téléchargement hors ligne |
+| **Refuges, points d'eau** | refuges.info (API `bbox`) | CC BY-SA, CORS ouvert | |
+| Camptocamp | camptocamp.org | **API fermée aux autres sites** | Simple lien vers leur carte au point touché |
+| Pas retenus | Bouées NOAA (pas de CORS), radar RainViewer (2 h passées seulement), BRGM interrogation (refusé) | | |
 | Masque terre/mer | NOAA GLOBE | Embarqué | PNG 1 bit |
 
 ## 7. Données, stockage et hors ligne
@@ -342,6 +385,9 @@ Tests automatiques **Playwright** (`tests/`), lancés par GitHub Actions à chaq
 | Quotas | Open-Meteo gratuit, non commercial | Grille fixe + cache ; offre payante si usage pro |
 | GPS écran éteint | Navigateur : coupé en veille | APK : géolocalisation native en arrière-plan |
 | Vue 3D | Hors ligne seulement dans les massifs installés (relief en couleurs d'altitude) ou les zones téléchargées avec l'option 3D (photo) ; zone de 10 km au plus ; pas d'itinéraires Camptocamp (API fermée aux autres origines) ; lignes peintes dans la texture, donc un peu floues en très gros plan | Niveaux de détail pour voir plus loin ; autres massifs à la demande ; demander un accès à Camptocamp |
+| Légende géologique | Déduite des couleurs, donc indicative ; ambiguë dans les massifs anciens | Accès au service d'interrogation du BRGM |
+| Bouées au large | NOAA refuse les appels d'une appli web | Petit relais serveur (hors principe « sans serveur ») |
+| Marégraphes | Référence verticale à confirmer | Comparer à l'annuaire SHOM sur quelques ports |
 | iPhone | Pas d'app native ; PWA seulement | Compte développeur Apple |
 
 ## 11. Feuille de route
@@ -371,6 +417,15 @@ Tests automatiques **Playwright** (`tests/`), lancés par GitHub Actions à chaq
   - alarme de mouillage renforcée, alarme d'écart de route ;
   - **menu Plus en tuiles**, bandeau de nouvelle version.
 
+- **2026.11.16 à 2026.11.17 (fin)** :
+  - panneau Météo simplifié, « Pluie à venir » ;
+  - Rando : OpenTopoMap, carte 1950, sentiers, courbes, cadastre, **forêts** et **géologie** avec légendes dynamiques, refuges ;
+  - **boussole et rotation de la carte** ;
+  - vent mesuré en direct, **marégraphes du SHOM**, température de l'eau ;
+  - routage : waypoints qui suivent la route calculée ;
+  - trace du bateau en Mer seulement, remise à zéro après 12 h ;
+  - **trace unique** (course automatique au-delà de 7 km/h), bandeau Masquer / Supprimer ;
+  - zoom sans clignotement.
 - **2026.11.20-c** : code découpé en modules ES (`src/`), styles dans `src/style.css`, construction par Vite (`dist/`) ; publication, tests et APK utilisent le site construit. Aucun changement visible.
 - **2026.11.20-b** : construction par Vite, fichiers statiques dans `public/`, script en module ES (étape intermédiaire, /beta/ seulement).
 - **2026.11.20-a** : site de test /beta/ séparé de la production (stockage, caches, service worker) ; tests automatiques Playwright sur GitHub Actions ; publication GitHub Pages par Actions, seulement si les tests passent. Aucun changement visible.
@@ -388,4 +443,4 @@ Tests automatiques **Playwright** (`tests/`), lancés par GitHub Actions à chaq
 
 ## 13. Licences et attributions
 
-Cartes © IGN / SHOM, © OpenStreetMap contributors (ODbL), © OpenSeaMap, © EMODnet Bathymetry ; prévisions Open-Meteo (CC BY 4.0) ; polaires dérivées des certificats publics ORC ; AIS aisstream.io ; Leaflet (BSD-2) ; Three.js (MIT) ; police Inter (SIL OFL 1.1) ; masque GLOBE (NOAA, domaine public).
+Cartes © IGN / SHOM, © OpenStreetMap contributors (ODbL), © OpenSeaMap, © EMODnet Bathymetry ; prévisions Open-Meteo (CC BY 4.0) ; polaires dérivées des certificats publics ORC ; AIS aisstream.io ; Leaflet (BSD-2) ; Three.js (MIT) ; police Inter (SIL OFL 1.1) ; masque GLOBE (NOAA, domaine public) ; géologie © BRGM ; forêts © IGN (BD Forêt) ; vent © contributeurs OpenWindMap ; refuges © refuges.info (CC BY-SA) ; sentiers © Waymarked Trails / OpenStreetMap ; OpenTopoMap (CC BY-SA) ; marégraphes © SHOM.
