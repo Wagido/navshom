@@ -4,7 +4,7 @@
 
 > Statut : version 2026.11.20-c · Dernière mise à jour : 21 novembre 2026
 
-> Méthode de travail (beta, tests, publication) : voir [TRAVAIL.md](TRAVAIL.md).
+> Méthode de travail (beta, tests, publication) : voir [TRAVAIL.md](TRAVAIL.md). Textes utiles, décisions et pistes : voir [NOTES.md](NOTES.md).
 
 ## 1. Résumé
 
